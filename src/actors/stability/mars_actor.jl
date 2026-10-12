@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=201)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
-    wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :limiter], "-", "Machine wall shape to use for MARS"; default=:no_wall)
+    wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :resistive_wall], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     wall_time_constants::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
@@ -61,6 +61,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "Cannot be combined with chease_overrides.CFBAL."; default=1.0)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MARS-Q MHD code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
+    mars_coord::Switch{Symbol} = Switch{Symbol}([:normal, :transfer], "-", "Whether to run on the CHEASE coords or transfer to a geometric poloidal angle based coord. system"; default=:normal)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)
     save_dir::Entry{String} =
@@ -121,6 +122,16 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Create default MARS namelist and apply overrides
         # -------------------------
+        # NCONVCS is owned by par.mars_coord (applied in run_MARS). Checked across every
+        # block, since apply_overrides! files an unknown key into that block's `extras` and
+        # would write it into the wrong namelist group instead of failing.
+        for block in fieldnames(MarsOverrides)
+            if :NCONVCS ∈ keys(getfield(mars_overrides, block))
+                error("NCONVCS cannot be set via mars_overrides (found in the $block block) — use the " *
+                      "mars_coord actor parameter instead (:normal -> NCONVCS=0, :transfer -> NCONVCS=1; " *
+                      "having both would silently pick one).")
+            end
+        end
         mars_nl = mars_inputs === nothing ? MARSnamelist() : mars_inputs
         apply_overrides!(mars_nl, mars_overrides)
 
@@ -290,7 +301,7 @@ function _finalize(actor::ActorMars)
         ms = out.mode
         ρ_s = IMAS.interp1d(s_cp, ρ_mass).(ms.s)
         τA_profile = R0 .* sqrt.(μ_0 .* ρ_s) ./ B0
-        grid_type = mars_grid_type(actor.chease_inputs, par.run_equilibrium)
+        grid_type = mars_grid_type(actor.chease_inputs, par.run_equilibrium; par.mars_coord)
         store_mode_structure!(mode, ms, τA_profile; grid_type)
 
         # eigenmode harmonic profiles |Q_m|(s), one figure per available quantity.
@@ -401,10 +412,29 @@ end
 
 
 """
-    mars_grid_type(chease_inputs, run_equilibrium::Bool) -> Union{Nothing,Tuple{Int,String}}
+    mars_nconvcs(mars_coord::Symbol) -> Int
 
-DD `grid_type` for the eigenfunction's `(s, m)` harmonic grid, derived from the magnetic
-coordinate system CHEASE was run in.
+MARS `NCONVCS` for `par.mars_coord`: `:normal -> 0` (stay in CHEASE's poloidal angle),
+`:transfer -> 1` (rebuild the mesh on the geometric poloidal angle, newrun.inc:449).
+"""
+function mars_nconvcs(mars_coord::Symbol)
+    mars_coord == :normal && return 0
+    mars_coord == :transfer && return 1
+    error("Unknown mars_coord: $mars_coord. Supported values are :normal and :transfer.")
+end
+
+
+"""
+    mars_grid_type(chease_inputs, run_equilibrium::Bool; mars_coord=:normal) -> Union{Nothing,Tuple{Int,String}}
+
+DD `grid_type` for the eigenfunction's `(s, m)` harmonic grid, derived from the poloidal angle
+MARS actually expanded the harmonics in.
+
+With `mars_coord = :transfer` (`NCONVCS=1`) that angle is MARS's own geometric angle
+`θ = atan2(Z-Z_axis, R-R_axis)` (GEOMCS_PLASMA, marsq.f), independent of CHEASE, so the answer
+is index 26 (`inverse_rhopolnorm_polar_fourier`) whether or not this actor ran CHEASE. The
+rest of this docstring describes `mars_coord = :normal` (`NCONVCS=0`), where MARS stays in
+the magnetic coordinate system CHEASE was run in.
 
 MARS manual §2.3: the poloidal angle χ is fixed by the Jacobian `J = C(ψ)·R^α·|∇ψ|^µ` with
 `α = NER`, `µ = NEGP`. `(α,µ) = (2,0)` is PEST-like straight-field-line; `(α,µ) = (1,-1)` is
@@ -424,7 +454,8 @@ came from outside this actor (`run_equilibrium=false`, e.g. `OUT*MAR` copied in,
 `chease_inputs` need not describe it) or `NER`/`NEGP` are a combination with no DD
 counterpart. Callers should then leave `grid_type` unset rather than assert a guess.
 """
-function mars_grid_type(chease_inputs, run_equilibrium::Bool)
+function mars_grid_type(chease_inputs, run_equilibrium::Bool; mars_coord::Symbol=:normal)
+    mars_coord == :transfer && return (26, "inverse_rhopolnorm_polar_fourier")
     if !run_equilibrium
         @warn "run_equilibrium=false: the MARS equilibrium (OUT*MAR) was not produced by this " *
               "actor, so the CHEASE NER/NEGP in chease_inputs need not describe it — leaving " *
@@ -570,9 +601,6 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
 
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
-
-    # wall_type/num_surfaces consistency is checked up front in validate_wall_configuration()
-    limiter = nothing
 
     # CFBAL rescales pressure gradient/edge pressure in the EXPEQ.OUT this run writes out
     # (chease.f RPPF/PREDGE *= CFBAL at output time) — applies regardless of clean/restart.
@@ -735,7 +763,7 @@ function validate_wall_configuration(par)
     if par.wall_type == :no_wall && par.num_surfaces > 1
         error(
             "Invalid wall configuration: num_surfaces = $(par.num_surfaces) > 1 but " *
-            "wall_type = :no_wall. Set a wall_type (:conformal or :limiter), or set " *
+            "wall_type = :no_wall. Set a wall_type (:conformal or :resistive_wall), or set " *
             "num_surfaces = 1."
         )
     end
@@ -857,6 +885,19 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # NREORBIT is driven entirely by par.num_orbits, so it can't drift out of sync with
     # the process count MARS is launched with below.
     setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
+
+    # Coordinate system, owned by par.mars_coord. NCONVCS=1 makes MARS rebuild its mesh on
+    # the geometric (polar) angle θ = atan2(Z-Z_axis, R-R_axis) right after reading OUT*MAR
+    # (GEOMCS_PLASMA/GEOMCS_VACUUM, marsq.f:1595/1812), so every metric element is continuous
+    # across the plasma-vacuum interface (newrun.inc:449). NCONVCS=0 keeps CHEASE's own
+    # poloidal angle (set by NER/NEGP). This changes the angle the XPLASMA/BPLASMA harmonics
+    # are expanded in; see mars_grid_type.
+    setfield!(mars_namelist.NUMERIC, :NCONVCS, mars_nconvcs(par.mars_coord))
+    # newrun.inc:444: NCONVB1=1 computes PANGLE on the PEST mesh and requires NCONVCS=0.
+    if mars_namelist.NUMERIC.NCONVB1 == 1 && par.mars_coord == :transfer
+        error("NCONVB1=1 (PANGLE computation) requires NCONVCS=0 (newrun.inc:444), but " *
+              "mars_coord=:transfer sets NCONVCS=1. Use mars_coord=:normal for NCONVB1=1 runs.")
+    end
 
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
@@ -986,15 +1027,15 @@ function run_batch_mars(mars_exec, par, nprocs)
 end
 
 """
-    get_limiter_data(wall_type::Symbol) -> (r_wall::Vector{Float64}, z_wall::Vector{Float64})      
-    Retrieve limiter boundary data for specified machine wall type. 
+    get_wall_data(machine::String) -> outline with `.r`, `.z`
+    Retrieve limiter (ITER) or vacuum vessel (DIII-D) boundary data for specified machine wall type. 
     This function reads pre-defined JSON files containing the R,Z coordinates of the limiter for 
         different machines (e.g., D3D, ITER, ASDEX, MAST, KSTAR) and returns the R and Z coordinates as vectors. 
         The wall_type argument specifies which machine's limiter data to retrieve.
 
     """
 
-function get_limiter_data(machine::String)
+function get_wall_data(machine::String)
     if machine != "D3D" && machine != "ITER"
         error("Unknown machine: $machine. Supported machines are 'D3D', 'ITER' for now.")
     end
@@ -1152,8 +1193,6 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
     pressure_sep = pressure[end]
     pprime = eqt1d.dpressure_dpsi
 
-    ### Currently NOT used, but may be useful later
-    #wall_RZ = [dd.wall.description_2d[].limiter.unit[1].outline.r, dd.wall.description_2d[].limiter.unit[1].outline.z]
 
     if minimum(r_bound) - offset < 0
         error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
@@ -1223,16 +1262,18 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
 
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
 
-    # if there is another surface, calclate its cooridanes given an offset and save to file
+    # if there is another surface, calculate its coordinates given an offset and save to file
     if NWBPS > 1 ## WHAT TO DO if > 2
         if par.wall_type == :conformal
-            @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
+            @info "Creating a conformal first wall offset from plasma boundary by $(par.offset)."
             r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
-        elseif par.wall_type == :limiter
+        elseif par.wall_type == :resistive_wall
             @info "Using wall data .Json for CHEASE equilibrium generation."
             machine = dd.dataset_description.data_entry.machine
-            limiter = get_limiter_data(machine)
-            r_lim, z_lim = limiter.r, limiter.z
+            res_wall = get_wall_data(machine)
+            r_lim, z_lim = res_wall.r, res_wall.z
+        else
+            error("write_EXPEQ_file: num_surfaces = $NWBPS needs a wall contour, but wall_type = $(par.wall_type) provides none")
         end
 
 

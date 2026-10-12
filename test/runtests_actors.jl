@@ -75,7 +75,7 @@ end
 
         @info "Test 2: CHEASE with resistive wall & higher beta"
         act.ActorMars.num_surfaces = 2
-        act.ActorMars.wall_type = :limiter
+        act.ActorMars.wall_type = :resistive_wall
         FUSE.ActorMars(dd, act; beta_fac=1.1, save_dir=run_dir)
 
         @info "Test 3: CHEASE restart from existing equilibrium"
@@ -159,6 +159,26 @@ end
             @test FUSE.mars_grid_type(nl, false) === nothing        # supplied OUT*MAR
         end
 
+        @testset "mars_coord owns NCONVCS" begin
+            # :transfer (NCONVCS=1) re-meshes on MARS's geometric angle (GEOMCS_PLASMA), so the
+            # harmonics are polar-angle Fourier modes regardless of CHEASE NER/NEGP, and even
+            # for a supplied OUT*MAR.
+            @test FUSE.mars_nconvcs(:normal) == 0
+            @test FUSE.mars_nconvcs(:transfer) == 1
+            @test_throws ErrorException FUSE.mars_nconvcs(:bogus)
+            nl = FUSE.CHEASE.CHEASEnamelist()
+            @test FUSE.mars_grid_type(nl, true; mars_coord=:transfer) == (26, "inverse_rhopolnorm_polar_fourier")
+            @test FUSE.mars_grid_type(nl, false; mars_coord=:transfer) == (26, "inverse_rhopolnorm_polar_fourier")
+            @test FUSE.mars_grid_type(nl, true; mars_coord=:normal) == (25, "inverse_rhopolnorm_equal_arc_fourier")
+
+            # NCONVCS must go through par.mars_coord, in whichever block it is put
+            for block in (:NUMERIC, :BASIC)
+                mo = FUSE.MarsOverrides()
+                getfield(mo, block)[:NCONVCS] = 1
+                @test_throws ErrorException FUSE.ActorMars(dd, act.ActorMars; mars_overrides=mo)   # constructor only, no run
+            end
+        end
+
         @testset "wall / NV configuration recipes (manual §5.1)" begin
             # The four supported ideal-/resistive-wall configurations. NV indexes CHEASE's
             # vacuum radial mesh; NWALL/IWALL/TAUW describe a RESISTIVE wall, which is a
@@ -175,7 +195,7 @@ end
                     ("no-wall",                          1, :no_wall, 160, 0),
                     ("ideal wall at physical wall",      1, :no_wall, NW - 1, 0),
                     ("ideal wall on plasma surface",     1, :no_wall, 1, 0),
-                    ("resistive wall at physical wall",  2, :limiter, 160, 1),
+                    ("resistive wall at physical wall",  2, :resistive_wall, 160, 1),
                 )
                     p.num_surfaces = nsurf
                     p.wall_type = wall
