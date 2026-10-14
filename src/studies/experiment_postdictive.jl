@@ -33,6 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is, FUSE ≤ v1.2.1)"; default=0.0005, check=x -> @assert x > 0 "qed_δt must be > 0")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
     sawteeth_period::Entry{Float64} = Entry{Float64}("s", "ActorSawteethSource.period: keep flattening this long after the last sawtooth"; default=0.25)
+    nbi_power_weighted_fractions::Entry{Bool} = Entry{Bool}("-", "DIII-D: beam component fractions power-weighted over the simulated window (false: per-component maximum over the shot)"; default=false)
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
@@ -94,7 +95,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
             # these may be unset (missing), which reading them as sty.<name> refuses
             start_time, end_time, qed_δt = (getproperty(sty, name, missing) for name in (:start_time, :end_time, :qed_δt))
             run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, start_time, end_time, sty.δt, sty.δt_exact, qed_δt,
-                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, kw_case_parameters)
+                sty.qmin_desired, sty.sawteeth_period, sty.nbi_power_weighted_fractions, act_overrides=study.act, kw_case_parameters)
         end
     end
 end
@@ -122,6 +123,7 @@ function run_postdictive_case!(
     qed_δt::Union{Float64,Missing}=0.0005,
     qmin_desired::Float64=1.0,
     sawteeth_period::Float64=0.25,
+    nbi_power_weighted_fractions::Bool=false,
     act_overrides::Union{Nothing,ParametersAllActors}=nothing,
     kw_case_parameters::Dict{Symbol,Any}
 )
@@ -148,6 +150,11 @@ function run_postdictive_case!(
     Nt = δt_exact ? floor(Int, (final_time - t0) / δt) : ceil(Int, (final_time - t0) / δt)
     @assert Nt >= 1 "empty time window: simulation start $t0 s, end $final_time s, δt $δt s"
     Δt = δt_exact ? Nt * δt : final_time - t0
+
+    if nbi_power_weighted_fractions
+        @assert device === :D3D "nbi_power_weighted_fractions is implemented for DIII-D only"
+        d3d_nbi_power_weighted_fractions!(ini, t0, final_time)
+    end
 
     # init
     @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
