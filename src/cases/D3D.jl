@@ -330,6 +330,76 @@ function case_parameters(::Val{:D3D}, shot::Int;
 end
 
 """
+    nbi_power_weighted_fractions(t::AbstractVector, P::AbstractVector, F::AbstractMatrix, t0::Real, t1::Real)
+
+Energy-weighted split of what a beam launched over `t0 <= t <= t1` among its energy components:
+p_k = Σ_i P_i⁺ F[k,i] dt_i / Σ_i P_i⁺ Σ_j F[j,i] dt_i, with `F` of size (ncomponents, ntime).
+
+Returns `nothing` if the beam launched no energy in the window.
+"""
+function nbi_power_weighted_fractions(t::AbstractVector, P::AbstractVector, F::AbstractMatrix, t0::Real, t1::Real)
+    n = length(t)
+    @assert length(P) == n && size(F, 2) == n "lengths t $n, P $(length(P)), F $(size(F))"
+    num = zeros(size(F, 1))
+    den = 0.0
+    for i in 1:n
+        t0 <= t[i] <= t1 || continue
+        dt = (t[min(i + 1, n)] - t[max(i - 1, 1)]) / 2
+        Fi = view(F, :, i)
+        (all(isfinite, Fi) && isfinite(P[i])) || continue
+        w = max(P[i], 0.0) * dt
+        num .+= w .* Fi
+        den += w * sum(Fi)
+    end
+    return den > 0 ? num ./ den : nothing
+end
+
+"""
+    d3d_nbi_power_weighted_fractions!(ini::ParametersAllInits, t0::Real, t1::Real)
+
+Replace each `ini.general.dd.nbi.unit[].beam_power_fraction` (the per-component maximum over the
+shot set by `case_parameters(:D3D, shot)`) with `nbi_power_weighted_fractions` over
+`[t0, t1]`, read from the time-resolved `nbi_ods_<shot>.h5` in `ini.ods.filename`.
+
+The per-component maxima come from different times, so the E/3 share is typically ~2x what is
+delivered. Units missing from the file, or off in the window, keep the maximum.
+Returns the number of units replaced.
+"""
+function d3d_nbi_power_weighted_fractions!(ini::ParametersAllInits, t0::Real, t1::Real)
+    files = strip.(split(ini.ods.filename, ","))
+    k = findfirst(f -> startswith(basename(f), "nbi_ods_"), files)
+    if k === nothing
+        @warn "d3d_nbi_power_weighted_fractions!: no nbi_ods_<shot>.h5 in ini.ods.filename"
+        return 0
+    end
+    t, units = HDF5.h5open(String(files[k]), "r") do f
+        t = Float64.(vec(read(f["nbi/time"])))
+        units = Dict{String,Tuple{Vector{Float64},Matrix{Float64}}}()
+        for name in keys(f["nbi/unit"])
+            u = f["nbi/unit/$name"]
+            P = Float64.(vec(read(u["power_launched/data"])))
+            F = Float64.(read(u["beam_power_fraction/data"]))
+            size(F, 2) == length(t) || (F = permutedims(F))
+            units[String(read(u["name"]))] = (P, F)
+        end
+        return t, units
+    end
+    n = 0
+    for nbu in ini.general.dd.nbi.unit
+        if !haskey(units, nbu.name)
+            @warn "d3d_nbi_power_weighted_fractions!: $(nbu.name) not in $(basename(files[k]))"
+            continue
+        end
+        p = nbi_power_weighted_fractions(t, units[nbu.name]..., t0, t1)
+        p === nothing && continue
+        nbu.beam_power_fraction.time = [0.0]
+        nbu.beam_power_fraction.data = reshape(p, :, 1)
+        n += 1
+    end
+    return n
+end
+
+"""
     d3d_beam_template(shot::Integer, name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
 
 Map a DIII-D neutral-beam source name to a geometry template for `add_beam_examples!`,
