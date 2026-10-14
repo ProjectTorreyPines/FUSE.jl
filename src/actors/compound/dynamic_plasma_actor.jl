@@ -13,6 +13,10 @@
     evolve_sawteeth::Entry{Bool} = Entry{Bool}("-", "Evolve current and sources with sawteeth"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
+    replay_before_sources::Entry{Bool} =
+        Entry{Bool}("-", "In phase 2, run pedestal and transport (e.g. the replay of measured profiles) before the sources, so the bootstrap current at t is computed from the profiles at t"; default=false)
+    current_after_sources::Entry{Bool} =
+        Entry{Bool}("-", "Evolve the current in phase 2 over the full step, after the sources (requires replay_before_sources and the QED current model), so j_total at t is driven by the profiles at t"; default=false)
     max_consecutive_substep_failures::Entry{Int} =
         Entry{Int}("-",
             "Abort after this many consecutive failures of the same substep. 1 = fail fast on the first failure (the pre-guard behaviour); 0 = never abort, survive any number. " *
@@ -60,6 +64,11 @@ Evolution workflow (each time step):
  1. **Phase 1**: Current evolution and heating sources (δt steps)
  2. **Phase 2**: Pedestal and transport evolution (δt steps)
  3. **Both phases**: Sawteeth, equilibrium, and PF control (δt/2 sub-steps)
+
+Sources are computed before pedestal and transport, so in phase 2 the bootstrap current is computed from the
+previous step's profiles. With `replay_before_sources` pedestal and transport run first, so (e.g. when replaying
+measured profiles) the bootstrap at t uses the profiles at t. With `current_after_sources` the current evolution
+moves from phase 1 to the end of phase 2, over the full step, so j_total and q at t are driven by the same profiles.
 
 Key features:
 
@@ -167,6 +176,11 @@ function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma
 
     actor_zmq = ActorZMQ(dd, act)
 
+    if par.current_after_sources
+        @assert par.replay_before_sources "ActorDynamicPlasma: current_after_sources requires replay_before_sources"
+        @assert par.evolve_current && actor_jt.jt_actor isa ActorQED "ActorDynamicPlasma: current_after_sources requires evolve_current with ActorCurrent.model = :QED"
+    end
+
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq,
         Dict{Symbol,Int}(), Dict{Symbol,Int}())
 end
@@ -238,6 +252,8 @@ Execute a single half-step iteration of the dynamic plasma evolution.
 - Phase 1 (odd kk): evolves j_ohmic
 - Phase 2 (even kk): runs pedestal, transport, time derivative sources
 - Both phases: runs sawteeth, equilibrium, PF active, and sources
+- `replay_before_sources`: phase 2 runs pedestal and transport before the sources; `current_after_sources`: j_ohmic
+  evolves in phase 2 over δt, after the sources, instead of in phase 1
 
 # Example
 ```julia
@@ -388,16 +404,31 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
         receive!(actor.actor_zmq)
     end
 
-    guarded_substep(actor, Val(:run_sources), δt / 2; progr)
-
-    # apply sawteeth to sources after sources have been recomputed
-    guarded_substep(actor, Val(:run_sawteeth), δt / 2; progr)
-
-    if phase == 1
-        guarded_substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+    if phase == 2 && par.replay_before_sources
+        guarded_substep(actor, Val(:run_pedestal), δt; progr)
+        guarded_substep(actor, Val(:run_transport), δt; progr)
+        qed = par.current_after_sources ? actor.actor_jt.jt_actor : nothing
+        try
+            # the current diffuses over [t-δt, t] from the state before the sources at t
+            qed === nothing || (qed.QO_init = qed_initial_state(qed))
+            guarded_substep(actor, Val(:run_sources), δt / 2; progr)
+            guarded_substep(actor, Val(:run_sawteeth), δt / 2; progr)
+            qed === nothing || guarded_substep(actor, Val(:evolve_j_ohmic), δt; progr)
+        finally
+            qed === nothing || (qed.QO_init = nothing)
+        end
     else
-        guarded_substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
-        guarded_substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:run_sources), δt / 2; progr)
+
+        # apply sawteeth to sources after sources have been recomputed
+        guarded_substep(actor, Val(:run_sawteeth), δt / 2; progr)
+
+        if phase == 1
+            par.current_after_sources || guarded_substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+        else
+            guarded_substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
+            guarded_substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+        end
     end
 
     # sync core_profiles/core_sources/core_transport grids to the equilibrium used in core_profiles,
