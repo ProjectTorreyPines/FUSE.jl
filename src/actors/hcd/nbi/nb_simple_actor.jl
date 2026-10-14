@@ -8,6 +8,10 @@ end
 
 @actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
+    fast_ion_components::Entry{Bool} =
+        Entry{Bool}("-", "One fast-ion source per beam energy component, born at E, E/2, E/3 (false: all at the full energy E)"; default=false)
+    component_cross_sections::Entry{Bool} =
+        Entry{Bool}("-", "Ion-impact ionization and charge exchange evaluated at each component's energy (false: at the full energy E)"; default=false)
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -201,11 +205,13 @@ function _step(actor::ActorSimpleNB)
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
 
+                # ion-impact ionization and charge exchange: beam energy per amu
+                eova = (par.component_cross_sections ? beam_energy / ifpow : beam_energy) / beam_mass
                 cs = zeros(ngrid)
                 for i in 1:ngrid
                     cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
-                    cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
-                    cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i])
+                    cs2 = IMAS.imfp_ion_collisions(beam_mass, eova, ne_beam[i], 1)
+                    cs3 = IMAS.imfp_charge_exchange(beam_mass, eova, ne_beam[i])
                     cs[i] = cs1 + cs2 + cs3
                 end
                 cross_section_t = IMAS.cumtrapz(dist, cs)
@@ -262,16 +268,30 @@ function _step(actor::ActorSimpleNB)
 
         # add nbi fast ion particles source
         source1d = source.profiles_1d[]
-        resize!(source1d.ion, 2)
-        ion_fast = source1d.ion[1]
-        IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
-        ion_fast.particles = source1d.electrons.particles
-        ion_fast.particles_inside = source1d.electrons.particles_inside
-        ion_fast.energy = source1d.total_ion_energy
-        ion_fast.power_inside = source1d.total_ion_power_inside
-        ion_fast.fast_particles_energy = beam_energy
+        if par.fast_ion_components
+            # same label for every component, so summed sources match the single-ion totals
+            resize!(source1d.ion, nenergies + 1)
+            for ifpow in 1:nenergies
+                ion_fast = source1d.ion[ifpow]
+                IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
+                ion_fast.particles = sum(sbeam[:, ifpow, :]; dims=1)[1, :]
+                ion_fast.particles_inside = IMAS.cumtrapz(volume_cp, ion_fast.particles)
+                ion_fast.energy = sum(qbeami[:, ifpow, :]; dims=1)[1, :]
+                ion_fast.power_inside = IMAS.cumtrapz(volume_cp, ion_fast.energy)
+                ion_fast.fast_particles_energy = beam_energy / ifpow
+            end
+        else
+            resize!(source1d.ion, 2)
+            ion_fast = source1d.ion[1]
+            IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
+            ion_fast.particles = source1d.electrons.particles
+            ion_fast.particles_inside = source1d.electrons.particles_inside
+            ion_fast.energy = source1d.total_ion_energy
+            ion_fast.power_inside = source1d.total_ion_power_inside
+            ion_fast.fast_particles_energy = beam_energy
+        end
 
-        ion_thermal = source1d.ion[2]
+        ion_thermal = source1d.ion[end]
         IMAS.ion_element!(ion_thermal, 1, nbu.species.a; fast=false)
         ion_thermal.particles        = source1d.electrons.particles
         ion_thermal.particles_inside = source1d.electrons.particles_inside
