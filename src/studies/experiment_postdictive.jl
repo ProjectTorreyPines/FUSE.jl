@@ -33,6 +33,10 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is, FUSE ≤ v1.2.1)"; default=0.0005, check=x -> @assert x > 0 "qed_δt must be > 0")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
     sawteeth_period::Entry{Float64} = Entry{Float64}("s", "ActorSawteethSource.period: keep flattening this long after the last sawtooth"; default=0.25)
+    # DIII-D IDA-lite kinetic profiles
+    ida_lite_dir::Entry{String} = Entry{String}("-", "Directory of IDA_<shot>_.cdf files replayed instead of the profile fit where they cover (missing: off)"; default=missing)
+    ida_lite_filter_dir::Entry{String} = Entry{String}("-", "Directory of <shot>/ida_lite_filtering_provenance.json, whose bad slices are dropped (missing: none)"; default=missing)
+    kw_ida_lite::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to apply_ida_lite_profiles!"; default=Dict{Symbol,Any}())
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
@@ -92,9 +96,14 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
             # these may be unset (missing), which reading them as sty.<name> refuses
-            start_time, end_time, qed_δt = (getproperty(sty, name, missing) for name in (:start_time, :end_time, :qed_δt))
+            start_time, end_time, qed_δt, ida_lite_dir, ida_lite_filter_dir =
+                (getproperty(sty, name, missing) for name in (:start_time, :end_time, :qed_δt, :ida_lite_dir, :ida_lite_filter_dir))
+            ida_lite_path = ismissing(ida_lite_dir) ? missing : ida_lite_file(ida_lite_dir, shot)
+            @assert ida_lite_path !== nothing "no IDA_$(shot)_.cdf in $(ida_lite_dir)"
+            filter_json = ismissing(ida_lite_filter_dir) ? "" : joinpath(ida_lite_filter_dir, string(shot), "ida_lite_filtering_provenance.json")
+            bad_times = isfile(filter_json) ? ida_lite_bad_times(filter_json) : Float64[]
             run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, start_time, end_time, sty.δt, sty.δt_exact, qed_δt,
-                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, kw_case_parameters)
+                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, ida_lite_path, ida_lite_bad_times=bad_times, sty.kw_ida_lite, kw_case_parameters)
         end
     end
 end
@@ -123,6 +132,9 @@ function run_postdictive_case!(
     qmin_desired::Float64=1.0,
     sawteeth_period::Float64=0.25,
     act_overrides::Union{Nothing,ParametersAllActors}=nothing,
+    ida_lite_path::Union{String,Missing}=missing,
+    ida_lite_bad_times::AbstractVector{<:Real}=Float64[],
+    kw_ida_lite::Dict{Symbol,Any}=Dict{Symbol,Any}(),
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -148,6 +160,20 @@ function run_postdictive_case!(
     Nt = δt_exact ? floor(Int, (final_time - t0) / δt) : ceil(Int, (final_time - t0) / δt)
     @assert Nt >= 1 "empty time window: simulation start $t0 s, end $final_time s, δt $δt s"
     Δt = δt_exact ? Nt * δt : final_time - t0
+
+    # replay IDA-lite profiles where they cover, on a core_profiles time basis with a slice made for every step
+    ida = nothing
+    if !ismissing(ida_lite_path)
+        @assert device === :D3D "IDA-lite profiles are DIII-D only"
+        sim_times = postdictive_instants(t0, Δt, Nt)
+        base = core_profiles_time_base(ini.general.dd.equilibrium.time, ida_lite_time(ida_lite_path), sim_times)
+        # refit as case_parameters did
+        kw_fit = filter(kv -> first(kv) in (:time_averaging, :rho_averaging), kw_case_parameters)
+        reseeded = reseed_core_profiles_time!(ini.general.dd, act, base; kw_fit...) > 0
+        # pairing failures are errors on the reseeded basis (kw_ida_lite may override)
+        kw_ida = merge(Dict{Symbol,Any}(:strict_pairing => reseeded), kw_ida_lite)
+        ida = apply_ida_lite_profiles!(ini.general.dd, ida_lite_path; bad_times=ida_lite_bad_times, sim_times=sim_times[1:2:end], kw_ida...)
+    end
 
     # init
     @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
@@ -281,6 +307,12 @@ function run_postdictive_case!(
         @info "StudyPostdictive: save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
+        if ida !== nothing
+            open(joinpath(savedir, "ida_provenance.json"), "w") do io
+                JSON.print(io, ida_lite_provenance(ida), 1)
+            end
+        end
+
         open(joinpath(savedir, "step_provenance.json"), "w") do io
             JSON.print(io, Dict("start" => t0, "δt" => Δt / Nt, "Nt" => Nt, "end" => t0 + Δt, "reached" => dd.global_time), 1)
         end
@@ -292,7 +324,7 @@ function run_postdictive_case!(
         end
     end
 
-    return (; act, t0, Δt, Nt)
+    return (; act, t0, Δt, Nt, ida)
 end
 
 function animated_plasma_overview(dd::IMAS.DD, dir::AbstractString, dd1::Union{IMAS.dd,Nothing}=nothing; aggregate_hcd::Bool=true, fps::Int=12)
