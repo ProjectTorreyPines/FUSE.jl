@@ -193,6 +193,7 @@ include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "study_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "experiment_postdictive_profiles.jl"))
 include(joinpath("studies", "experiment_predictive_rt.jl"))
 include(joinpath("studies", "HDB5_validation.jl"))
 
