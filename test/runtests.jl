@@ -18,6 +18,8 @@ else
 
     include("runtests_basics.jl")
 
+    include("runtests_simplenb_axis_mirror.jl")
+
     include("runtests_cases.jl")
 
     include("runtests_actors.jl")
