@@ -61,7 +61,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "Cannot be combined with chease_overrides.CFBAL."; default=1.0)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MARS-Q MHD code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
-    mars_coord::Switch{Symbol} = Switch{Symbol}([:normal, :transfer], "-", "Whether to run on the CHEASE coords or transfer to a geometric poloidal angle based coord. system"; default=:normal)
+    mars_coord::Switch{Symbol} = Switch{Symbol}([:normal, :transfer], "-", "Whether to run on the CHEASE coords or transfer to a geometric poloidal angle based coord. system"; default=:transfer)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)
     save_dir::Entry{String} =

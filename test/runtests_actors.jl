@@ -133,10 +133,12 @@ end
             @test (FUSE.plot(dd.mhd_linear); true)
 
             # Test 4 ran with run_equilibrium=false, i.e. MARS replayed an OUT*MAR this actor
-            # did not produce. The CHEASE namelist here need not describe it, so the poloidal
-            # angle convention is unknowable and grid_type must be left unset rather than
-            # asserting SFL vs equal-arc (see mars_grid_type).
-            @test ismissing(mode.plasma.grid_type, :index)
+            # did not produce, so CHEASE's poloidal angle (NER/NEGP) is unknowable. With the
+            # default mars_coord=:transfer (NCONVCS=1) MARS re-meshes on its own geometric polar
+            # angle regardless, so the grid_type is still known: 26. (Under mars_coord=:normal
+            # it would have to be left unset instead -- covered by the mars_grid_type unit
+            # tests below.)
+            @test mode.plasma.grid_type.index == 26
         end
 
         @testset "grid_type follows CHEASE NER/NEGP (manual §2.3)" begin
