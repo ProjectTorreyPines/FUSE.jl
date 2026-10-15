@@ -13,6 +13,11 @@
     evolve_sawteeth::Entry{Bool} = Entry{Bool}("-", "Evolve current and sources with sawteeth"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
+    max_consecutive_substep_failures::Entry{Int} =
+        Entry{Int}("-",
+            "Abort after this many consecutive failures of the same substep. 1 = fail fast on the first failure (the pre-guard behaviour); 0 = never abort, survive any number. " *
+            "Missing resolves to 10 when ActorZMQ is enabled and 1 otherwise: a coupled run has to ride out a non-reproducible partner, a standalone study should still fail loudly.";
+            default=missing)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -29,6 +34,8 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_pf::ActorPFactive{D,P}
     actor_saw::ActorSawteethSource{D,P}
     actor_zmq::ActorZMQ{D,P}
+    substep_failures::Dict{Symbol,Int}       # total guarded-substep failures, by substep
+    substep_consecutive::Dict{Symbol,Int}    # current consecutive-failure streak, by substep
 end
 
 """
@@ -160,7 +167,8 @@ function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma
 
     actor_zmq = ActorZMQ(dd, act)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq)
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq,
+        Dict{Symbol,Int}(), Dict{Symbol,Int}())
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -195,6 +203,7 @@ function _step(actor::ActorDynamicPlasma)
     finally
         actor_logging(dd, old_logging)
         disconnect!(actor.actor_zmq)
+        report_substep_failures(actor)
     end
 
     return actor
@@ -243,6 +252,116 @@ end
 finalize(actor)
 ```
 """
+# Coupled-robustness fault boundary: run one physics substep; if it throws,
+# restore the core_profiles + equilibrium time slices and continue (the
+# plasma holds for this substep, the next exchange retries). The PCS side is
+# non-reproducible run-to-run, so FUSE must survive every trajectory —
+# site-specific guards cannot enumerate all cold/low-power failure modes
+# (observed: critical_energy DomainError, TGLFNN P_PRIME_LOC, solver ldiv!
+# MethodError, interp1d "x must be sorted", manion_scale assertion).
+#
+# Surviving is not the same as being right: a skipped substep advances time
+# without applying its operator, so the trajectory silently stops solving the
+# equations it claims to. Failures are therefore counted per substep, a streak
+# of `par.max_consecutive_substep_failures` in the same substep aborts the run,
+# and `report_substep_failures` prints the tally at the end so a completed run
+# cannot hide them. Set the parameter to 0 to never abort.
+
+"""
+    effective_substep_failure_limit(actor::ActorDynamicPlasma)
+
+How many consecutive failures of one substep to tolerate before aborting.
+
+Left unset, this resolves differently depending on who is driving: a coupled run
+is talking to a partner that is not reproducible run-to-run, so it has to ride
+out transients (10); a standalone study has no such excuse and should fail on the
+first failure the way it did before the guards existed (1). Set the parameter
+explicitly to override, 0 to never abort.
+"""
+function effective_substep_failure_limit(actor::ActorDynamicPlasma)
+    par = actor.par
+    ismissing(par, :max_consecutive_substep_failures) || return par.max_consecutive_substep_failures
+    return actor.actor_zmq.par.enabled ? 10 : 1
+end
+
+"Is this substep enabled? A disabled substep is a no-op and needs no guard or snapshot."
+function substep_enabled(par, v::Val)
+    name = first(typeof(v).parameters)
+    name === :run_transport && return par.evolve_transport
+    name === :run_pedestal && return par.evolve_pedestal
+    name === :run_sources && return par.evolve_sources
+    name === :evolve_j_ohmic && return par.evolve_current
+    name === :run_equilibrium && return par.evolve_equilibrium
+    name === :run_pf_active && return par.evolve_pf_active
+    name === :run_sawteeth && return par.evolve_sawteeth
+    return true
+end
+
+function guarded_substep(actor::ActorDynamicPlasma, v::Val, δt::Float64; progr=nothing, kw...)
+    dd = actor.dd
+    par = actor.par
+    name = first(typeof(v).parameters)
+
+    # a disabled substep cannot fail: skip the snapshot rather than paying for it
+    if !substep_enabled(par, v)
+        substep(actor, v, δt; progr, kw...)
+        return actor
+    end
+
+    cp1d_bkp = deepcopy(dd.core_profiles.profiles_1d[])
+    eqt_bkp = deepcopy(dd.equilibrium.time_slice[])
+    try
+        substep(actor, v, δt; progr, kw...)
+        actor.substep_consecutive[name] = 0
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        actor.substep_failures[name] = get(actor.substep_failures, name, 0) + 1
+        streak = get(actor.substep_consecutive, name, 0) + 1
+        actor.substep_consecutive[name] = streak
+        limit = effective_substep_failure_limit(actor)
+        if limit > 0 && streak >= limit
+            if limit == 1
+                @error "ActorDynamicPlasma: substep $(name) failed at t=$(dd.global_time) s — aborting (max_consecutive_substep_failures = 1). Set it higher to let the run continue on restored profiles."
+            else
+                @error "ActorDynamicPlasma: substep $(name) failed $(streak) times in a row at t=$(dd.global_time) s — aborting rather than continuing on a trajectory that is no longer solving the equations"
+            end
+            rethrow(e)
+        end
+        @warn "ActorDynamicPlasma: substep $(name) failed ($(sprint(showerror, e))) — restoring profiles/equilibrium and continuing [$(streak) in a row, $(actor.substep_failures[name]) total]" maxlog = 20
+        empty!(dd.core_profiles.profiles_1d[])
+        IMAS.fill!(dd.core_profiles.profiles_1d[], cp1d_bkp)
+        empty!(dd.equilibrium.time_slice[])
+        IMAS.fill!(dd.equilibrium.time_slice[], eqt_bkp)
+    end
+    return actor
+end
+
+"""
+    report_substep_failures(actor::ActorDynamicPlasma)
+
+Print the guarded-substep failure tally. Called at the end of every run so a
+run that survived by skipping physics says so, instead of reporting success.
+`@warn maxlog` hides repeats, this does not.
+"""
+function report_substep_failures(actor::ActorDynamicPlasma)
+    counts = copy(actor.substep_failures)
+
+    # the flux matcher soft-fails inside run_transport without throwing, so it
+    # never reaches the guard above: fold its own tally in here
+    tr = actor.actor_tr
+    if hasfield(typeof(tr), :tr_actor) && hasfield(typeof(tr.tr_actor), :soft_failures)
+        for (k, v) in tr.tr_actor.soft_failures
+            counts[Symbol("flux_matcher.", k)] = v
+        end
+    end
+
+    isempty(counts) && return nothing
+    total = sum(values(counts))
+    lines = join(("  $(k): $(v)" for (k, v) in sort!(collect(counts); by=x -> -x[2])), "\n")
+    @warn "ActorDynamicPlasma: $(total) step(s) fell back instead of solving; those operators did not advance their physics\n$(lines)"
+    return nothing
+end
+
 function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
     dd = actor.dd
     par = actor.par
@@ -269,24 +388,24 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
         receive!(actor.actor_zmq)
     end
 
-    substep(actor, Val(:run_sources), δt / 2; progr)
+    guarded_substep(actor, Val(:run_sources), δt / 2; progr)
 
     # apply sawteeth to sources after sources have been recomputed
-    substep(actor, Val(:run_sawteeth), δt / 2; progr)
+    guarded_substep(actor, Val(:run_sawteeth), δt / 2; progr)
 
     if phase == 1
-        substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
     else
-        substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
-        substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
     end
 
     # sync core_profiles/core_sources/core_transport grids to the equilibrium used in core_profiles,
     # so that new_timeslice! in the next step copies consistent (not stale) grid values
     latest_equilibrium_grids!(actor.dd)
 
-    substep(actor, Val(:run_equilibrium), δt / 2; progr)
-    substep(actor, Val(:run_pf_active), δt / 2; progr)
+    guarded_substep(actor, Val(:run_equilibrium), δt / 2; progr)
+    guarded_substep(actor, Val(:run_pf_active), δt / 2; progr)
 
     # ZMQ: send results to GSLite at Phase 2 end
     if phase == 2
@@ -427,19 +546,32 @@ end
 
 function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
-    cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ("    start time", t0),
-        ("      end time", t1),
-        ("          time", dd.global_time),
-        ("         stage", "$(name(actor)) ($phase/2)"),
-        ("       Ip [MA]", IMAS.get_from(dd, Val(:ip), :core_profiles) / 1E6),
-        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("     max(zeff)", maximum(cp1d.zeff)),
-        ("   ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
-    )
+    # display-only: never let a transiently inconsistent dd kill the run
+    # (observed: get_from(:ip) cubic-interp length assertion right after an
+    # equilibrium-slice restore on a GSLite-coupled shot)
+    try
+        cp1d = dd.core_profiles.profiles_1d[]
+        return (
+            ("    start time", t0),
+            ("      end time", t1),
+            ("          time", dd.global_time),
+            ("         stage", "$(name(actor)) ($phase/2)"),
+            ("       Ip [MA]", IMAS.get_from(dd, Val(:ip), :core_profiles) / 1E6),
+            ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
+            ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+            ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
+            ("     max(zeff)", maximum(cp1d.zeff)),
+            ("   ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
+        )
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        return (
+            ("    start time", t0),
+            ("      end time", t1),
+            ("          time", dd.global_time),
+            ("         stage", "$(name(actor)) ($phase/2)"),
+        )
+    end
 end
 
 """

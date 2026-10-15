@@ -48,15 +48,31 @@ mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyDatabaseGenerator{T}}
     ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
     act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
+    dd::Union{IMAS.DD,Vector{<:IMAS.DD},Missing}
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
     dd_type::Type{<:IMAS.DD} 
 end
 
+"""
+    StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+
+Each case starts from a freshly constructed `dd_type()` and a `rand(ini)` sample.
+"""
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+    return StudyDatabaseGenerator(sty, ini, act, missing; dd_type, kw...)
+end
+
+"""
+    StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors, dd::Union{IMAS.DD,Missing}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+
+Each case starts from a `deepcopy` of `dd`, for studies where `dd` is initialized and
+modified before the distributed workflow. Pass `dd=missing` to start from `dd_type()`.
+"""
+function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors, dd::Union{IMAS.DD,Missing}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
     sty = OverrideParameters(sty; kw...)
-    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing, dd_type)
+    study = StudyDatabaseGenerator(sty, ini, act, dd, missing, missing, missing, dd_type)
 
     check_and_create_file_save_mode(sty)
 
@@ -65,14 +81,32 @@ function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, a
     return study
 end
 
+"""
+    StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+
+Case `item` uses `inis[item]`/`acts[item]` and starts from a freshly constructed `dd_type()`.
+"""
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
-    @assert length(inis) == length(acts)
+    return StudyDatabaseGenerator(sty, inis, acts, missing; dd_type, kw...)
+end
+
+"""
+    StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}, dds::Union{Vector{<:IMAS.DD},Missing}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+
+Case `item` uses `inis[item]`/`acts[item]` and starts from a `deepcopy` of `dds[item]`.
+NOTE: `inis`, `acts` and `dds` must all have the same length. Pass `dds=missing` to start from `dd_type()`.
+"""
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}, dds::Union{Vector{<:IMAS.DD},Missing}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
+    @assert length(inis) == length(acts) "length(inis)=$(length(inis)) must match length(acts)=$(length(acts))"
+    if dds !== missing
+        @assert length(inis) == length(dds) "length(inis)=$(length(inis)) must match length(dds)=$(length(dds))"
+    end
     sty = OverrideParameters(sty; kw...)
     if sty.n_simulations ≠ length(inis)
-        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        @warn "sty.n_simulations is set to length(inis)=$(length(inis))"
         sty.n_simulations = length(inis)
     end
-    study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing, dd_type)
+    study = StudyDatabaseGenerator(sty, inis, acts, dds, missing, missing, missing, dd_type)
 
     check_and_create_file_save_mode(sty)
 
@@ -136,6 +170,23 @@ function _run(study::StudyDatabaseGenerator)
 end
 
 """
+    case_dd(study::AbstractStudy, item::Int)
+
+Starting `dd` for case `item`: a `deepcopy` of the user-supplied `study.dd`
+(indexed by `item` when `study.dd` is a vector), or a freshly constructed
+`study.dd_type()` when no `dd` was supplied.
+"""
+function case_dd(study::AbstractStudy, item::Int)
+    if typeof(study.dd) <: IMAS.DD
+        return deepcopy(study.dd)
+    elseif typeof(study.dd) <: Vector{<:IMAS.DD}
+        return deepcopy(study.dd[item])
+    else
+        return study.dd_type()
+    end
+end
+
+"""
     run_case(study::AbstractStudy, item::String)
 
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
@@ -154,7 +205,7 @@ function run_case(study::AbstractStudy, item::Int)
     original_stderr = stderr  # Save the original stderr
     file_log = open("log.txt", "w")
 
-    # ini/act variations
+    # ini/act/dd variations
     if typeof(study.ini) <: ParametersAllInits
         ini = rand(study.ini)
     elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
@@ -165,8 +216,7 @@ function run_case(study::AbstractStudy, item::Int)
     elseif typeof(study.act) <: Vector{<:ParametersAllActors}
         act = study.act[item]
     end
-
-    dd = study.dd_type()
+    dd = case_dd(study, item)
 
     try
         redirect_stdout(file_log)
@@ -207,7 +257,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
     original_stdout = stdout  # Save the original stdout
     original_stderr = stderr  # Save the original stderr
 
-    # ini/act variations
+    # ini/act/dd variations
     if typeof(study.ini) <: ParametersAllInits
         ini = rand(study.ini)
     elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
@@ -220,7 +270,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         act = study.act[item]
     end
 
-    dd = study.dd_type()
+    dd = case_dd(study, item)
 
 
     zero_pad_length = length(string(sty.n_simulations))
