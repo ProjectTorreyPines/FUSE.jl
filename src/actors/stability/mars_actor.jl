@@ -1043,9 +1043,58 @@ function get_wall_data(machine::String)
     file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
     file_path = joinpath(file_path, machine * "_mars_wall.json")
     dd_wall = IMAS.json2imas(file_path).wall.description_2d[].limiter.unit[1].outline
-    
+
     return dd_wall
-    
+
+end
+
+"""
+    clean_contour(r, z; tol=1e-6) -> (r, z)
+
+Drop repeated vertices (closer than `tol` [m] to the previous one) and close the contour
+exactly, so the result has no duplicates and `first == last`.
+
+REORBIT needs this: an open contour breaks its winding-number loss test, and a zero-length
+segment makes `RE_BEQ_VAC` divide by zero when it builds the segment normals (the raw D3D EFIT
+limiter has one). Orientation is left alone (the loss test uses `|sum of angles| < π`), and
+nothing is smoothed or resampled.
+"""
+function clean_contour(r::AbstractVector{<:Real}, z::AbstractVector{<:Real}; tol::Real=1e-6)
+    length(r) == length(z) || error("contour r and z must have the same length ($(length(r)) vs $(length(z)))")
+    rc, zc = Float64[], Float64[]
+    for (ri, zi) in zip(r, z)
+        if isempty(rc) || hypot(ri - rc[end], zi - zc[end]) > tol
+            push!(rc, ri)
+            push!(zc, zi)
+        end
+    end
+    # drop trailing points that repeat the start, then close exactly
+    while length(rc) > 1 && hypot(rc[end] - rc[1], zc[end] - zc[1]) <= tol
+        pop!(rc)
+        pop!(zc)
+    end
+    push!(rc, rc[1])
+    push!(zc, zc[1])
+    return rc, zc
+end
+
+"""
+    reorbit_limiter(dd::IMAS.DD) -> (r, z)
+
+Particle-loss contour for REORBIT (`KRE_VAC>0`): the official contiguous first-wall limiter
+from `IMAS.first_wall(dd.wall)` (default simplification, which only removes collinear points),
+passed through [`clean_contour`](@ref). This is the physical first wall, independent of the
+MARS resistive wall chosen by `par.wall_type`.
+"""
+function reorbit_limiter(dd::IMAS.DD)
+    fw = IMAS.first_wall(dd.wall)
+    isempty(fw.r) && error(
+        "REORBIT with KRE_VAC>0 needs a particle-loss limiter, but dd.wall has no official contiguous " *
+        "first-wall limiter contour (dd.wall.description_2d[].limiter with type.index == 0)"
+    )
+    r, z = clean_contour(fw.r, fw.z)
+    length(r) >= 4 || error("REORBIT limiter has only $(length(r) - 1) distinct vertices after cleaning; need at least 3")
+    return r, z
 end
 
 

@@ -257,6 +257,28 @@ end
     end
 end
 
+@testset "REORBIT limiter contour" begin
+    # open square with a repeated vertex (zero-length segment)
+    r = [1.0, 2.0, 2.0, 2.0, 1.0]
+    z = [0.0, 0.0, 0.0, 1.0, 1.0]
+    rc, zc = FUSE.clean_contour(r, z)
+    @test (rc[1], zc[1]) == (rc[end], zc[end])              # closed exactly
+    @test length(rc) == 5                                   # 4 distinct vertices + closing one
+    @test all(hypot.(diff(rc), diff(zc)) .> 0)              # no zero-length segment
+
+    # EFIT-style: already closed, with the closing vertex repeated -> same result
+    @test FUSE.clean_contour([r; r[1]; r[1]], [z; z[1]; z[1]]) == (rc, zc)
+    # idempotent
+    @test FUSE.clean_contour(rc, zc) == (rc, zc)
+
+    # orientation is left alone
+    signed_area(r, z) = sum(r[i] * z[i+1] - r[i+1] * z[i] for i in 1:length(r)-1)
+    rr, zr = FUSE.clean_contour(reverse(r), reverse(z))
+    @test sign(signed_area(rc, zc)) == -sign(signed_area(rr, zr))
+
+    @test_throws ErrorException FUSE.clean_contour([1.0, 2.0], [1.0])
+end
+
 @testset "ActorTJLFEP" begin
     # End-to-end TGLF-EP -> ALPHA EP transport on an ITER dd:
     #   TJLFEP.runTHD finds the critical EP density/pressure gradients (the scan's last
