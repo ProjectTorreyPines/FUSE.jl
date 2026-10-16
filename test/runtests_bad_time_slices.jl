@@ -80,4 +80,8 @@ end
     @test [x.time for x in bad_time_slices.records] ≈ [0.2, 0.3]
     @test ini.general.dd.equilibrium.time ≈ [0.1, 0.4, 0.5, 0.6, 0.7, 0.8]
     @test_throws ErrorException FUSE.init_dropping_bad_start!(() -> error("bad start"), IMAS.dd(), ini, nothing)
+    # a prepare() failure is not the start slice's: thrown at once, nothing dropped
+    bad_time_slices = FUSE.BadTimeSlices()
+    @test_throws ErrorException FUSE.init_dropping_bad_start!(() -> nothing, IMAS.dd(), ini, bad_time_slices; prepare=() -> error("no data"))
+    @test isempty(bad_time_slices.records)
 end

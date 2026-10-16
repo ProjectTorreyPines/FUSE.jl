@@ -149,18 +149,25 @@ end
 const MAX_START_DROPS = 5
 
 """
-    init_dropping_bad_start!(setup::Function, dd::IMAS.DD, ini::ParametersAllInits, bad_time_slices::Union{Nothing,BadTimeSlices})
+    init_dropping_bad_start!(init::Function, dd::IMAS.DD, ini::ParametersAllInits, bad_time_slices::Union{Nothing,BadTimeSlices};
+        prepare::Function=() -> nothing)
 
-`setup()`: initialize `dd` from `ini.time.simulation_start` (`init!`, and whatever has to be redone with
-it). With `bad_time_slices`, a failure drops the experimental slice at the start from `ini.general.dd`,
-moves the start to the next equilibrium slice, empties `dd` and calls `setup()` again, recording each
-slice dropped; after `MAX_START_DROPS` (5) of them, or with no later slice, the failure is thrown.
+`prepare()` then `init()`: what follows from `ini.time.simulation_start` (e.g. the time window), then the
+initialization of `dd` from it. With `bad_time_slices`, an `init()` failure drops the experimental slice at
+the start from `ini.general.dd`, moves the start to the next equilibrium slice, empties `dd` and does both
+again, recording each slice dropped; after `MAX_START_DROPS` (5) of them, or with no later slice, the
+failure is thrown. A `prepare()` failure is thrown as is.
 """
-function init_dropping_bad_start!(setup::Function, dd::IMAS.DD, ini::ParametersAllInits, bad_time_slices::Union{Nothing,BadTimeSlices})
-    bad_time_slices === nothing && return setup()
+function init_dropping_bad_start!(init::Function, dd::IMAS.DD, ini::ParametersAllInits, bad_time_slices::Union{Nothing,BadTimeSlices};
+    prepare::Function=() -> nothing)
+    if bad_time_slices === nothing
+        prepare()
+        return init()
+    end
     for n_dropped in 0:MAX_START_DROPS
+        prepare()
         try
-            return setup()
+            return init()
         catch e
             isa(e, InterruptException) && rethrow()
             t0 = ini.time.simulation_start
