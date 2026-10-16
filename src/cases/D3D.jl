@@ -18,7 +18,8 @@
         use_interferometer::Bool=true,
         pull_gslite_min::Bool=false,
         offaxis_beams::Vector{String}=["15"],
-        counter_beams::Vector{String}=["21"]
+        counter_beams::Vector{String}=["21"],
+        bad_time_slices::Union{Nothing,BadTimeSlices}=nothing
     )
 
 DIII-D from experimental shot
@@ -28,6 +29,9 @@ off-axis / counter-Ip when filling beam geometry from templates in the `pull_gsl
 (matched against the source name, e.g. "15"/"21"); everything else is co-Ip. The known
 shot-dependent history of the 150° and 210° beamlines overrides this configuration
 (see [`d3d_beam_template`](@ref)).
+
+With `bad_time_slices`, time slices that the equilibrium flux surfaces, the profile fits or the
+pedestal setup fail on are dropped and recorded there instead of failing the case ([`BadTimeSlices`](@ref)).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -46,7 +50,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
     use_interferometer::Bool=true,
     pull_gslite_min::Bool=false,
     offaxis_beams::Vector{String}=["15"],
-    counter_beams::Vector{String}=["21"]
+    counter_beams::Vector{String}=["21"],
+    bad_time_slices::Union{Nothing,BadTimeSlices}=nothing
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
@@ -242,7 +247,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     if !isempty(dd1.equilibrium.time_slice)
-        IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
+        flux_surfaces!(dd1, bad_time_slices)
     end
 
     # set time basis
@@ -262,6 +267,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             dd1.charge_exchange.channel)
         if n_cer < 5 && CER_analysis_type != "CERQUICK"
             @warn "Shot $shot: only $n_cer CER channels with $CER_analysis_type — retrying with CERQUICK"
+            bad_time_slices === nothing || empty!(bad_time_slices.records)
             return case_parameters(Val(:D3D), shot;
                 fit_profiles, EFIT_tree, PROFILES_tree,
                 CER_analysis_type="CERQUICK",
@@ -270,11 +276,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams)
+                pull_gslite_min, offaxis_beams, counter_beams, bad_time_slices)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
-            ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer)
+            ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer, bad_time_slices)
         end
     end
 
@@ -316,7 +322,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
         act.ActorPedestal.density_match = :ne_line
     end
 
-    set_ini_act_from_ods!(ini, act)
+    set_ini_act_from_ods!(ini, act; bad_time_slices)
+    # dropped slices at the start move the simulation start, kept at the second equilibrium slice
+    if bad_time_slices !== nothing && length(dd1.equilibrium.time) >= 2
+        ini.time.simulation_start = max(ini.time.simulation_start, dd1.equilibrium.time[2])
+    end
 
     #### ACT ####
 
