@@ -60,4 +60,20 @@ end
     p = FUSE.replay_pairing(base, sim[1:2:end], k_of, src, replaced; t_lo=src[1], t_hi=src[end])
     @test all(r.outcome === :source for r in p if src[1] + 1e-6 <= r.t_sim <= src[end])
     @test all(abs(r.source_time - r.t_sim) <= 0.011 for r in p if r.outcome === :source)
+
+    # profiles that cannot be refitted (ZIPFIT fallback) go onto the base by linear interpolation in time
+    dd = IMAS.dd()
+    for (t, te) in ((1.0, 1.0), (2.0, 3.0))
+        cp1d = resize!(dd.core_profiles.profiles_1d, t)
+        cp1d.grid.rho_tor_norm = [0.0, 0.5, 1.0]
+        cp1d.electrons.temperature = te .* [2.0, 1.0, 0.5]
+        resize!(cp1d.ion, 1)
+        cp1d.ion[1].temperature = 2te .* [2.0, 1.0, 0.5]
+    end
+    FUSE.interpolate_core_profiles_time!(dd.core_profiles, [0.5, 1.25, 2.0, 2.5])
+    cp = dd.core_profiles
+    @test cp.time == [0.5, 1.25, 2.0, 2.5] == [cp1d.time for cp1d in cp.profiles_1d]
+    @test [cp1d.electrons.temperature[1] for cp1d in cp.profiles_1d] ≈ [2.0, 3.0, 6.0, 6.0]
+    @test cp.profiles_1d[2].ion[1].temperature ≈ [6.0, 3.0, 1.5]
+    @test cp.profiles_1d[2].grid.rho_tor_norm == [0.0, 0.5, 1.0]
 end

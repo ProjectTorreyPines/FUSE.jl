@@ -55,23 +55,69 @@ function core_profiles_time_base(
 end
 
 """
-    reseed_core_profiles_time!(dd::IMAS.DD, act::ParametersAllActors, time_base::AbstractVector{<:Real}; time_averaging::Float64=0.05, rho_averaging::Float64=0.25)
+    reseed_core_profiles_time!(dd::IMAS.DD, act::ParametersAllActors, time_base::AbstractVector{<:Real}; interpolate_fallback::Bool=true, time_averaging::Float64=0.05, rho_averaging::Float64=0.25)
 
 Refit `dd.core_profiles` from the diagnostics on `time_base` (`ActorFitProfiles` with `time_basis_ids=:core_profiles`).
 Thomson is not rescaled to the interferometer again: the `case_parameters` fit already scaled it in place, and rescales compound.
-Returns the number of slices, or 0 (nothing done) if fewer than 5 CER channels can be fitted.
+With fewer than 5 CER channels `case_parameters` fell back to ZIPFIT profiles, which cannot be refitted: they are
+interpolated in time onto `time_base` instead (`interpolate_core_profiles_time!`), or kept as they are if `!interpolate_fallback`.
+Returns the number of slices, or 0 if nothing was done.
 """
 function reseed_core_profiles_time!(dd::IMAS.DD, act::ParametersAllActors, time_base::AbstractVector{<:Real};
-    time_averaging::Float64=0.05, rho_averaging::Float64=0.25)
+    interpolate_fallback::Bool=true, time_averaging::Float64=0.05, rho_averaging::Float64=0.25)
     # as case_parameters(:D3D) counts them (a channel with one time sample cannot be fitted)
     n_cer = count(ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data) && length(ch.ion[1].t_i.time) >= 2, dd.charge_exchange.channel)
-    if n_cer < 5
+    if n_cer >= 5
+        dd.core_profiles.time = Float64.(time_base)
+        ActorFitProfiles(dd, act; time_averaging, rho_averaging, time_basis_ids=:core_profiles, use_interferometer=false)
+    elseif interpolate_fallback
+        @warn "reseed_core_profiles_time!: only $n_cer CER channel(s), interpolating the core_profiles in time instead of refitting"
+        interpolate_core_profiles_time!(dd.core_profiles, time_base)
+    else
         @warn "reseed_core_profiles_time!: only $n_cer CER channel(s), keeping the core_profiles time basis"
         return 0
     end
-    dd.core_profiles.time = Float64.(time_base)
-    ActorFitProfiles(dd, act; time_averaging, rho_averaging, time_basis_ids=:core_profiles, use_interferometer=false)
     return length(dd.core_profiles.profiles_1d)
+end
+
+"""
+    interpolate_core_profiles_time!(cp::IMAS.core_profiles, time_base::AbstractVector{<:Real})
+
+Put `cp.profiles_1d` on `time_base`, linear in time between the two slices around each time (every Float64 vector
+filled in both with the same length; other fields from the earlier slice) and held beyond the first and last slice.
+As the refit does, the rest of `cp` is emptied.
+"""
+function interpolate_core_profiles_time!(cp::IMAS.core_profiles, time_base::AbstractVector{<:Real})
+    @assert !isempty(cp.profiles_1d) "interpolate_core_profiles_time!: no core_profiles slices to interpolate"
+    old = deepcopy(cp.profiles_1d)
+    t_old = [cp1d.time for cp1d in old]
+    empty!(cp)
+    for t in Float64.(time_base)
+        j = clamp(searchsortedlast(t_old, t), 1, length(t_old))
+        k = min(j + 1, length(t_old))
+        w = k == j ? 0.0 : clamp((t - t_old[j]) / (t_old[k] - t_old[j]), 0.0, 1.0)
+        cp1d = resize!(cp.profiles_1d, t)
+        fill!(cp1d, old[j])
+        cp1d.time = t
+        w > 0.0 && _lerp_filled!(cp1d, old[k], w)
+    end
+    return cp
+end
+
+# `a` <- (1 - w) * a + w * b in every Float64 vector filled in both `a` and `b` with the same length
+function _lerp_filled!(a::IMAS.IDS, b::IMAS.IDS, w::Float64)
+    for field in keys(a)
+        (field === :time || !IMAS.hasdata(a, field) || !IMAS.hasdata(b, field)) && continue
+        va, vb = getproperty(a, field), getproperty(b, field)
+        if va isa IMAS.IDS
+            _lerp_filled!(va, vb, w)
+        elseif va isa IMAS.IDSvector
+            length(va) == length(vb) && foreach((x, y) -> _lerp_filled!(x, y, w), va, vb)
+        elseif va isa Vector{Float64} && length(va) == length(vb)
+            setproperty!(a, field, (1.0 - w) .* va .+ w .* vb)
+        end
+    end
+    return a
 end
 
 """

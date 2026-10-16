@@ -36,7 +36,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     # DIII-D IDA-lite kinetic profiles
     ida_lite_dir::Entry{String} = Entry{String}("-", "Directory of IDA_<shot>_.cdf files replayed instead of the profile fit where they cover (missing: off)"; default=missing)
     ida_lite_filter_dir::Entry{String} = Entry{String}("-", "Directory of <shot>/ida_lite_filtering_provenance.json, whose bad slices are dropped (missing: none)"; default=missing)
-    ida_lite_allow_zipfit_base::Entry{Bool} = Entry{Bool}("-", "Also replay IDA-lite on a shot whose profiles fell back to ZIPFIT (< 5 CER channels), on the EFIT time basis instead of a slice per step (false: error)"; default=false)
+    ida_lite_allow_zipfit_base::Entry{Bool} = Entry{Bool}("-", "Replay IDA-lite on a shot whose profiles fell back to ZIPFIT (< 5 CER channels) on the ZIPFIT time basis, instead of interpolating them to a slice per step"; default=false)
     kw_ida_lite::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to apply_ida_lite_profiles!"; default=Dict{Symbol,Any}())
 end
 
@@ -171,9 +171,7 @@ function run_postdictive_case!(
         base = core_profiles_time_base(ini.general.dd.equilibrium.time, ida_lite_time(ida_lite_path), sim_times)
         # refit as case_parameters did
         kw_fit = filter(kv -> first(kv) in (:time_averaging, :rho_averaging), kw_case_parameters)
-        reseeded = reseed_core_profiles_time!(ini.general.dd, act, base; kw_fit...) > 0
-        # on the EFIT basis a step holds the last slice before it, which can be a ZIPFIT one inside the IDA-lite coverage
-        @assert reseeded || ida_lite_allow_zipfit_base "shot $shot: IDA-lite needs a core_profiles slice for every step, but the profiles fell back to ZIPFIT (< 5 CER channels) on the EFIT time basis (ida_lite_allow_zipfit_base=true replays it there)"
+        reseeded = reseed_core_profiles_time!(ini.general.dd, act, base; interpolate_fallback=!ida_lite_allow_zipfit_base, kw_fit...) > 0
         # pairing failures are errors on the reseeded basis (kw_ida_lite may override)
         kw_ida = merge(Dict{Symbol,Any}(:strict_pairing => reseeded), kw_ida_lite)
         ida = apply_ida_lite_profiles!(ini.general.dd, ida_lite_path; bad_times=ida_lite_bad_times, sim_times=sim_times[1:2:end], kw_ida...)
