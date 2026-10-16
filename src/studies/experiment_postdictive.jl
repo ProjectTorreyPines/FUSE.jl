@@ -36,6 +36,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     # DIII-D IDA-lite kinetic profiles
     ida_lite_dir::Entry{String} = Entry{String}("-", "Directory of IDA_<shot>_.cdf files replayed instead of the profile fit where they cover (missing: off)"; default=missing)
     ida_lite_filter_dir::Entry{String} = Entry{String}("-", "Directory of <shot>/ida_lite_filtering_provenance.json, whose bad slices are dropped (missing: none)"; default=missing)
+    ida_lite_allow_zipfit_base::Entry{Bool} = Entry{Bool}("-", "Also replay IDA-lite on a shot whose profiles fell back to ZIPFIT (< 5 CER channels), on the EFIT time basis instead of a slice per step (false: error)"; default=false)
     kw_ida_lite::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to apply_ida_lite_profiles!"; default=Dict{Symbol,Any}())
 end
 
@@ -103,7 +104,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
             filter_json = ismissing(ida_lite_filter_dir) ? "" : joinpath(ida_lite_filter_dir, string(shot), "ida_lite_filtering_provenance.json")
             bad_times = isfile(filter_json) ? ida_lite_bad_times(filter_json) : Float64[]
             run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, start_time, end_time, sty.δt, sty.δt_exact, qed_δt,
-                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, ida_lite_path, ida_lite_bad_times=bad_times, sty.kw_ida_lite, kw_case_parameters)
+                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, ida_lite_path, ida_lite_bad_times=bad_times, sty.ida_lite_allow_zipfit_base, sty.kw_ida_lite, kw_case_parameters)
         end
     end
 end
@@ -134,6 +135,7 @@ function run_postdictive_case!(
     act_overrides::Union{Nothing,ParametersAllActors}=nothing,
     ida_lite_path::Union{String,Missing}=missing,
     ida_lite_bad_times::AbstractVector{<:Real}=Float64[],
+    ida_lite_allow_zipfit_base::Bool=false,
     kw_ida_lite::Dict{Symbol,Any}=Dict{Symbol,Any}(),
     kw_case_parameters::Dict{Symbol,Any}
 )
@@ -170,6 +172,8 @@ function run_postdictive_case!(
         # refit as case_parameters did
         kw_fit = filter(kv -> first(kv) in (:time_averaging, :rho_averaging), kw_case_parameters)
         reseeded = reseed_core_profiles_time!(ini.general.dd, act, base; kw_fit...) > 0
+        # on the EFIT basis a step holds the last slice before it, which can be a ZIPFIT one inside the IDA-lite coverage
+        @assert reseeded || ida_lite_allow_zipfit_base "shot $shot: IDA-lite needs a core_profiles slice for every step, but the profiles fell back to ZIPFIT (< 5 CER channels) on the EFIT time basis (ida_lite_allow_zipfit_base=true replays it there)"
         # pairing failures are errors on the reseeded basis (kw_ida_lite may override)
         kw_ida = merge(Dict{Symbol,Any}(:strict_pairing => reseeded), kw_ida_lite)
         ida = apply_ida_lite_profiles!(ini.general.dd, ida_lite_path; bad_times=ida_lite_bad_times, sim_times=sim_times[1:2:end], kw_ida...)
