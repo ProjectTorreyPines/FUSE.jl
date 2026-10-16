@@ -32,7 +32,6 @@ const deg = pi / 180 # convert degrees to radians
 #  UTILS  #
 #= ===== =#
 include("utils_begin.jl")
-include("bad_time_slices.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
@@ -42,6 +41,7 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
+include("bad_time_slices.jl")
 include(joinpath("cases", "_toksys.jl"))
 include(joinpath("cases", "_cases.jl"))
 
