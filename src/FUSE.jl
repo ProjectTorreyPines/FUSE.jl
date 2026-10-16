@@ -32,6 +32,7 @@ const deg = pi / 180 # convert degrees to radians
 #  UTILS  #
 #= ===== =#
 include("utils_begin.jl")
+include("bad_time_slices.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
