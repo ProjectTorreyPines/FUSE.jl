@@ -1,17 +1,18 @@
 # ================ #
 # bad time slices  #
 # ================ #
+const BadTimeSliceRecord = @NamedTuple{time::Float64, stage::String, reason::String, action::String}
+
 """
     BadTimeSlices()
 
 Record of the experimental time slices a case could not use: one entry per slice with its `time`, the
 `stage` that failed on it, the `reason` (the error) and the `action` taken. Passed as `bad_time_slices`
 to the steps that work one time slice at a time (`case_parameters(:D3D)`, `set_ini_act_from_ods!`,
-`ActorFitProfiles`, `StudyPostdictive`), it turns a slice that fails from an error of the whole case into
-a dropped slice, following [`droppable_time_slices`](@ref). Without it (`nothing`) those steps throw as before.
+`ActorFitProfiles`, `ActorDynamicPlasma`, `StudyPostdictive`), it turns a slice that fails from an error
+of the whole case into a dropped slice, following [`droppable_time_slices`](@ref). Without it (`nothing`)
+those steps throw as before.
 """
-const BadTimeSliceRecord = @NamedTuple{time::Float64, stage::String, reason::String, action::String}
-
 struct BadTimeSlices
     records::Vector{BadTimeSliceRecord}
 end

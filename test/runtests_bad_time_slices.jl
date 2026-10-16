@@ -60,8 +60,12 @@ end
 
 @testset "flux_surfaces!" begin
     dd = dd_with_bad_eq([1, 2, 5, 8])
+    # a failed slice's magnetic axis is cleared, so the next slice does not start its search there
+    eqt5 = dd.equilibrium.time_slice[5]
+    eqt5.global_quantities.magnetic_axis.r, eqt5.global_quantities.magnetic_axis.z = -1e70, 0.0
     bad_time_slices = FUSE.BadTimeSlices()
     FUSE.flux_surfaces!(dd, bad_time_slices)
+    @test ismissing(eqt5.global_quantities.magnetic_axis, :r)
     @test dd.equilibrium.time ≈ [0.3, 0.4, 0.6, 0.7] && dd.core_profiles.time ≈ [0.3, 0.4, 0.6, 0.7]
     @test [x.time for x in bad_time_slices.records] ≈ [0.1, 0.2, 0.5, 0.8]
     @test all(x -> x.stage == "equilibrium flux surfaces", bad_time_slices.records)
