@@ -3,7 +3,7 @@
 #= =================== =#
 @actor_parameters_struct ActorFluxCalculator{T} begin
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho core transport grid"; default=0.25:0.1:0.85)
-    turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO, :analytic, :none], "-", "Turbulence model to use"; default=:TGLF)
+    turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO, :QLGYROSlurm, :analytic, :none], "-", "Turbulence model to use"; default=:TGLF)
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
@@ -11,7 +11,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxCalculator{P}}
     act::ParametersAllActors{P}
-    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticTurbulence{D,P},ActorNoOperation{D,P}}
+    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorQLGYROSlurm{D,P},ActorAnalyticTurbulence{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
 
@@ -27,7 +27,9 @@ and ensures they are properly stored in `dd.core_transport`.
 
 Turbulence model options:
 - `:TGLF`: TGLF-based models (TGLF, TGLFNN, GKNN, TJLF)
-- `:QLGYRO`: Quasi-linear gyrokinetic transport via CGYRO
+- `:QLGYRO`: Quasi-linear gyrokinetic transport via CGYRO, run in-process (`ActorQLGYRO`)
+- `:QLGYROSlurm`: Same physics as `:QLGYRO`, but each radius's CGYRO ky scan is submitted
+  as SLURM batch jobs under a chosen `repo`/`qos` allocation (`ActorQLGYROSlurm`)
 - `:analytic`: Simple analytic transport models
 - `:none`: No turbulent transport
 
@@ -52,6 +54,8 @@ function ActorFluxCalculator(dd::IMAS.DD, par::FUSEparameters__ActorFluxCalculat
         actor_turb = ActorTGLF(dd, act.ActorTGLF; par.rho_transport)
     elseif par.turbulence_model == :QLGYRO
         actor_turb = ActorQLGYRO(dd, act.ActorQLGYRO; par.rho_transport)
+    elseif par.turbulence_model == :QLGYROSlurm
+        actor_turb = ActorQLGYROSlurm(dd, act.ActorQLGYROSlurm; par.rho_transport)
     elseif par.turbulence_model == :analytic
         actor_turb = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; par.rho_transport)
     end
