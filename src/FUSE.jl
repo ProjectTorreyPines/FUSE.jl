@@ -137,6 +137,7 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
+include(joinpath("actors", "transport", "tearing_mode_transport_actor.jl"))
 include(joinpath("actors", "transport", "analytic_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "tglfep_actor.jl"))
