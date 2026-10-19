@@ -19,15 +19,17 @@
         pull_gslite_min::Bool=false,
         offaxis_beams::Vector{String}=["15"],
         counter_beams::Vector{String}=["21"],
-        local_data_dir::String=get(ENV, "FUSE_D3D_LOCAL_DATA", "")
+        data_dir::String=""
     )
 
 DIII-D from experimental shot
 
-If `local_data_dir` is set, no data is fetched: the shot is loaded from
-`<local_data_dir>/D3D_<shot>_<EFIT_tree>_<PROFILES_tree>_<CER_analysis_type>.h5` (OMAS `fuse_data_export.py`
-output, see [`d3d_local_filename`](@ref)) plus `nbi_ods_<shot>.h5` if present. Beams without geometry
-get it from [`d3d_beam_template`](@ref).
+`data_dir` is where the shot data lives: `D3D_<shot>_<EFIT_tree>_<PROFILES_tree>_<CER_analysis_type>.h5`
+(OMAS `fuse_data_export.py` output, see [`d3d_local_filename`](@ref)) plus `nbi_ods_<shot>.h5` (RABBIT beam
+geometry) when available. With `use_local_cache=true` an existing file there is loaded as is, otherwise the
+data is fetched from `omfit_host` into `data_dir`. Default: a per-user temporary directory. A pre-exported
+file (e.g. produced off-site through FDP) is therefore used with `data_dir=<dir>, use_local_cache=true`.
+Beams without geometry get it from [`d3d_beam_template`](@ref).
 
 `offaxis_beams` and `counter_beams` select which neutral-beam beamlines are treated as
 off-axis / counter-Ip when filling beam geometry from templates in the `pull_gslite_min` path
@@ -53,51 +55,29 @@ function case_parameters(::Val{:D3D}, shot::Int;
     pull_gslite_min::Bool=false,
     offaxis_beams::Vector{String}=["15"],
     counter_beams::Vector{String}=["21"],
-    local_data_dir::String=get(ENV, "FUSE_D3D_LOCAL_DATA", "")
+    data_dir::String=""
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
-    if !isempty(local_data_dir)
-        # pre-exported data (e.g. OMAS fuse_data_export.py run off-site): skip fetching
-        filename = d3d_local_filename(shot, EFIT_tree, PROFILES_tree, CER_analysis_type)
-        data_file = joinpath(local_data_dir, filename)
-        isfile(data_file) || error("D3D shot $shot: $data_file not found in local_data_dir")
-        ini.ods.filename = "$(ini.ods.filename),$(data_file)"
-        nbi_file = joinpath(local_data_dir, "nbi_ods_$shot.h5")
-        if isfile(nbi_file)
-            ini.ods.filename *= ",$(nbi_file)"
-        end
+    # where the shot data lives (fetched into it, or already there)
+    if isempty(data_dir)
+        user = omfit_host == "localhost" ? ENV["USER"] : d3d_omfit_user(omfit_host)
+        data_dir = joinpath(tempdir(), "$(user)_D3D_$(shot)")
+    end
+    mkpath(data_dir)
+    filename = d3d_local_filename(shot, EFIT_tree, PROFILES_tree, CER_analysis_type; EFIT_run_id, PROFILES_run_id)
+    data_file = joinpath(data_dir, filename)
+
+    if use_local_cache && isfile(data_file)
+        @info("D3D shot $shot: using $data_file")
     else
-        if omfit_host == "localhost"
-            phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
-            filename = "D3D_$(shot)_$(phash).h5"
-            local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
-        else
-            # Resolve remote username using the ssh config
-            output = read(`ssh -T -G $omfit_host`, String)
-            omfit_user = nothing
-            for line in split(output, '\n')
-                if startswith(line, "user ")
-                    omfit_user = strip(split(line, ' ', limit=2)[2])
-                    break
-                end
-            end
-            if isnothing(omfit_user)
-                throw(ErrorException("Need to add $omfit_host to ~/.ssh"))
-            end
+        local_path = data_dir
+        if omfit_host != "localhost"
+            omfit_user = d3d_omfit_user(omfit_host)
             omfit_host = "$omfit_user@$omfit_host"
-            phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omfit_user, omfit_root, omas_root))
-            remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omfit_user*"/d3d_data/$shot")
-            filename = "D3D_$(shot)_$(phash).h5"
-            local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
-        end
-        if isdir(local_path) && !use_local_cache
-            rm(local_path; recursive=true)
-        end
-        if !isdir(local_path)
-            mkdir(local_path)
+            remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/" * omfit_user * "/d3d_data/$shot")
         end
 
 
@@ -215,17 +195,16 @@ function case_parameters(::Val{:D3D}, shot::Int;
             @info("Remote D3D data fetching for shot $shot")
             @info("Path on $omfit_host: $remote_path")
             @info("Path on Localhost: $local_path")
-            if !isfile(joinpath(local_path, filename)) || !use_local_cache
-                Base.run(`bash $local_path/local_driver.sh`)
-            end
+            Base.run(`bash $local_path/local_driver.sh`)
         end
-        # load experimental ods
-        if pull_gslite_min
-            # gslite-min pull: nbi geometry comes from DIII-D templates (no nbi_ods file)
-            ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename))"
-        else
-            ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
-        end
+        isfile(data_file) || error("D3D shot $shot: data fetching did not produce $data_file")
+    end
+    # load experimental ods, plus the RABBIT beam geometry when the fetch produced it (not with pull_gslite_min,
+    # nor for pre-exported data): beams without geometry get DIII-D templates below
+    ini.ods.filename = "$(ini.ods.filename),$(data_file)"
+    nbi_file = joinpath(data_dir, "nbi_ods_$shot.h5")
+    if isfile(nbi_file)
+        ini.ods.filename *= ",$(nbi_file)"
     end
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
@@ -244,7 +223,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
-    # beams without geometry (gslite-min pull, or local data without nbi_ods_<shot>.h5):
+    # beams without geometry (no nbi_ods_<shot>.h5: gslite-min pull or pre-exported data):
     # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
     for nbu in dd1.nbi.unit
         if isempty(nbu.beamlets_group)
@@ -290,7 +269,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams, local_data_dir)
+                pull_gslite_min, offaxis_beams, counter_beams, data_dir)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
@@ -352,10 +331,26 @@ end
 """
     d3d_local_filename(shot::Integer, EFIT_tree, PROFILES_tree, CER_analysis_type)
 
-Name of the pre-exported OMAS file that `case_parameters(:D3D, shot; local_data_dir)` loads
+Name of the OMAS shot-data file that `case_parameters(:D3D, shot; data_dir)` fetches or loads, e.g.
+`D3D_200000_EFIT02_ZIPFIT01_CERAUTO.h5` (run ids, when given, are appended to the tree names)
 """
-function d3d_local_filename(shot::Integer, EFIT_tree::AbstractString, PROFILES_tree::AbstractString, CER_analysis_type::AbstractString)
-    return "D3D_$(shot)_$(EFIT_tree)_$(PROFILES_tree)_$(CER_analysis_type).h5"
+function d3d_local_filename(shot::Integer, EFIT_tree::AbstractString, PROFILES_tree::AbstractString, CER_analysis_type::AbstractString;
+    EFIT_run_id::AbstractString="", PROFILES_run_id::AbstractString="")
+    return "D3D_$(shot)_$(EFIT_tree)$(EFIT_run_id)_$(PROFILES_tree)$(PROFILES_run_id)_$(CER_analysis_type).h5"
+end
+
+"""
+    d3d_omfit_user(omfit_host::AbstractString)
+
+Remote user name for `omfit_host` from the ssh config (`ssh -G`)
+"""
+function d3d_omfit_user(omfit_host::AbstractString)
+    for line in split(read(`ssh -T -G $omfit_host`, String), '\n')
+        if startswith(line, "user ")
+            return String(strip(split(line, ' '; limit=2)[2]))
+        end
+    end
+    throw(ErrorException("Need to add $omfit_host to ~/.ssh/config"))
 end
 
 """
