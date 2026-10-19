@@ -195,7 +195,12 @@ function case_parameters(::Val{:D3D}, shot::Int;
             @info("Remote D3D data fetching for shot $shot")
             @info("Path on $omfit_host: $remote_path")
             @info("Path on Localhost: $local_path")
-            Base.run(`bash $local_path/local_driver.sh`)
+            try
+                Base.run(`bash $local_path/local_driver.sh`)
+            catch e
+                error("D3D shot $shot: data fetching from $omfit_host_original failed ($(sprint(showerror, e))). " *
+                      "Off-site, pass `data_dir` holding a pre-exported `$filename` and `use_local_cache=true`.")
+            end
         end
         isfile(data_file) || error("D3D shot $shot: data fetching did not produce $data_file")
     end
