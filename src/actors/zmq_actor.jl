@@ -32,6 +32,14 @@ const SCHEMA_VERSION = Int32(1)
 # predictors that consume them are trained on raw machine-convention signals.
 const FUSE_COCOS = Int32(11)
 
+# Physical band for the plasma resistance put on the wire [Ohm]. GSLite's own kRef
+# reference trajectory for 207041 runs from ~2.8 uOhm during the early ramp down to
+# ~0.35 uOhm by t = 1.1 s, so this band is deliberately generous: it is a sanity gate for
+# a plasma that is dying, not a calibration. Measured offline on 207041 it never fires
+# over the healthy window t = 1.1-4.0 s.
+const P_RES_MIN = 1e-8
+const P_RES_MAX = 1e-5
+
 # --- Protobuf over ZMQ helpers ---
 
 function _pb_send(socket::ZMQ.Socket, msg)
@@ -178,6 +186,10 @@ WireDataForFUSE fields (matching C++ struct):
                                        Units/sign per `cocos`
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
+- `tinj_per_beam`:   double[NNBI]     — NBI injected torque per beam [N m] → dd._aux[:zmq_tinj_per_beam]
+                                       (pulse_schedule has no torque node; consumed as the fuse29
+                                       pedestal-NN `tinj` input via build_fuse29_actuators — the beam
+                                       actor is NOT rescaled, keeping its outputs self-consistent)
 - `gas_cal`:         double[NGAS]     — Gas calibration values → dd._aux (for NN ne predictor)
 - `cocos`:           int32            — COCOS ID of the sender's convention; 0 = undeclared/legacy.
                                        psizr/Ip_latest/Bt are transformed to FUSE's COCOS 11; dd._aux mirrors stay raw.
@@ -375,7 +387,14 @@ function receive!(actor::ActorZMQ)
         n_beams = min(length(msg.pinj_per_beam), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, msg.pinj_per_beam[k])
+            # sanitize: a terminated/post-disruption GSLite can send garbage
+            # (observed |values| ~1e7+); clamp to a physical per-beam range
+            pk = msg.pinj_per_beam[k]
+            if !isfinite(pk) || pk < 0.0 || pk > 5e6
+                @warn "ActorZMQ: clamping unphysical NBI power beam $k: $pk W" maxlog = 10
+                pk = clamp(isfinite(pk) ? pk : 0.0, 0.0, 5e6)
+            end
+            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, pk)
         end
         @info "ActorZMQ: updated NBI power for $n_beams beams"
     end
@@ -386,9 +405,39 @@ function receive!(actor::ActorZMQ)
         n_beams = min(length(msg.nbi_acc_voltage), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, msg.nbi_acc_voltage[k])
+            vk = msg.nbi_acc_voltage[k]
+            if !isfinite(vk) || vk < 0.0 || vk > 2e5
+                @warn "ActorZMQ: clamping unphysical NBI voltage beam $k: $vk eV" maxlog = 10
+                vk = clamp(isfinite(vk) ? vk : 0.0, 0.0, 2e5)
+            end
+            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, vk)
         end
         @info "ActorZMQ: updated NBI voltage for $n_beams beams"
+    end
+
+    # --- Store NBI injected torque per beam [N m] ---
+    # IMAS pulse_schedule.nbi has no torque node, so the measured/commanded
+    # torque rides dd._aux (same pattern as gas_cal / I_coil). Consumed by
+    # build_fuse29_actuators as the pedestal-NN tinj input (measured beats
+    # model there); the beam actor itself is left untouched.
+    # An empty wire field means the GSLite build predates torque support;
+    # FUSE then keeps its internal beam-model torque unscaled.
+    if !isempty(msg.tinj_per_beam)
+        tinj = collect(Float64, msg.tinj_per_beam)
+        for k in eachindex(tinj)
+            tk = tinj[k]
+            # counter-injection beams are legitimately negative; clamp magnitude only
+            if !isfinite(tk) || abs(tk) > 10.0
+                @warn "ActorZMQ: clamping unphysical NBI torque beam $k: $tk N m" maxlog = 10
+                tinj[k] = clamp(isfinite(tk) ? tk : 0.0, -10.0, 10.0)
+            end
+        end
+        if :zmq_tinj_per_beam ∉ keys(aux)
+            aux[:zmq_tinj_per_beam] = (times=Float64[], values=Vector{Float64}[])
+        end
+        push!(aux[:zmq_tinj_per_beam].times, dd.global_time)
+        push!(aux[:zmq_tinj_per_beam].values, tinj)
+        @info "ActorZMQ: stored NBI torque for $(length(tinj)) beams (total $(round(sum(tinj); digits=3)) N m)"
     end
 
     # --- Store gas calibration values for NN ne predictor ---
@@ -497,6 +546,9 @@ function receive!(actor::ActorZMQ)
                 end
             end
         else
+            # snapshot for the first-step flux_surfaces recovery below: by the
+            # time it runs, the commit has already rewritten grid/psi in place
+            eqt_bkp = actor.had_psizr ? nothing : deepcopy(eqt)
             # Commit GSLite's psi on its grid. Stored 2-D fields derived from the old psi
             # (b_field_*, j_tor from FRESCO) are dropped so they are recomputed: they are
             # IMAS expressions and re-evaluate lazily from the new psi.
@@ -589,9 +641,22 @@ function receive!(actor::ActorZMQ)
             eqt.global_quantities.psi_boundary = Ψbnd
 
             # Run full flux_surfaces to get all 1D profiles (gm1, gm9, q, volume, etc.)
-            IMAS.flux_surfaces(eqt, fw_r, fw_z)
-            actor.had_psizr = true
-            @info "ActorZMQ: first step — full flux_surfaces from psizr ($(nR)×$(nZ))"
+            # Guarded: a marginal handoff map can make flux_surfaces derive a
+            # `nothing` boundary psi and throw mid-write (observed on the 33×33
+            # gslite_oop handoff map). Restore the pre-commit slice and leave
+            # had_psizr=false so the next exchange retries the first-step path.
+            try
+                IMAS.flux_surfaces(eqt, fw_r, fw_z)
+                actor.had_psizr = true
+                @info "ActorZMQ: first step — full flux_surfaces from psizr ($(nR)×$(nZ))"
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                @warn "ActorZMQ: first-step flux_surfaces failed — restoring previous equilibrium for this step" exception = e maxlog = 20
+                if eqt_bkp !== nothing
+                    empty!(eqt)
+                    IMAS.fill!(eqt, eqt_bkp)
+                end
+            end
         else
             # Subsequent steps: extract boundary only (Method 1), FRESCO handles the rest
             psi_levels = Float64[Ψaxis, Ψbnd]
@@ -707,12 +772,53 @@ function send!(actor::ActorZMQ)
         betap_dot = 0.0
         li_dot = 0.0
         p_res = eq_ok || isnan(actor.prev_p_res) ? 0.0 : actor.prev_p_res
+        p_res_flux = NaN
+        p_res_fresh = false
     else
         betap_dot = (betap - actor.prev_betap) / dt
         li_dot = (li - actor.prev_li) / dt
-        # Plasma resistance: Rp = dψ_plasma/dt / Ip, clamped >= 1e-9
         Ip_val = eqt.global_quantities.ip
-        p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)
+
+        # Plasma resistance Rp = V_loop / Ip, the form that closes GSLite's circuit
+        # equation (V_loop = Ip * Rp). NOT the dissipation form P_ohm / Ip^2, which differs
+        # by 1 / (1 - f_NI) and is 1.4-1.7x larger once bootstrap reaches 30-40%.
+        #
+        # Evaluated INSTANTANEOUSLY: IMAS.vloop integrates the local Ohm's law
+        # E_parallel = j_ohmic / sigma_parallel over the cross-section, so it needs only the
+        # present state. This replaces a backward difference of the current-weighted flux,
+        #
+        #     p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)   # OLD
+        #
+        # which had two defects. It differenced over [t-dt, t] while GSLite uses the value
+        # to advance [t, t+dt], carrying a full tick of lag -- 50 ms against ~100 ms
+        # transport timescales. And differencing a diagnosed quantity amplified noise: that
+        # `max` is a half-wave rectifier rather than a floor, so it destroyed the zero-mean
+        # property of the residual and GSLite's own filter could not average it away -- it
+        # converged to a positive bias instead.
+        #
+        # Measured offline on 207041 (gasreplay_1004_1510/m1), reproducing the old estimate
+        # to 119/119 points against what the log shows was actually sent. Over the healthy
+        # window t = 1.1-4.0 s, same 59 points for both:
+        #
+        #     old:  clamp fires 49% of steps, median 1.834 uOhm, step scatter 0.895
+        #     new:  2 negatives,              median 0.360 uOhm, step scatter 0.108
+        #
+        # At t = 1.10 s, the last time GSLite still logs its kRef reference trajectory for
+        # this shot, kRef reads 0.354 uOhm: the new estimate gives 0.459 (30% high) against
+        # the old estimate's 0.706 (100% high). Note the coupled plasma is not the real
+        # discharge, so exact agreement with kRef is not expected even in principle.
+        # The old estimate, kept for two purposes: it is logged next to the new one on every
+        # step so the two can be compared on a live run, and it is the fallback if vloop is
+        # unavailable (e.g. core_profiles has no conductivity on this slice).
+        p_res_flux = (psipla_now - actor.prev_psipla) / dt / Ip_val
+
+        p_res = try
+            IMAS.vloop(dd.core_profiles.profiles_1d[], eqt) / Ip_val
+        catch e
+            @warn "ActorZMQ.send!: vloop unavailable at t=$time_now s — falling back to the flux-difference estimate" exception = e maxlog = 5
+            p_res_flux
+        end
+        p_res_fresh = true
     end
 
     # Never put non-finite numbers on the wire: GSLite feeds betap/li/p_res
@@ -732,6 +838,23 @@ function send!(actor::ActorZMQ)
     p_res = _finite(p_res, actor.prev_p_res, "p_res")
     betap_dot = isfinite(betap_dot) ? betap_dot : (finite_ok = false; 0.0)
     li_dot = isfinite(li_dot) ? li_dot : (finite_ok = false; 0.0)
+
+    # Physical plausibility gate on p_res. A value outside this band is a dying plasma, not
+    # a resistance: on 207041 every excursion past it coincides with the parallel
+    # conductivity collapsing somewhere in the profile (min sigma falls from ~6e5 to 1665 at
+    # t = 4.10 s, giving V_loop = 368 V and p_res = 249 uOhm), and all of them sit at
+    # t >= 3.85 s on a run whose plasma dies at 4.46 s. Flag the step rather than clamp it:
+    # the old `max(..., 1e-9)` silently rectified these onto the floor with valid=true,
+    # which is worse for GSLite than being told the step carries no usable resistance.
+    # Only gate a value we actually computed this step. The branch above deliberately sends
+    # 0.0 on the first exchange and on a step with no equilibrium, and those already carry
+    # valid=false -- running them through the band check would warn on every run start.
+    if p_res_fresh && !isnan(p_res) && !(P_RES_MIN <= p_res <= P_RES_MAX)
+        @warn "ActorZMQ.send!: p_res = $p_res Ohm outside [$P_RES_MIN, $P_RES_MAX] at t=$time_now s — sending previous value with valid=false" maxlog = 20
+        p_res = (isfinite(actor.prev_p_res) && P_RES_MIN <= actor.prev_p_res <= P_RES_MAX) ? actor.prev_p_res : P_RES_MIN
+        finite_ok = false
+    end
+
     eq_ok = eq_ok && finite_ok
 
     msg = WireDataFromFUSE(
@@ -766,7 +889,9 @@ function send!(actor::ActorZMQ)
     if !ack.ok
         error("ActorZMQ.send!: GSLite rejected WireDataFromFUSE at t=$(time_now) s — status=$(ack.status), ok=$(ack.ok), error=$(ack.error)")
     end
-    @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
+    # p_res_flux is the old backward-difference estimate, logged but not sent, so the two
+    # can be compared on a live coupled run against GSLite's kRef reference.
+    @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res (flux-diff estimate $p_res_flux) at t=$(time_now) s"
 
     # Store current values for next step's derivatives (only from a real equilibrium)
     if eq_ok
@@ -831,6 +956,7 @@ function _psizr_to_matrix(psizr_flat::AbstractVector, nR::Integer, nZ::Integer)
 end
 
 """
+
     _compute_psipla(eqt)
 
 Current-density-weighted average poloidal flux:
@@ -845,6 +971,7 @@ function _compute_psipla(eqt)
     if nv < 2
         return NaN
     end
+
     dV = diff(volume)
     psi_mid = 0.5 .* (psi[1:nv-1] .+ psi[2:nv])
     j_mid = 0.5 .* (j_tor[1:nv-1] .+ j_tor[2:nv])

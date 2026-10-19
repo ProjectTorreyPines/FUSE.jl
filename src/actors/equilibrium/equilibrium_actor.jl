@@ -140,7 +140,7 @@ function _finalize(actor::ActorEquilibrium)
     bkp === nothing || delete!(aux, :_eq_slice_backup)
     if hasfield(typeof(actor.eq_actor), :converged) && !actor.eq_actor.converged && bkp !== nothing
         @warn "ActorEquilibrium: $(par.model) did not converge — restored previous equilibrium slice" maxlog = 20
-        IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+        empty!(dd.equilibrium.time_slice[]); IMAS.fill!(dd.equilibrium.time_slice[], bkp)  # empty! first: fill! merges and would leave partially-written fields behind
         return actor
     end
 
@@ -176,7 +176,7 @@ function _finalize(actor::ActorEquilibrium)
             # instead of killing the whole run
             if bkp !== nothing
                 @warn "ActorEquilibrium: flux_surfaces failed after $(par.model) solve — restored previous equilibrium slice" exception = e maxlog = 20
-                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                empty!(dd.equilibrium.time_slice[]); IMAS.fill!(dd.equilibrium.time_slice[], bkp)  # empty! first: fill! merges and would leave partially-written fields behind
                 return actor
             end
             rethrow(e)
@@ -190,7 +190,7 @@ function _finalize(actor::ActorEquilibrium)
         if !isempty(bad)
             if bkp !== nothing
                 @warn "ActorEquilibrium: traced flux surfaces are degenerate after $(par.model) solve — restored previous equilibrium slice" n_bad = length(bad) maxlog = 20
-                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                empty!(dd.equilibrium.time_slice[]); IMAS.fill!(dd.equilibrium.time_slice[], bkp)  # empty! first: fill! merges and would leave partially-written fields behind
                 return actor
             end
             error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
