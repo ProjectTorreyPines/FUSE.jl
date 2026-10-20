@@ -33,8 +33,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :resistive_wall], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
-    growth_rate_guess::Entry{ComplexF64} =
-        Entry{ComplexF64}("-", "Initial guess for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. Set this to something large and preferably real to end up with something tractable."; default=0.1 + 0.0im)
+    growth_rate_guess::Entry{Vector{Float64}} =
+        Entry{Vector{Float64}}("-", "Initial guess [Re, Im] for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. A single element is taken as a real guess. Set this to something large and preferably real to end up with something tractable."; default=[0.1, 0.0])
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     wall_time_constants::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
@@ -905,8 +905,8 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
               "mars_coord=:transfer sets NCONVCS=1. Use mars_coord=:normal for NCONVB1=1 runs.")
     end
 
-    # Initial eigenvalue guess, owned by par.growth_rate_guess
-    mars_namelist.BASIC.TALPHA1 = par.growth_rate_guess
+    # Initial eigenvalue guess, owned by par.growth_rate_guess as [Re, Im] (a single element is a real guess)
+    mars_namelist.BASIC.TALPHA1 = complex(par.growth_rate_guess...)
 
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
