@@ -31,7 +31,8 @@ end
     #act.ActorMars.mars_exec = "/path/to/MarsQ_package/MarsQ/marsq.x"
 
     # Configure CHEASE parameters for testing
-    chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
+    chease_overrides = (NPSI=64, NVEXP=2)
+    act.ActorMars.current_scaling = :none   # NCSCAL is owned by current_scaling, not chease_overrides
 
     # configure MARS parameters for testing
     mars_overrides = FUSE.MarsOverrides()
@@ -43,6 +44,7 @@ end
     else
         # The actor creates and manages its own run directory; keep it across the
         # chained runs below (restart / MHD-only depend on each other's files).
+        # (This is also the default now, but stated explicitly since the chaining needs it.)
         act.ActorMars.clear_workdir = false
 
         @info "Test 1: Clean CHEASE equilibrium run"
@@ -51,16 +53,35 @@ end
         @testset "CHEASE output files" begin
             @test isfile(joinpath(run_dir, "EXPEQ"))
             @test isfile(joinpath(run_dir, "datain"))
+            # CHEASE writes NGA unconditionally; _finalize reads pressure/q back from it
+            @test isfile(joinpath(run_dir, "NGA"))
+        end
+
+        @testset "dd.equilibrium updated from CHEASE (NGA)" begin
+            eqt1d = dd.equilibrium.time_slice[].profiles_1d
+            @test all(isfinite, eqt1d.pressure)
+            @test all(isfinite, eqt1d.q)
+            @test length(eqt1d.pressure) == length(eqt1d.psi_norm)
+            @test length(eqt1d.q) == length(eqt1d.psi_norm)
+        end
+
+        @testset "chease_overrides guards" begin
+            # CFBAL is owned by par.beta_fac, NCSCAL/CURRT by par.current_scaling; setting any
+            # of them via chease_overrides must be rejected rather than silently competing.
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(CFBAL=1.1,), save_dir=run_dir)
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(NCSCAL=2,), save_dir=run_dir)
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(CURRT=0.5,), save_dir=run_dir)
         end
 
         @info "Test 2: CHEASE with resistive wall & higher beta"
-        act.ActorMars.number_surfaces = 2
-        act.ActorMars.wall_type = :limiter
-        FUSE.ActorMars(dd, act; chease_overrides=(CFBAL=1.1,), save_dir=run_dir)
+        act.ActorMars.num_surfaces = 2
+        act.ActorMars.wall_type = :resistive_wall
+        FUSE.ActorMars(dd, act; beta_fac=1.1, save_dir=run_dir)
 
         @info "Test 3: CHEASE restart from existing equilibrium"
         act.ActorMars.restart_equilibrium = true
-        FUSE.ActorMars(dd, act; chease_overrides=(NCSCAL=2,), save_dir=run_dir) # keep Ip fixed
+        act.ActorMars.current_scaling = :fixed_ip # keep Ip fixed (NCSCAL=2 + CURRT derived from dd)
+        FUSE.ActorMars(dd, act; save_dir=run_dir)
 
         @info "Test 4: MARS MHD stability run"
         act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium
@@ -70,6 +91,18 @@ end
         @testset "MARS output files" begin
             @test isfile(joinpath(run_dir, "log_mars"))
             @test isfile(joinpath(run_dir, "RESULT.OUT"))
+        end
+
+        @testset "MARS per-component convergence counters" begin
+            # MARS reports NUMBER OF NON CONVERGED X / Y COMPONENTS after the inverse vector
+            # iteration. Only X is escalated: MARS's own flag is `NONCON = NXDEV` (pams.f),
+            # with the X+Y sum commented out, so a large Y is routine even in runs that
+            # reproduce published results.
+            nx, ny = FUSE.check_MARS_convergence(joinpath(run_dir, "log_mars"))
+            @test nx isa Integer && nx >= 0
+            @test ny isa Integer && ny >= 0
+            # missing log must warn and return nothing, not throw
+            @test FUSE.check_MARS_convergence(joinpath(run_dir, "no_such_log")) === nothing
         end
 
         @testset "MARS outputs in dd.mhd_linear" begin
@@ -98,8 +131,152 @@ end
 
             # plot recipe for the mode structure works
             @test (FUSE.plot(dd.mhd_linear); true)
+
+            # Test 4 ran with run_equilibrium=false, i.e. MARS replayed an OUT*MAR this actor
+            # did not produce, so CHEASE's poloidal angle (NER/NEGP) is unknowable. With the
+            # default mars_coord=:transfer (NCONVCS=1) MARS re-meshes on its own geometric polar
+            # angle regardless, so the grid_type is still known: 26. (Under mars_coord=:normal
+            # it would have to be left unset instead -- covered by the mars_grid_type unit
+            # tests below.)
+            @test mode.plasma.grid_type.index == 26
+        end
+
+        @testset "grid_type follows CHEASE NER/NEGP (manual §2.3)" begin
+            # J = C(psi)*R^NER*|grad psi|^NEGP fixes the poloidal angle: (2,0) is PEST/SFL,
+            # (1,-1) is equal-arc and explicitly NOT a SFL system. Only the poloidal-angle half
+            # of the DD identifier changes (radial label is sqrt(psi_norm) either way).
+            nl = FUSE.CHEASE.CHEASEnamelist()                       # defaults: NER=1, NEGP=-1
+            @test (nl.NER, nl.NEGP) == (1, -1)
+            @test FUSE.mars_grid_type(nl, true) == (25, "inverse_rhopolnorm_equal_arc_fourier")
+
+            nl_sfl = FUSE.CHEASE.CHEASEnamelist()
+            nl_sfl.NER = 2
+            nl_sfl.NEGP = 0
+            @test FUSE.mars_grid_type(nl_sfl, true) == (24, "inverse_rhopolnorm_straight_field_line_fourier")
+
+            nl_odd = FUSE.CHEASE.CHEASEnamelist()
+            nl_odd.NER = 0
+            nl_odd.NEGP = 0
+            @test FUSE.mars_grid_type(nl_odd, true) === nothing     # no DD counterpart
+            @test FUSE.mars_grid_type(nl, false) === nothing        # supplied OUT*MAR
+        end
+
+        @testset "mars_coord owns NCONVCS" begin
+            # :transfer (NCONVCS=1) re-meshes on MARS's geometric angle (GEOMCS_PLASMA), so the
+            # harmonics are polar-angle Fourier modes regardless of CHEASE NER/NEGP, and even
+            # for a supplied OUT*MAR.
+            @test FUSE.mars_nconvcs(:normal) == 0
+            @test FUSE.mars_nconvcs(:transfer) == 1
+            @test_throws ErrorException FUSE.mars_nconvcs(:bogus)
+            nl = FUSE.CHEASE.CHEASEnamelist()
+            @test FUSE.mars_grid_type(nl, true; mars_coord=:transfer) == (26, "inverse_rhopolnorm_polar_fourier")
+            @test FUSE.mars_grid_type(nl, false; mars_coord=:transfer) == (26, "inverse_rhopolnorm_polar_fourier")
+            @test FUSE.mars_grid_type(nl, true; mars_coord=:normal) == (25, "inverse_rhopolnorm_equal_arc_fourier")
+
+            # NCONVCS must go through par.mars_coord, in whichever block it is put
+            for block in (:NUMERIC, :BASIC)
+                mo = FUSE.MarsOverrides()
+                getfield(mo, block)[:NCONVCS] = 1
+                @test_throws ErrorException FUSE.ActorMars(dd, act.ActorMars; mars_overrides=mo)   # constructor only, no run
+            end
+        end
+
+        @testset "wall / NV configuration recipes (manual §5.1)" begin
+            # The four supported ideal-/resistive-wall configurations. NV indexes CHEASE's
+            # vacuum radial mesh; NWALL/IWALL/TAUW describe a RESISTIVE wall, which is a
+            # separate thing. Row 4 is the only one where the wall sits at an interior index
+            # while the computational boundary stays at NV -- that cannot be expressed with NV
+            # alone, which is why the extra surface (num_surfaces=2) is required there.
+            NW = get(FUSE.julia_grep(["NW"], joinpath(run_dir, "log_chease"); extract_values=true), "NW", nothing)
+            @test NW !== nothing   # the last CHEASE run had a wall, so NW must be reported
+
+            p = act.ActorMars
+            saved = (p.num_surfaces, p.wall_type)
+            try
+                for (name, nsurf, wall, nv, want_nwall) in (
+                    ("no-wall",                          1, :no_wall, 160, 0),
+                    ("ideal wall at physical wall",      1, :no_wall, NW - 1, 0),
+                    ("ideal wall on plasma surface",     1, :no_wall, 1, 0),
+                    ("resistive wall at physical wall",  2, :resistive_wall, 160, 1),
+                )
+                    p.num_surfaces = nsurf
+                    p.wall_type = wall
+                    @test FUSE.validate_wall_configuration(p) === nothing
+
+                    nl = FUSE.MARSnamelist()
+                    nl.BASIC.NV = nv
+                    cd(run_dir) do          # configure_wall! reads NW from ./log_chease
+                        FUSE.configure_wall!(nl, p)
+                    end
+                    @test nl.BASIC.NV == nv
+                    @test nl.BASIC.NWALL == want_nwall
+                    if want_nwall == 0
+                        # no resistive wall: IWALL/TAUW must be empty, not stale leftovers
+                        @test isempty(nl.BASIC.IWALL)
+                        @test isempty(nl.BASIC.TAUW)
+                    else
+                        @test nl.BASIC.IWALL == [NW]       # wall index from CHEASE, not NV
+                        @test length(nl.BASIC.TAUW) == 1
+                        @test all(nl.BASIC.TAUW .> 0)      # finite wall time
+                    end
+                end
+            finally
+                p.num_surfaces, p.wall_type = saved
+            end
+        end
+
+        @testset "NV vs CHEASE vacuum mesh guard (manual §5.1)" begin
+            # MARS NV indexes CHEASE's vacuum mesh and must not exceed the CHEASE NV; MARS
+            # itself only bounds-checks IWALL, not NV, so an over-large NV would silently
+            # index past the mesh.
+            nl_ok = FUSE.MARSnamelist()
+            nl_ok.BASIC.NV = 160
+            cnl = FUSE.CHEASE.CHEASEnamelist()      # NV = 160
+            p = act.ActorMars
+            saved = (p.run_equilibrium, p.run_MHD)
+            try
+                p.run_equilibrium = true
+                p.run_MHD = true
+                @test FUSE.validate_vacuum_mesh(p, nl_ok, cnl) === nothing
+
+                nl_big = FUSE.MARSnamelist()
+                nl_big.BASIC.NV = cnl.NV + 1
+                @test_throws ErrorException FUSE.validate_vacuum_mesh(p, nl_big, cnl)
+
+                nl_zero = FUSE.MARSnamelist()
+                nl_zero.BASIC.NV = 0
+                @test_throws ErrorException FUSE.validate_vacuum_mesh(p, nl_zero, cnl)
+
+                # not enforced when the equilibrium came from outside this actor
+                p.run_equilibrium = false
+                @test FUSE.validate_vacuum_mesh(p, nl_big, cnl) === nothing
+            finally
+                p.run_equilibrium, p.run_MHD = saved
+            end
         end
     end
+end
+
+@testset "REORBIT limiter contour" begin
+    # open square with a repeated vertex (zero-length segment)
+    r = [1.0, 2.0, 2.0, 2.0, 1.0]
+    z = [0.0, 0.0, 0.0, 1.0, 1.0]
+    rc, zc = FUSE.clean_contour(r, z)
+    @test (rc[1], zc[1]) == (rc[end], zc[end])              # closed exactly
+    @test length(rc) == 5                                   # 4 distinct vertices + closing one
+    @test all(hypot.(diff(rc), diff(zc)) .> 0)              # no zero-length segment
+
+    # EFIT-style: already closed, with the closing vertex repeated -> same result
+    @test FUSE.clean_contour([r; r[1]; r[1]], [z; z[1]; z[1]]) == (rc, zc)
+    # idempotent
+    @test FUSE.clean_contour(rc, zc) == (rc, zc)
+
+    # orientation is left alone
+    signed_area(r, z) = sum(r[i] * z[i+1] - r[i+1] * z[i] for i in 1:length(r)-1)
+    rr, zr = FUSE.clean_contour(reverse(r), reverse(z))
+    @test sign(signed_area(rc, zc)) == -sign(signed_area(rr, zr))
+
+    @test_throws ErrorException FUSE.clean_contour([1.0, 2.0], [1.0])
 end
 
 @testset "ActorTJLFEP" begin
