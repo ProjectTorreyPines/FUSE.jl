@@ -33,9 +33,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :resistive_wall], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    growth_rate_guess::Entry{ComplexF64} =
+        Entry{ComplexF64}("-", "Initial guess for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. Set this to something large and preferably real to end up with something tractable."; default=0.1 + 0.0im)
+    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     wall_time_constants::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
-    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     current_scaling::Switch{Symbol} = Switch{Symbol}([:fixed_ip, :fixed_q, :none], "-",
         "How CHEASE rescales the equilibrium (owns the NCSCAL namelist parameter, and CURRT " *
@@ -53,7 +55,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "Could be useful for finding beta_N limits\"), so it rescales dP/dψ for the equilibrium THIS run " *
         "solves — no restart needed. That Fortran block is guarded by NBLOPT==0 (the default) and its " *
         "comment notes it \"works only if current I^* is given\", i.e. it is meant to be used with " *
-        "current_scaling=:fixed_ip (NCSCAL=2). Successive ActorMars calls on the SAME dd do NOT compound: " *
+        "current_scaling=:fixed_ip (NCSCAL=2) or :fixed_q(NCSCAL=1)." * 
+        "Successive ActorMars calls on the SAME dd do NOT compound: " *
         "update_equilibrium_from_chease! writes back only pressure and q, whereas EXPEQ is built from " *
         "dpressure_dpsi / f_df_dpsi / boundary.outline, which it leaves untouched (only pressure[end] " *
         "feeds back, a ~0.1% effect) — a same-dd scan was measured identical to a fresh-dd scan to 4 " *
@@ -128,8 +131,11 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         for block in fieldnames(MarsOverrides)
             if :NCONVCS ∈ keys(getfield(mars_overrides, block))
                 error("NCONVCS cannot be set via mars_overrides (found in the $block block) — use the " *
-                      "mars_coord actor parameter instead (:normal -> NCONVCS=0, :transfer -> NCONVCS=1; " *
-                      "having both would silently pick one).")
+                      "mars_coord actor parameter instead.")
+            end
+            if :TALPHA1 ∈ keys(getfield(mars_overrides, block))
+                error("TALPHA1 cannot be set via mars_overrides (found in the $block block) — use the " *
+                      "growth_rate_guess actor parameter instead.")
             end
         end
         mars_nl = mars_inputs === nothing ? MARSnamelist() : mars_inputs
@@ -898,6 +904,9 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
         error("NCONVB1=1 (PANGLE computation) requires NCONVCS=0 (newrun.inc:444), but " *
               "mars_coord=:transfer sets NCONVCS=1. Use mars_coord=:normal for NCONVB1=1 runs.")
     end
+
+    # Initial eigenvalue guess, owned by par.growth_rate_guess
+    mars_namelist.BASIC.TALPHA1 = par.growth_rate_guess
 
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
