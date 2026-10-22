@@ -10,6 +10,7 @@ Environment:
 using Pkg
 
 const FUSE_UUID = Base.UUID("e64856f0-3bb8-4376-b4b7-c03396503992")
+const FUSE_REGISTRY_URL = "https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"
 
 function log(msg)
     println("[install_fuse] ", msg)
@@ -22,30 +23,65 @@ end
 
 function add_registries!()
     log("Adding FuseRegistry and General")
-    Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+    Pkg.Registry.add(RegistrySpec(url=FUSE_REGISTRY_URL))
     Pkg.Registry.add("General")
+end
+
+is_registry_ownership_error(err) = occursin("not owned by current user", sprint(showerror, err))
+
+# libgit2 (CVE-2022-24765 mitigation) refuses to open git repositories owned by
+# a different user — e.g. a registry cloned from an elevated (admin) PowerShell
+# or by another user account. Registries are disposable caches, so remove the
+# offending clones and re-add them under the current user.
+function reset_registries!()
+    for name in ("FuseRegistry", "General")
+        path = joinpath(first(DEPOT_PATH), "registries", name)
+        isdir(path) || continue
+        log("Removing registry at $path")
+        try
+            rm(path; force=true, recursive=true)
+        catch
+            error("Could not delete $path — delete it manually and re-run the installer.")
+        end
+    end
+    add_registries!()
+end
+
+function with_registry_repair(f)
+    try
+        return f()
+    catch err
+        is_registry_ownership_error(err) || rethrow()
+        log("Registry rejected by libgit2 ownership check — resetting registries and retrying once")
+        reset_registries!()
+        return f()
+    end
 end
 
 function install_fuse_packages!()
     if isfile("Project.toml")
         log("Project.toml found — instantiating environment")
-        Pkg.instantiate()
-        log("Updating project environment")
+        with_registry_repair() do
+            Pkg.instantiate()
+            log("Updating project environment")
+            Pkg.update()
+        end
+    end
+
+    with_registry_repair(add_registries!)
+
+    with_registry_repair() do
+        if haskey(Pkg.dependencies(), FUSE_UUID)
+            log("FUSE already installed — resolving and updating")
+        else
+            log("Adding FUSE (15–30 minutes on first install)")
+            Pkg.add("FUSE")
+        end
+        Pkg.resolve()
+        log("Updating FUSE dependencies")
         Pkg.update()
+        Pkg.precompile()
     end
-
-    add_registries!()
-
-    if haskey(Pkg.dependencies(), Base.UUID("e64856f0-3bb8-4376-b4b7-c03396503992"))
-        log("FUSE already installed — resolving and updating")
-    else
-        log("Adding FUSE (15–30 minutes on first install)")
-        Pkg.add("FUSE")
-    end
-    Pkg.resolve()
-    log("Updating FUSE dependencies")
-    Pkg.update()
-    Pkg.precompile()
 end
 
 function install_revise!()
@@ -102,11 +138,13 @@ const STEPS = Dict(
     end,
 )
 
-if isempty(ARGS)
-    STEPS["all"]()
-else
-    for step in ARGS
-        haskey(STEPS, step) || error("Unknown step: $step (choose: $(join(keys(STEPS), ", ")))")
-        STEPS[step]()
+if abspath(PROGRAM_FILE) == @__FILE__
+    if isempty(ARGS)
+        STEPS["all"]()
+    else
+        for step in ARGS
+            haskey(STEPS, step) || error("Unknown step: $step (choose: $(join(keys(STEPS), ", ")))")
+            STEPS[step]()
+        end
     end
 end

@@ -12,8 +12,8 @@
 # are EPYC 7502 (znver2). (The sysimage's cascadelake target is kept for
 # Intel login/head nodes.)
 #
-#   sbatch --export=ALL,SIF=/fusion/.../fuse_v2.6.0.sif -C amd deploy/omega-container/test_slurm.sbatch
-#   sbatch --export=ALL,SIF=/fusion/.../fuse_v2.6.0.sif \
+#   sbatch --export=ALL,SIF=/fusion/.../fuse_v1.2.0.sif -C amd deploy/omega-container/test_slurm.sbatch
+#   sbatch --export=ALL,SIF=/fusion/.../fuse_v1.2.0.sif \
 #          --exclude="$(sinfo -h -N -p short -o '%N %f' | awk '$2=="amd"{print $1}' | paste -sd,)" \
 #          deploy/omega-container/test_slurm.sbatch
 #

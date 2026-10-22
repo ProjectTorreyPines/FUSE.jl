@@ -79,7 +79,12 @@ println("    ", packages)
 println()
 println("### Setup FUSE environment in ", install_dir)
 Pkg.activate(install_dir)
-Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse"]; packages])
+# Revise is listed explicitly: FuseExamples notebooks open with `using Revise`
+# (fluxmatcher.ipynb cell 0), and the container serves those through its Jupyter
+# kernel. It is NOT a FUSE dependency. The v1.1.6 image got it from a dedicated
+# late Containerfile layer that was built into that release but never merged to
+# master, so v1.2.0 — built from master — shipped without it.
+Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse", "Revise"]; packages])
 Pkg.build("IJulia")
 
 println()
