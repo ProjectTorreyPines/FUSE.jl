@@ -245,6 +245,12 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
+    # pf_active currents per turn (IMAS; what FRESCO/VacuumFields and the fuse29 actuator builder expect).
+    # The omas D3D mapping divides the F-coil PTDATA by the turns, but older fetch paths stored PTDATA (amp-turns)
+    # in `current`: with 55-58 turns a per-turn F-coil current never exceeds a few hundred ampere, so kA-level
+    # values on a multi-turn coil identify that convention and are normalised here.
+    normalise_pf_active_current_per_turn!(dd1.pf_active)
+
     if !isempty(dd1.equilibrium.time_slice)
         IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
     end
@@ -566,4 +572,33 @@ function TraceCAD(::Val{:D3D})
     x_offset = -0.0303
     y_offset = -0.0303
     return TraceCAD(:D3D, x_length, x_offset, y_offset)
+end
+
+
+"""
+    normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+
+Convert `coil[].current` to the IMAS per-turn convention when a multi-turn coil carries amp-turn values:
+every coil whose first element has |turns_with_sign| > 1 and whose |current| exceeds `threshold` A somewhere in
+its trace is divided by those turns (one warning listing the coils). DIII-D F-coils are one element of 55-58 turns
+with per-turn currents of 10-100 A and PTDATA amp-turns of 1-8 kA; the E-coil segments are 6-48 single-turn
+elements whose stored current is the PTDATA value and are left alone.
+"""
+function normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+    fixed = String[]
+    for coil in pf_active.coil
+        isempty(coil.element) && continue
+        # per-element turns: an F-coil is one 55-58-turn element, an E-coil segment 6-48 single-turn elements
+        turns = ismissing(coil.element[1], :turns_with_sign) ? 1.0 : coil.element[1].turns_with_sign
+        abs(turns) > 1.0 || continue
+        (ismissing(coil.current, :data) || isempty(coil.current.data)) && continue
+        maximum(abs, coil.current.data) > threshold || continue
+        coil.current.data ./= turns
+        if !ismissing(coil.current, :data_σ) && !isempty(coil.current.data_σ)
+            coil.current.data_σ ./= abs(turns)
+        end
+        push!(fixed, coil.name)
+    end
+    isempty(fixed) || @warn "pf_active: coil currents stored as amp-turns (PTDATA) divided by turns_with_sign to the IMAS per-turn convention: $(join(fixed, ", "))"
+    return pf_active
 end
