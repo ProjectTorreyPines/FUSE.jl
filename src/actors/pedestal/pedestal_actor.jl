@@ -441,24 +441,14 @@ end
 
 const PA_M3_PER_TORR_L = 0.133322 # 1 Torr·L/s = 0.133322 Pa·m³/s
 
-# PTDATA per ampere of stored current: the turns of one element (what the omas D3D mapping divided by). DIII-D
-# F-coils are one element of 55-58 turns; the E-coil segments are 6-48 elements of one turn each, whose stored
-# current already is the PTDATA value, so the element count must not enter.
-function _coil_turns(coil)
-    isempty(coil.element) && return 1.0
-    el = coil.element[1]
-    turns = ismissing(el, :turns_with_sign) ? 1.0 : el.turns_with_sign
-    return turns == 0.0 ? 1.0 : turns
-end
-
 """
     fuse29_coil_convention_check(nn::Fuse29NN, coils, aux::Dict) -> Union{Nothing,String}
 
-Warn once per dd (flag `aux[:fuse29_coil_convention_checked]`) when the F-coil
-amp-turns over the whole stored trace are implausible for DIII-D: all below 500 A
-(the current was stored per turn and divided again, or never multiplied) or any
-above 3× the training p99 (the dd already holds PTDATA and was multiplied by the
-turns). Returns the message, `nothing` when the amp-turns look right.
+Warn once per dd (flag `aux[:fuse29_coil_convention_checked]`) when the F-coil currents over the
+whole stored trace are implausible for DIII-D: all below 500 A (divided by the turns, the omas
+D3D mapping bug live since v0.96.0, not repaired by the loader) or any above 3× the training
+p99 (multiplied by the turns). A correct F-coil set peaks at 6–9 kA, a divided one near 154 A.
+Returns the message, `nothing` when the currents look right.
 """
 function fuse29_coil_convention_check(nn::Fuse29NN, coils, aux)
     get(aux, :fuse29_coil_convention_checked, false) && return nothing
@@ -473,14 +463,14 @@ function fuse29_coil_convention_check(nn::Fuse29NN, coils, aux)
         (length(name) == 3 && name[1] == 'f' && haskey(ch, name)) || continue
         (ismissing(coil.current, :data) || isempty(coil.current.data)) && continue
         nF += 1
-        fmax = max(fmax, maximum(abs, coil.current.data) * abs(_coil_turns(coil)))
+        fmax = max(fmax, maximum(abs, coil.current.data))
         p99 = max(p99, max(abs(Float64(ch[name]["pct"]["1"])), abs(Float64(ch[name]["pct"]["99"]))))
     end
     nF == 0 && return nothing
     msg = if fmax < 500.0
-        "fuse29: F-coil amp-turns peak at $(round(fmax; digits=1)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks divided by the turns twice (per-turn current expected)"
+        "fuse29: F-coil currents peak at $(round(fmax; digits=1)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks divided by turns_with_sign (omas D3D mapping ≥ v0.96.0, gafusion/omas#449); load the shot through case_parameters(:D3D) or call repair_pf_active_omas_turns!"
     elseif fmax > 3p99
-        "fuse29: F-coil amp-turns peak at $(round(fmax; digits=0)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks like PTDATA already (amp-turns, not per-turn current); normalise the loader"
+        "fuse29: F-coil currents peak at $(round(fmax; digits=0)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks multiplied by turns_with_sign (amp-turns, not the per-turn current)"
     else
         nothing
     end
@@ -528,8 +518,8 @@ standard IMAS fields (no ZMQ required).
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
 | `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick); else Σ `dd.nbi.unit[]` P R_tang / v_beam × direction (window mean) |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
-| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` × `element[1].turns_with_sign` (IMAS stores the current per turn; PTDATA is the amp-turn signal of the 55-58-turn winding) |
-| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB`, same rule (48 single-turn elements: factor 1) |
+| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored (the IMAS per-turn current is the PTDATA signal; see the convention note) |
+| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB`, as stored |
 | `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | `dd.gas_injection.valve[]` named `GASA..GASE`, `flow_rate` (Pa·m³/s → Torr·L/s, window mean) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
 
@@ -546,14 +536,17 @@ expected rather than as evidence the wiring is wrong.
 The predecessor's `pohm`, `ip` and `ipspr15v` inputs are gone: they are plasma
 responses, not commands, and fuse29 deliberately does not take them.
 
-Coil-current convention: IMAS (`omas` D3D mapping, FDP export, FRESCO/VacuumFields
-`set_current_per_turn!`) stores `pf_active.coil[].current` per turn, so the F-coils
-(55–58 turns) read 10–150 A where PTDATA has 0.2–8.8 kA. fuse29 was trained on PTDATA, hence
-the multiplication by `turns_with_sign`. A dd that holds PTDATA in `current` (older
-D3D fetch paths) is normalised by `case_parameters(:D3D)`; `fuse29_coil_convention_check`
-warns once per dd when the amp-turns are implausible either way. Verified on shots
-199055 and 200000 (FDP exports): H-mode gate agreement with the LH analysis 99 % / 96 %
-with the factor, 14 % / 58 % without.
+Coil-current convention: IMAS stores `pf_active.coil[].current` per turn, and for the DIII-D
+F-coils (one 55–58-turn element) that per-turn current is the PTDATA signal itself: a
+free-boundary refit of the EFIT02 boundary (shot 200000, 3.04 s) needs F6A = −227.7 kA-turns
+= −4.14 kA × 55, the undivided PTDATA value, on every F-coil. fuse29 was trained on PTDATA,
+so the current is read as stored. The omas D3D mapping divides the F-coil PTDATA by the turns
+(gafusion/omas#449: added as dead code in v0.92.0, live since v0.96.0, 2026-04-08), so a dd exported with it (FDP export,
+any fetch on a released omas) carries F-coils 55–58× too small; `case_parameters(:D3D)`
+repairs that (`repair_pf_active_omas_turns!`) and `fuse29_coil_convention_check` warns once
+per dd when the F-coil currents are implausible either way. Verified on shots 199055 and
+200000 (FDP exports): H-mode gate agreement with the LH analysis 99 % / 97 % with repaired
+currents, 14 % / 58 % with the divided ones.
 """
 function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time,
                                 replay_dd::Union{Nothing,IMAS.DD}=nothing)
@@ -668,14 +661,14 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             ch_name = get(coil_name_map, uppercase(strip(coil.name)), nothing)
             ch_name === nothing && continue
             if !ismissing(coil.current, :data) && !isempty(coil.current.data)
-                # PTDATA = amp-turns = IMAS per-turn current × turns_with_sign (see the
-                # docstring). On the FDP export of 199055 at t = 3.0 s, f6a is stored as
-                # -53.6 A (55 turns) and PTDATA has -3065 A; ECOILA/B have one turn and are
-                # the same either way. Coils are the strongest channel group for ne (f6b:
-                # dne = 3.22 in sensitivity_s0.json, four times pinj).
+                # As stored: the IMAS per-turn current of a DIII-D F-coil is the PTDATA signal
+                # (see the convention note in the docstring). A dd exported by the omas D3D
+                # mapping of v0.96.0+ holds PTDATA / turns (F6A -53.6 A instead of -3065 A on
+                # 199055) and must be repaired by the loader first. Coils are the strongest
+                # channel group for ne (f6b: dne = 3.22 in sensitivity_s0.json, four times pinj).
                 v = _interp_at(coil.current.time, coil.current.data, :linear)
                 v === nothing && continue
-                _set!(ch_name, v * _coil_turns(coil))
+                _set!(ch_name, v)
             end
         end
         fuse29_coil_convention_check(nn, coil_source, aux)

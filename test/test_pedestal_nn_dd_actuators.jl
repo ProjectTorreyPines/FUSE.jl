@@ -1,8 +1,8 @@
 #= ============================================================ =#
-#  build_fuse29_actuators(source=:dd) on a synthetic dd:          #
-#  per-turn coil currents -> PTDATA amp-turns, the convention     #
-#  guard, the beam-geometry torque fallback, gas_injection valves #
-#  and case_parameters' amp-turn normalisation. Needs the ONNX   #
+#  build_fuse29_actuators(source=:dd) on a synthetic dd: coil     #
+#  currents as stored (per turn = PTDATA), the convention guard,  #
+#  the beam-geometry torque fallback, gas_injection valves and    #
+#  the loader repair of omas-divided F-coils. Needs the ONNX      #
 #  bundle (FUSE_PEDESTAL_NN_DIR); skipped otherwise.              #
 #    cd FUSE && julia --project test/test_pedestal_nn_dd_actuators.jl
 #= ============================================================ =#
@@ -21,7 +21,7 @@ else
     nn = FUSE.load_pedestal_nn()
     t = collect(0.0:0.01:1.0)
 
-    function synthetic_dd(; per_turn::Bool=true)
+    function synthetic_dd(; divided::Bool=false) # divided = F-coils as the omas D3D mapping ≥ v0.96.0 exports them
         dd = IMAS.dd()
         dd.global_time = 0.5
         dd.equilibrium.time = [0.0, 1.0]
@@ -35,7 +35,7 @@ else
                 el.turns_with_sign = turns
             end
             coil.current.time = t
-            coil.current.data = fill(per_turn ? ptdata / turns : ptdata, length(t))
+            coil.current.data = fill(divided ? ptdata / turns : ptdata, length(t))
         end
         # one co-injected 80 keV D beam, 2 MW, R_tang = 1.15 m
         unit = resize!(dd.nbi.unit, 1)[1]
@@ -56,7 +56,7 @@ else
         return dd
     end
 
-    @testset "fuse29 :dd actuators from a per-turn dd" begin
+    @testset "fuse29 :dd actuators read the coil currents as stored" begin
         dd = synthetic_dd()
         u, live = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
         idx(name) = findfirst(==(name), nn.actuator_names)
@@ -76,29 +76,30 @@ else
     end
 
     @testset "convention guard" begin
-        dd = synthetic_dd(; per_turn=false) # PTDATA stored in current, 55 turns -> 165 kA amp-turns
+        dd = synthetic_dd(; divided=true) # F-coils at PTDATA / turns
         aux = getfield(dd, :_aux)
-        msg = @test_logs (:warn, r"looks like PTDATA already") FUSE.fuse29_coil_convention_check(nn, dd.pf_active.coil, aux)
-        @test occursin("PTDATA", msg)
+        msg = @test_logs (:warn, r"looks divided by turns_with_sign") FUSE.fuse29_coil_convention_check(nn, dd.pf_active.coil, aux)
+        @test occursin("divided", msg)
         @test FUSE.fuse29_coil_convention_check(nn, dd.pf_active.coil, aux) === nothing # once per dd
         dd2 = synthetic_dd()
         for coil in dd2.pf_active.coil
-            coil.current.data ./= coil.element[1].turns_with_sign # divided twice
+            coil.current.data .*= coil.element[1].turns_with_sign # amp-turns stored as current
         end
-        @test occursin("divided by the turns twice", @test_logs (:warn, r"divided") FUSE.fuse29_coil_convention_check(nn, dd2.pf_active.coil, getfield(dd2, :_aux)))
+        @test occursin("multiplied", @test_logs (:warn, r"multiplied") FUSE.fuse29_coil_convention_check(nn, dd2.pf_active.coil, getfield(dd2, :_aux)))
         dd3 = synthetic_dd()
         @test FUSE.fuse29_coil_convention_check(nn, dd3.pf_active.coil, getfield(dd3, :_aux)) === nothing
     end
 
-    @testset "loader normalisation to per-turn" begin
-        dd = synthetic_dd(; per_turn=false)
-        @test_logs (:warn, r"amp-turns") FUSE.normalise_pf_active_current_per_turn!(dd.pf_active)
-        @test isapprox(dd.pf_active.coil[1].current.data[1], -3000.0 / 55; rtol=1e-6)
+    @testset "loader repair of omas-divided F-coils" begin
+        dd = synthetic_dd(; divided=true)
+        @test_logs (:warn, r"divided by turns_with_sign") FUSE.repair_pf_active_omas_turns!(dd.pf_active)
+        @test isapprox(dd.pf_active.coil[1].current.data[1], -3000.0; rtol=1e-6)
         @test dd.pf_active.coil[3].current.data[1] == -7000.0 # 48 single-turn elements: untouched
-        @test isapprox(dd.pf_active.coil[4].current.data[1], -200.0 / 58; rtol=1e-6) # low-current F3A converted with the group
+        @test isapprox(dd.pf_active.coil[4].current.data[1], -200.0; rtol=1e-6) # low-current F3A repaired with the group
         ddp = synthetic_dd()
-        FUSE.normalise_pf_active_current_per_turn!(ddp.pf_active) # already per turn: no change, no warning
-        @test isapprox(ddp.pf_active.coil[1].current.data[1], -3000.0 / 55; rtol=1e-6)
+        FUSE.repair_pf_active_omas_turns!(ddp.pf_active) # correct dd: no change, no warning
+        @test isapprox(ddp.pf_active.coil[1].current.data[1], -3000.0; rtol=1e-6)
+        @test isapprox(ddp.pf_active.coil[4].current.data[1], -200.0; rtol=1e-6)
     end
 
     @testset "model torque used when core_sources are current" begin

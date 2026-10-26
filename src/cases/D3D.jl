@@ -245,11 +245,10 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
-    # pf_active currents per turn (IMAS; what FRESCO/VacuumFields and the fuse29 actuator builder expect).
-    # The omas D3D mapping divides the F-coil PTDATA by the turns, but older fetch paths stored PTDATA (amp-turns)
-    # in `current`: with 55-58 turns a per-turn F-coil current never exceeds a few hundred ampere, so kA-level
-    # values on a multi-turn coil identify that convention and are normalised here.
-    normalise_pf_active_current_per_turn!(dd1.pf_active)
+    # The omas D3D mapping (division added in v0.92.0 as dead code, live since v0.96.0) divides the F-coil PTDATA by turns_with_sign although
+    # PTDATA already is the IMAS per-turn current (gafusion/omas#449): such exports carry F-coils 55-58x too
+    # small, which starves the fuse29 actuators and starts FRESCO far from the solution. Repaired here.
+    repair_pf_active_omas_turns!(dd1.pf_active)
 
     if !isempty(dd1.equilibrium.time_slice)
         IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
@@ -576,17 +575,17 @@ end
 
 
 """
-    normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+    repair_pf_active_omas_turns!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
 
-Convert `coil[].current` to the IMAS per-turn convention when the multi-turn coils carry amp-turn (PTDATA) values.
-The convention is a property of the dd, not of one coil, so the decision is made once for the whole group of coils
-whose first element has |turns_with_sign| > 1: if the largest |current| among them over their traces exceeds
-`threshold` A, every coil of the group is divided by its element turns (one warning listing them). DIII-D F-coils
-are one element of 55-58 turns with per-turn currents up to ~150 A and PTDATA amp-turns of 0.2-8.8 kA (the F3
-pair runs low and never crosses 500 A on its own); the E-coil segments are 6-48 single-turn elements whose stored
-current is the PTDATA value and are left alone.
+Undo the omas D3D mapping bug (gafusion/omas#449; dead code since v0.92.0, live since v0.96.0 of 2026-04-08) that divides the F-coil PTDATA by
+`turns_with_sign`: PTDATA already is the IMAS per-turn current (a free-boundary refit of the EFIT02 boundary of
+shot 200000 needs F6A = -227.7 kA-turns = -4.14 kA x 55, the undivided PTDATA), so the exported F-coils are 55-58x
+too small. The convention is a property of the dd, so the decision is made once for the group of coils whose first
+element has |turns_with_sign| > 1: if the largest |current| among them over their traces is below `threshold` A
+(a divided DIII-D F-coil set peaks near 154 A, a correct one at 6-9 kA), every coil of the group is multiplied by
+its element turns (one warning listing them). The E-coil segments are single-turn elements and are never touched.
 """
-function normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+function repair_pf_active_omas_turns!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
     group = Tuple{eltype(pf_active.coil),Float64}[]
     imax = 0.0
     for coil in pf_active.coil
@@ -598,13 +597,13 @@ function normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; thresh
         push!(group, (coil, turns))
         imax = max(imax, maximum(abs, coil.current.data))
     end
-    (isempty(group) || imax <= threshold) && return pf_active
+    (isempty(group) || imax >= threshold) && return pf_active
     for (coil, turns) in group
-        coil.current.data ./= turns
+        coil.current.data .*= turns
         if !ismissing(coil.current, :data_σ) && !isempty(coil.current.data_σ)
-            coil.current.data_σ ./= abs(turns)
+            coil.current.data_σ .*= abs(turns)
         end
     end
-    @warn "pf_active: multi-turn coil currents stored as amp-turns (PTDATA, |I|max = $(round(imax; digits=0)) A) divided by turns_with_sign to the IMAS per-turn convention: $(join((c.name for (c, _) in group), ", "))"
+    @warn "pf_active: multi-turn coil currents divided by turns_with_sign (omas D3D mapping ≥ v0.96.0, gafusion/omas#449, |I|max = $(round(imax; digits=1)) A) multiplied back to the IMAS per-turn (PTDATA) convention: $(join((c.name for (c, _) in group), ", "))"
     return pf_active
 end
