@@ -26,8 +26,9 @@ else
         dd.global_time = 0.5
         dd.equilibrium.time = [0.0, 1.0]
         dd.equilibrium.vacuum_toroidal_field.b0 = [-2.0, -2.0]
-        # coils: F6A (one 55-turn element) at PTDATA -3000 A, F1A (58 turns), ECOILA (48 single-turn elements) at -7000 A
-        for (name, turns, nel, ptdata) in (("F6A", 55.0, 1, -3000.0), ("F1A", 58.0, 1, -1500.0), ("ECOILA", 1.0, 48, -7000.0))
+        # coils: F6A (one 55-turn element) at PTDATA -3000 A, F1A (58 turns), ECOILA (48 single-turn elements) at -7000 A,
+        # F3A (58 turns) at PTDATA -200 A: below the 500 A threshold on its own, converted with the group
+        for (name, turns, nel, ptdata) in (("F6A", 55.0, 1, -3000.0), ("F1A", 58.0, 1, -1500.0), ("ECOILA", 1.0, 48, -7000.0), ("F3A", 58.0, 1, -200.0))
             coil = resize!(dd.pf_active.coil, length(dd.pf_active.coil) + 1)[end]
             coil.name = name
             for el in resize!(coil.element, nel)
@@ -61,6 +62,7 @@ else
         idx(name) = findfirst(==(name), nn.actuator_names)
         @test live[idx("f6a")] && isapprox(u[idx("f6a")], -3000.0; rtol=1e-5)
         @test live[idx("f1a")] && isapprox(u[idx("f1a")], -1500.0; rtol=1e-5)
+        @test live[idx("f3a")] && isapprox(u[idx("f3a")], -200.0; rtol=1e-5)
         @test live[idx("ecoila")] && isapprox(u[idx("ecoila")], -7000.0; rtol=1e-5)
         @test live[idx("bt")] && u[idx("bt")] == -2.0f0
         @test live[idx("gasa_cal")] && isapprox(u[idx("gasa_cal")], 10.0; rtol=1e-4)
@@ -93,6 +95,7 @@ else
         @test_logs (:warn, r"amp-turns") FUSE.normalise_pf_active_current_per_turn!(dd.pf_active)
         @test isapprox(dd.pf_active.coil[1].current.data[1], -3000.0 / 55; rtol=1e-6)
         @test dd.pf_active.coil[3].current.data[1] == -7000.0 # 48 single-turn elements: untouched
+        @test isapprox(dd.pf_active.coil[4].current.data[1], -200.0 / 58; rtol=1e-6) # low-current F3A converted with the group
         ddp = synthetic_dd()
         FUSE.normalise_pf_active_current_per_turn!(ddp.pf_active) # already per turn: no change, no warning
         @test isapprox(ddp.pf_active.coil[1].current.data[1], -3000.0 / 55; rtol=1e-6)

@@ -548,7 +548,7 @@ responses, not commands, and fuse29 deliberately does not take them.
 
 Coil-current convention: IMAS (`omas` D3D mapping, FDP export, FRESCO/VacuumFields
 `set_current_per_turn!`) stores `pf_active.coil[].current` per turn, so the F-coils
-(55–58 turns) read 10–100 A where PTDATA has kA. fuse29 was trained on PTDATA, hence
+(55–58 turns) read 10–150 A where PTDATA has 0.2–8.8 kA. fuse29 was trained on PTDATA, hence
 the multiplication by `turns_with_sign`. A dd that holds PTDATA in `current` (older
 D3D fetch paths) is normalised by `case_parameters(:D3D)`; `fuse29_coil_convention_check`
 warns once per dd when the amp-turns are implausible either way. Verified on shots

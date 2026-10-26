@@ -578,27 +578,33 @@ end
 """
     normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
 
-Convert `coil[].current` to the IMAS per-turn convention when a multi-turn coil carries amp-turn values:
-every coil whose first element has |turns_with_sign| > 1 and whose |current| exceeds `threshold` A somewhere in
-its trace is divided by those turns (one warning listing the coils). DIII-D F-coils are one element of 55-58 turns
-with per-turn currents of 10-100 A and PTDATA amp-turns of 1-8 kA; the E-coil segments are 6-48 single-turn
-elements whose stored current is the PTDATA value and are left alone.
+Convert `coil[].current` to the IMAS per-turn convention when the multi-turn coils carry amp-turn (PTDATA) values.
+The convention is a property of the dd, not of one coil, so the decision is made once for the whole group of coils
+whose first element has |turns_with_sign| > 1: if the largest |current| among them over their traces exceeds
+`threshold` A, every coil of the group is divided by its element turns (one warning listing them). DIII-D F-coils
+are one element of 55-58 turns with per-turn currents up to ~150 A and PTDATA amp-turns of 0.2-8.8 kA (the F3
+pair runs low and never crosses 500 A on its own); the E-coil segments are 6-48 single-turn elements whose stored
+current is the PTDATA value and are left alone.
 """
 function normalise_pf_active_current_per_turn!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
-    fixed = String[]
+    group = Tuple{eltype(pf_active.coil),Float64}[]
+    imax = 0.0
     for coil in pf_active.coil
         isempty(coil.element) && continue
         # per-element turns: an F-coil is one 55-58-turn element, an E-coil segment 6-48 single-turn elements
         turns = ismissing(coil.element[1], :turns_with_sign) ? 1.0 : coil.element[1].turns_with_sign
         abs(turns) > 1.0 || continue
         (ismissing(coil.current, :data) || isempty(coil.current.data)) && continue
-        maximum(abs, coil.current.data) > threshold || continue
+        push!(group, (coil, turns))
+        imax = max(imax, maximum(abs, coil.current.data))
+    end
+    (isempty(group) || imax <= threshold) && return pf_active
+    for (coil, turns) in group
         coil.current.data ./= turns
         if !ismissing(coil.current, :data_σ) && !isempty(coil.current.data_σ)
             coil.current.data_σ ./= abs(turns)
         end
-        push!(fixed, coil.name)
     end
-    isempty(fixed) || @warn "pf_active: coil currents stored as amp-turns (PTDATA) divided by turns_with_sign to the IMAS per-turn convention: $(join(fixed, ", "))"
+    @warn "pf_active: multi-turn coil currents stored as amp-turns (PTDATA, |I|max = $(round(imax; digits=0)) A) divided by turns_with_sign to the IMAS per-turn convention: $(join((c.name for (c, _) in group), ", "))"
     return pf_active
 end
