@@ -686,15 +686,15 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
     @info "Executing CHEASE from $chease_exec"
     isfile(chease_exec) || error("CHEASE executable not found: $chease_exec")
 
-    cmd = pipeline(
-        `$(chease_exec)`,
-        stdin  = "datain",
-        stdout = "log_chease",
-        stderr = "log_chease"
-    )
-
-    ok = success(cmd)
+    # One shared handle for stdout and stderr: passing the same file NAME to both opens it twice
+    # with independent offsets, and stderr then overwrites the start of the stdout log.
+    ok = open("log_chease", "w") do log
+        success(pipeline(`$(chease_exec)`, stdin="datain", stdout=log, stderr=log))
+    end
     ok || error("CHEASE failed — see log_chease")
+    # Stale OUT*MAR were removed above and CHEASE opens them STATUS='NEW', so they exist only if
+    # this run got that far; a CHEASE that dies part-way still leaves most of log_chease behind.
+    isfile("OUTRMAR") && isfile("OUTVMAR") || error("CHEASE did not produce OUTRMAR/OUTVMAR — see log_chease")
 
     # basic checks on CHEASE output. Key names below match CHEASE's own log labels
     # (GEXP = Troyon normalized beta β_N, "Q AT 95% FLUX SURFACE" = q95, Q_ZERO/Q_EDGE
@@ -888,10 +888,6 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # CHEASE-computed wall position, never left at struct defaults.
     configure_wall!(mars_namelist, par)
 
-    # NREORBIT is driven entirely by par.num_orbits, so it can't drift out of sync with
-    # the process count MARS is launched with below.
-    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
-
     # Coordinate system, owned by par.mars_coord. NCONVCS=1 makes MARS rebuild its mesh on
     # the geometric (polar) angle θ = atan2(Z-Z_axis, R-R_axis) right after reading OUT*MAR
     # (GEOMCS_PLASMA/GEOMCS_VACUUM, marsq.f:1595/1812), so every metric element is continuous
@@ -910,6 +906,9 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
+    
+    # Run REORBIT: NREORBIT is driven entirely by par.num_orbits
+    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
 
     # Determine which profiles to pull from dd, i.e. experiment
     write_exp_profiles(dd, mars_namelist)
@@ -919,24 +918,29 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
 
-    # MARS itself is serial; REORBIT particle tracing (reorbit.f) is the only part that
-    # needs MPI, via a master rank plus one worker rank per orbit (see reorbit.f's
-    # RE_TRACING task farm — requesting more ranks than num_orbits+1 leaves the extras
-    # blocked forever, so nprocs must match exactly).
-    nprocs = par.num_orbits > 0 ? par.num_orbits + 1 : 1
+    # MARS itself is serial; REORBIT particle tracing (reorbit.f) is the only part that needs MPI.
+    # MARS enters MPI mode only for NREORBIT>1 (mpienv.f: ISMPIRUN=2), so num_orbits<=1 is a SERIAL
+    # run: launching ranks anyway makes every rank run the whole solve into the same directory.
+    # In MPI mode rank 0 is the master and the other ranks are workers it feeds orbits to
+    # dynamically (reorbit.f's RE_TRACING task farm), so any worker count >= 1 works and orbits
+    # simply queue; only MORE ranks than num_orbits+1 is a problem (the extras block forever).
+    # Locally the rank count is capped at the logical core count, so a large num_orbits queues
+    # instead of launching hundreds of ranks; in batch mode the allocation sets the limit.
+    nprocs = par.num_orbits > 1 ? par.num_orbits + 1 : 1
+    par.run_mode == :local && (nprocs = min(nprocs, Sys.CPU_THREADS))
 
     if par.run_mode == :batch
         @info "Submitting MARS job to batch system with command: $(par.batch_submit_cmd) and script: mars_job.sh"
         ok = run_batch_mars(mars_exec, par, nprocs)
     elseif par.run_mode == :local
-        run_cmd = nprocs > 1 ? `time $(par.mpirun_exec) -n $nprocs $(mars_exec)` : `time $(mars_exec)`
+        # Open MPI refuses more ranks than physical cores ("not enough slots") unless told to oversubscribe
+        mpi_flags = nprocs > 1 && occursin("Open MPI", read(`$(par.mpirun_exec) --version`, String)) ? ["--oversubscribe"] : String[]
+        run_cmd = nprocs > 1 ? `time $(par.mpirun_exec) $mpi_flags -n $nprocs $(mars_exec)` : `time $(mars_exec)`
         @info "Running MARS interactively with command: $run_cmd"
-        cmd = pipeline(
-        run_cmd,
-        stdout = "log_mars",
-        stderr = "log_mars"
-        )
-        ok = success(cmd)
+        # one shared handle for stdout and stderr (see run_CHEASE)
+        ok = open("log_mars", "w") do log
+            success(pipeline(run_cmd, stdout=log, stderr=log))
+        end
     else
         error("Unknown run mode: $(par.run_mode). Supported modes are :local and :batch.")
     end
@@ -947,6 +951,8 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # MARS signals failure through its STOP line, not the exit status, and leaves the previous
     # run's *.OUT in place when it aborts — check before reading anything back.
     check_MARS_finished("log_mars")
+    # A namelist MARS cannot read is reported, then MARS still ends with STOP NORMAL (marsq.f:4157)
+    any(contains("ERROR AT NAMELIST READ"), eachline("log_mars")) && error("MARS could not read RUN.IN — see log_mars")
 
     # Display growth rate and iteration count. A linear response run (NCASE=2, e.g. the
     # INCFEED=4/8 coil runs) has no eigenvalue and writes an EMPTY RESULT.OUT; that is normal,
