@@ -904,11 +904,12 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # Initial eigenvalue guess, owned by par.growth_rate_guess as [Re, Im] (a single element is a real guess)
     mars_namelist.BASIC.TALPHA1 = complex(par.growth_rate_guess...)
 
+    # Run REORBIT: NREORBIT is driven entirely by par.num_orbits. It must be set BEFORE RUN.IN is
+    # written below: the file is what MARS reads, and nprocs (further down) is derived from the same par.
+    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
+
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
-    
-    # Run REORBIT: NREORBIT is driven entirely by par.num_orbits
-    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
 
     # Determine which profiles to pull from dd, i.e. experiment
     write_exp_profiles(dd, mars_namelist)
