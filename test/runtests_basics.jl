@@ -16,6 +16,17 @@ end
     @test parent(act.ActorNeoclassical) === act
 end
 
+@testset "apply_act_overrides!" begin
+    act = FUSE.ParametersActors()
+    act.ActorFRESCO.nR = 65
+    act.ActorFRESCO.nZ = 65
+    overrides = FUSE.unset_parameters!(FUSE.ParametersActors())
+    overrides.ActorFRESCO.nR = 129 # a default value is forced too
+    FUSE.apply_act_overrides!(act, overrides)
+    @test act.ActorFRESCO.nR == 129
+    @test act.ActorFRESCO.nZ == 65
+end
+
 @testset "optimization_parameters" begin
     ini = FUSE.ParametersInits()
 
