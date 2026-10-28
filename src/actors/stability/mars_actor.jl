@@ -1462,8 +1462,11 @@ Keyword arguments:
                  Follows the Python pipeline's `m_max` convention rather than MATLAB's
                  fixed `m=1:5` list, so it adapts to runs with differing harmonic content.
 - `mode_index` : which `toroidal_mode` to plot (default 1)
+- `normalize`  : divide by the peak `|Q_m|` over the plotted harmonics, as RZplot does (default false)
+- `edge_freeze`: for `:xi`/`:vnormal`, overwrite rows with `s ≥ 0.999` by the last row inside, as
+                 RZplot/MacReadVPLASMA.m does to hide the LCFS-point noise (default false)
 """
-@recipe function plot_ActorMars(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1)
+@recipe function plot_ActorMars(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1, normalize=false, edge_freeze=false)
     par = actor.par
     dd = actor.dd
 
@@ -1480,16 +1483,26 @@ Keyword arguments:
     keep = findall(m -> m < mmax, m_pol)
     @assert !isempty(keep) "No harmonics with m < $mmax (available m: $(extrema(m_pol)))"
 
+    A = abs.(Q[:, keep])
+    if edge_freeze && quantity !== :bnormal
+        I = findlast(<(0.999), s)
+        A[I+1:end, :] .= A[I:I, :]
+    end
+    if normalize
+        A ./= maximum(A)
+        ylab = "$ylab / max"
+    end
+
     xguide --> "s = √ψ_norm"
     yguide --> ylab
     title --> "$(quantity) harmonics (m < $mmax), n=$(mode.n_tor)"
     legend --> :outerright
     grid --> true
 
-    for k in keep
+    for (j, k) in enumerate(keep)
         @series begin
             label := "m=$(Int(m_pol[k]))"
-            s, abs.(Q[:, k])
+            s, A[:, j]
         end
     end
 end
