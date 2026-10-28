@@ -172,6 +172,7 @@ Start multiprocessing environment
   - memory_usage_fraction is the fraction of peak memory that can be used
   - workers_import_fuse does a `@everywhere using FUSE` on the worker nodes
   - release_existing_workers does just that before starting a new set
+  - workers are started on the same system image as the main process
 """
 function parallel_environment(
     cluster::String="localhost",
@@ -194,6 +195,9 @@ function parallel_environment(
             current_nworkers = 0
         end
     end
+
+    # workers run on the same system image as the main process (Distributed does not propagate a custom sysimage)
+    sysimage = unsafe_string(Base.JLOptions().image_file)
 
     pid_list = Int[]
 
@@ -218,7 +222,7 @@ function parallel_environment(
                     topology=:master_worker,
                     time="99:99:99",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())", "--sysimage=$(sysimage)"],
                     kw...
                 )
             end
@@ -244,7 +248,7 @@ function parallel_environment(
                     topology=:master_worker,
                     time="00:48:00",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())", "--sysimage=$(sysimage)"],
                     kw...
                 )
             end
@@ -268,7 +272,7 @@ function parallel_environment(
                     exclusive="",
                     topology=:master_worker,
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())", "--sysimage=$(sysimage)"],
                     kw...
                 )
             end
@@ -293,7 +297,7 @@ function parallel_environment(
                     topology=:master_worker,
                     time="99:99:99",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())", "--sysimage=$(sysimage)"],
                     kw...
                 )
             end
@@ -319,7 +323,7 @@ function parallel_environment(
                     topology=:master_worker,
                     time="7:59:59",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())", "--sysimage=$(sysimage)"],
                     kw...
                 )
             end
@@ -333,7 +337,7 @@ function parallel_environment(
             nworkers = length(Sys.cpu_info())
         end
         if current_nworkers < nworkers
-            pid_list = Distributed.addprocs(nworkers - current_nworkers; topology=:master_worker, exeflags=["--heap-size-hint=$(mem_size)G"])
+            pid_list = Distributed.addprocs(nworkers - current_nworkers; topology=:master_worker, exeflags=["--heap-size-hint=$(mem_size)G", "--sysimage=$(sysimage)"])
         end
 
     else

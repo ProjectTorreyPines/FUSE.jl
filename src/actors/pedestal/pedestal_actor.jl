@@ -439,6 +439,67 @@ function _scale_profile_at(rho::AbstractVector{<:Real}, profile::AbstractVector{
     return profile ./ IMAS.interp1d(rho, profile).(rho_at) .* value
 end
 
+const PA_M3_PER_TORR_L = 0.133322 # 1 Torr·L/s = 0.133322 Pa·m³/s
+
+"""
+    fuse29_coil_convention_check(nn::Fuse29NN, coils, aux::Dict) -> Union{Nothing,String}
+
+Warn once per dd (flag `aux[:fuse29_coil_convention_checked]`) when the F-coil currents over the
+whole stored trace are implausible for DIII-D: all below 500 A (divided by the turns, the omas
+D3D mapping bug live since v0.96.0, not repaired by the loader) or any above 3× the training
+p99 (multiplied by the turns). A correct F-coil set peaks at 6–9 kA, a divided one near 154 A.
+Returns the message, `nothing` when the currents look right.
+"""
+function fuse29_coil_convention_check(nn::Fuse29NN, coils, aux)
+    get(aux, :fuse29_coil_convention_checked, false) && return nothing
+    aux[:fuse29_coil_convention_checked] = true
+    nn.actuator_ranges === nothing && return nothing
+    ch = nn.actuator_ranges["channels"]
+    fmax = 0.0
+    p99 = 0.0
+    nF = 0
+    for coil in coils
+        name = lowercase(strip(coil.name))
+        (length(name) == 3 && name[1] == 'f' && haskey(ch, name)) || continue
+        (ismissing(coil.current, :data) || isempty(coil.current.data)) && continue
+        nF += 1
+        fmax = max(fmax, maximum(abs, coil.current.data))
+        p99 = max(p99, max(abs(Float64(ch[name]["pct"]["1"])), abs(Float64(ch[name]["pct"]["99"]))))
+    end
+    nF == 0 && return nothing
+    msg = if fmax < 500.0
+        "fuse29: F-coil currents peak at $(round(fmax; digits=1)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks divided by turns_with_sign (omas D3D mapping ≥ v0.96.0, gafusion/omas#449); load the shot through case_parameters(:D3D) or call repair_pf_active_omas_turns!"
+    elseif fmax > 3p99
+        "fuse29: F-coil currents peak at $(round(fmax; digits=0)) A over the stored trace (training p99 ≈ $(round(p99; digits=0)) A): pf_active.coil[].current looks multiplied by turns_with_sign (amp-turns, not the per-turn current)"
+    else
+        nothing
+    end
+    msg === nothing || @warn msg
+    return msg
+end
+
+# injected torque from the beam geometry: Σ_units P(t) R_tang / v_beam × direction, full-energy component
+function _nbi_torque_estimate(dd::IMAS.DD, window_mean::Function, interp_at::Function)
+    tinj = 0.0
+    found = false
+    for unit in dd.nbi.unit
+        (ismissing(unit.power_launched, :data) || isempty(unit.power_launched.data)) && continue
+        (ismissing(unit.energy, :data) || isempty(unit.energy.data)) && continue
+        isempty(unit.beamlets_group) && continue
+        bg = unit.beamlets_group[1]
+        ismissing(bg, :tangency_radius) && continue
+        P = window_mean(unit.power_launched.time, unit.power_launched.data)
+        E = interp_at(unit.energy.time, unit.energy.data, :constant)
+        (P === nothing || E === nothing || E <= 0.0) && continue
+        A = ismissing(unit.species, :a) ? 2.0 : unit.species.a
+        vb = sqrt(2.0 * E * IMAS.mks.e / (A * IMAS.mks.m_u)) # energy in eV
+        dir = ismissing(bg, :direction) ? 1 : (bg.direction == 0 ? 1 : sign(bg.direction))
+        tinj += P / vb * bg.tangency_radius * dir
+        found = true
+    end
+    return found ? tinj : nothing
+end
+
 """
     build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time) -> (u::Vector{Float32}, live::Vector{Bool})
 
@@ -455,11 +516,11 @@ standard IMAS fields (no ZMQ required).
 | channel | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
-| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities[time].torque_tor` |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick); else Σ `dd.nbi.unit[]` P R_tang / v_beam × direction (window mean) |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
-| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored |
-| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB` |
-| `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | (no dd source → median) |
+| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored (the IMAS per-turn current is the PTDATA signal; see the convention note) |
+| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB`, as stored |
+| `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | `dd.gas_injection.valve[]` named `GASA..GASE`, `flow_rate` (Pa·m³/s → Torr·L/s, window mean) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
 
 `I_coil` is the 24-element PCS coil-current vector (PCECOILA, PCE89DN, PCE567UP,
@@ -474,6 +535,18 @@ expected rather than as evidence the wiring is wrong.
 
 The predecessor's `pohm`, `ip` and `ipspr15v` inputs are gone: they are plasma
 responses, not commands, and fuse29 deliberately does not take them.
+
+Coil-current convention: IMAS stores `pf_active.coil[].current` per turn, and for the DIII-D
+F-coils (one 55–58-turn element) that per-turn current is the PTDATA signal itself: a
+free-boundary refit of the EFIT02 boundary (shot 200000, 3.04 s) needs F6A = −227.7 kA-turns
+= −4.14 kA × 55, the undivided PTDATA value, on every F-coil. fuse29 was trained on PTDATA,
+so the current is read as stored. The omas D3D mapping divides the F-coil PTDATA by the turns
+(gafusion/omas#449: added as dead code in v0.92.0, live since v0.96.0, 2026-04-08), so a dd exported with it (FDP export,
+any fetch on a released omas) carries F-coils 55–58× too small; `case_parameters(:D3D)`
+repairs that (`repair_pf_active_omas_turns!`) and `fuse29_coil_convention_check` warns once
+per dd when the F-coil currents are implausible either way. Verified on shots 199055 and
+200000 (FDP exports): H-mode gate agreement with the LH analysis 99 % / 97 % with repaired
+currents, 14 % / 58 % with the divided ones.
 """
 function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time,
                                 replay_dd::Union{Nothing,IMAS.DD}=nothing)
@@ -588,20 +661,30 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             ch_name = get(coil_name_map, uppercase(strip(coil.name)), nothing)
             ch_name === nothing && continue
             if !ismissing(coil.current, :data) && !isempty(coil.current.data)
-                # No division by turns_with_sign. The contract wants the PTDATA point
-                # (F1A..F9B, ECOILA/B), which is the same quantity dd.pf_active.coil[].current
-                # already carries. Dividing gave 1/58 of the truth on every F-coil: against
-                # the reference shot 199055 at t = 3.0 s, f6a read -53.6 A where PTDATA has
-                # -3065 A, ratio 0.017 across all eighteen. ECOILA/B have turns = 1 and were
-                # therefore right either way, which is what made the error hard to see.
-                # Coils are the strongest channel group for ne (f6b: dne = 3.22 in
-                # sensitivity_s0.json, four times pinj), so this was the dominant input error.
+                # As stored: the IMAS per-turn current of a DIII-D F-coil is the PTDATA signal
+                # (see the convention note in the docstring). A dd exported by the omas D3D
+                # mapping of v0.96.0+ holds PTDATA / turns (F6A -53.6 A instead of -3065 A on
+                # 199055) and must be repaired by the loader first. Coils are the strongest
+                # channel group for ne (f6b: dne = 3.22 in sensitivity_s0.json, four times pinj).
                 v = _interp_at(coil.current.time, coil.current.data, :linear)
                 v === nothing && continue
                 _set!(ch_name, v)
             end
         end
-        # gasa..gase_cal — no dd source; stay at the training median
+        fuse29_coil_convention_check(nn, coil_source, aux)
+
+        # gasa..gase_cal — gas_injection valves (IMAS Pa·m³/s -> Torr·L/s), when the loader provides them
+        if !isempty(dd.gas_injection.valve)
+            for valve in dd.gas_injection.valve
+                m = match(r"^GAS([A-E])", uppercase(strip(valve.name)))
+                m === nothing && continue
+                if !ismissing(valve.flow_rate, :data) && !isempty(valve.flow_rate.data)
+                    v = _window_mean(valve.flow_rate.time, valve.flow_rate.data)
+                    v === nothing && continue
+                    _set!("gas$(lowercase(m.captures[1]))_cal", v / PA_M3_PER_TORR_L)
+                end
+            end
+        end
 
     elseif source == :zmq
         let v = _aux_value_at(:zmq_Pnbi); v === nothing || _set!("pinj", v / 1e6); end
@@ -644,22 +727,32 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             end
         end
     end
+    # Model torque only when core_sources were computed within one tick of `time`:
+    # on an experimental dd straight from init! they exist at simulation_start only,
+    # and holding that value for the whole shot (0.11 N m on 200000 with 3.5 MW of
+    # beams) is worse than the beam-geometry estimate below.
     tinj = 0.0
     found_tinj = false
     for src in dd.core_sources.source
         if src.identifier.index == 2 && !isempty(src.global_quantities)
-            gq = try
-                src.global_quantities[time]
-            catch
-                src.global_quantities[end]
-            end
+            gq_times = [gq.time for gq in src.global_quantities]
+            k = argmin(abs.(gq_times .- time))
+            abs(gq_times[k] - time) <= period + 1e-9 || continue
+            gq = src.global_quantities[k]
             if !ismissing(gq, :torque_tor)
                 tinj += gq.torque_tor
                 found_tinj = true
             end
         end
     end
-    !tinj_set && found_tinj && _set!("tinj", tinj)
+    if !tinj_set && found_tinj
+        _set!("tinj", tinj)
+    elseif !tinj_set
+        # Σ_units P R_tang / v_beam × direction, full-energy component (window mean of
+        # the launched power, like pinj). Good to ~10 % against the model torque.
+        v = _nbi_torque_estimate(dd, _window_mean, _interp_at)
+        v === nothing || _set!("tinj", v)
+    end
 
     # bt — signed vacuum toroidal field at `time` for both paths
     # (b0's time coordinate is dd.equilibrium.time, resolved by get_time_array)
