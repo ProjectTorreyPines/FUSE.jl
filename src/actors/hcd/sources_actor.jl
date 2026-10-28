@@ -9,6 +9,8 @@
     pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :PAM, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
     neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
     modify_electron_density::Entry{Bool} = Entry{Bool}( "-", "Modify electron density"; default=false)
+    fast_density_knee::Entry{T} = Entry{T}("-", "Soft cap of the fast ion density: unchanged below this fraction of its limit, saturating above (1.0: hard clamp)"; default=1.0,
+        check=x -> @assert x >= 0.0 "must be: fast_density_knee >= 0.0")
 end
 
 mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}
@@ -163,7 +165,7 @@ function _step(actor::ActorSources)
     step(actor.neutral_actor)
 
     # Call IMAS.intrinsic_sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.intrinsic_sources!(dd;modify_electron_density=actor.par.modify_electron_density)
+    IMAS.intrinsic_sources!(dd; modify_electron_density=actor.par.modify_electron_density, actor.par.fast_density_knee)
 
     return actor
 end
