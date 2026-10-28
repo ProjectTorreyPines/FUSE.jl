@@ -56,8 +56,8 @@ const _SOLPSNN_BOUNDS = (
     D_puff::Entry{T} = Entry{T}("particles/s", "Main-ion (D) gas puff rate"; default=1.0e22)
     N_puff::Entry{T} = Entry{T}("particles/s", "Impurity (N) seeding rate (must be > 0; model uses log10)"; default=1.0e20)
     D_core::Entry{T} = Entry{T}("particles/s", "Main-ion core fuelling rate"; default=1.0e22)
-    D_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field particle diffusivity"; default=0.3)
-    chi_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field heat diffusivity"; default=1.0)
+    D_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field particle diffusivity (defaults to the pedestal-averaged IMAS.pedestal_diffusivities when not set)")
+    chi_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field heat diffusivity (defaults to the pedestal-averaged IMAS.pedestal_diffusivities when not set)")
     write_ggd::Entry{Bool} = Entry{Bool}("-", "Write 2D fields to dd.edge_profiles GGD"; default=true)
     grid::Switch{Symbol} = Switch{Symbol}([:native, :solps2imas], "-",
         "GGD grid builder: :native (lightweight SOLPSNN builder) or :solps2imas (SOLPS2imas.jl, "*
@@ -92,7 +92,15 @@ onto either scalar boundary quantities (peak outer-target heat flux `pwmxap`,
 integrated ion flux `fnixap`, power across the separatrix `psol`) or full 2D
 fields on the fixed SOLPS-ITER B2 grid (`te`, `ti`, `ne`), rescaled to the
 machine major radius. `R` and `B` are taken from `dd.equilibrium`; `Psol` defaults to `IMAS.power_sol`
-when the `Psol` parameter is not set; the gas-puff/transport inputs are actor parameters.
+when the `Psol` parameter is not set; the gas-puff inputs are actor parameters.
+
+The cross-field transport coefficients `D_perp` and `chi_perp` likewise default to the plasma in the
+`dd`: when they are not set explicitly, they are the pedestal-averaged effective diffusivities from
+`IMAS.pedestal_diffusivities`, which inverts them from the pedestal gradients and the volume-integrated
+sources over `[rho_ped, 1.0]`. This keeps the SOL solution consistent with the pedestal the pedestal and
+transport actors produced, instead of running the surrogate on unrelated fixed coefficients. Setting
+either parameter overrides the corresponding derived value; a `dd` too incomplete to derive one from
+raises, rather than falling back to a default that would mask the missing data.
 
 2D fields are written to `dd.edge_profiles` as a General Grid Description (GGD)
 slice; the peak heat flux is written to the outer divertor target when target
@@ -108,7 +116,7 @@ output a drop-in for GGDUtils / SOLPS2ctrl tooling.
 
 !!! note
 
-    Reads `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`.
+    Reads `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.summary.local.pedestal`.
     Stores 2D fields in `dd.edge_profiles` and peak heat flux in `dd.divertors`.
     Upstream SOLPS-NN ships TensorFlow weights, not ONNX, so on first use the
     bundled `convert/` pipeline fetches the needed quantities from SURFdrive and
@@ -145,6 +153,47 @@ function _solpsnn_model!(actor::ActorSOLPSNN, q::Symbol)
     return m
 end
 
+"""
+Resolve the cross-field transport coefficients `(D_perp, chi_perp)` fed to the surrogate.
+
+Explicitly set actor parameters always win. Anything left unset is derived from the pedestal
+gradients and sources already in `dd` via `IMAS.pedestal_diffusivities`, so the SOL solution is
+consistent with the pedestal the rest of FUSE solved for.
+
+There is deliberately no fallback: a `dd` too incomplete to derive a coefficient from, or one whose
+pedestal yields no usable sample, raises rather than silently substituting a default that would hide
+the underlying problem. Set the corresponding actor parameter explicitly to run anyway.
+"""
+function _solpsnn_transport_coefficients(dd::IMAS.dd, par)
+    D_perp = getproperty(par, :D_perp, missing)
+    chi_perp = getproperty(par, :chi_perp, missing)
+    if !ismissing(D_perp) && !ismissing(chi_perp)
+        return Float64(D_perp), Float64(chi_perp)
+    end
+
+    ped = IMAS.pedestal_diffusivities(dd)
+
+    if ismissing(D_perp)
+        D_perp = _solpsnn_check(ped.D_perp, "D_perp", ped.rho_ped)
+    end
+    if ismissing(chi_perp)
+        chi_perp = _solpsnn_check(ped.chi_perp, "chi_perp", ped.rho_ped)
+    end
+
+    return Float64(D_perp), Float64(chi_perp)
+end
+
+"""Accept a dd-derived diffusivity only if it is a physical (finite, positive) value."""
+function _solpsnn_check(derived::Float64, name::String, rho_ped::Float64)
+    isfinite(derived) && derived > 0.0 && return derived
+    return error(
+        "ActorSOLPSNN: no usable $name could be derived from the dd over the pedestal " *
+        "[$(round(rho_ped; digits=4)), 1.0] (got $derived). This means the pedestal holds no sample " *
+        "with both a finite gradient and an outward flux — check that core_sources and core_profiles " *
+        "are populated. Set act.ActorSOLPSNN.$name explicitly to override."
+    )
+end
+
 function _step(actor::ActorSOLPSNN)
     dd = actor.dd
     par = actor.par
@@ -156,7 +205,9 @@ function _step(actor::ActorSOLPSNN)
     Psol_par = getproperty(par, :Psol, missing)
     Psol = ismissing(Psol_par) ? IMAS.power_sol(dd.core_sources, dd.core_profiles.profiles_1d[]) : Float64(Psol_par)
 
-    X = Float64[R, B, Psol, par.D_puff, par.N_puff, par.D_core, par.D_perp, par.chi_perp]
+    D_perp, chi_perp = _solpsnn_transport_coefficients(dd, par)
+
+    X = Float64[R, B, Psol, par.D_puff, par.N_puff, par.D_core, D_perp, chi_perp]
     actor.inputs = X
 
     # the surrogate takes log10 of the puff/fuelling rates -> require strictly positive
@@ -181,6 +232,9 @@ function _step(actor::ActorSOLPSNN)
 
     if par.verbose
         @info "ActorSOLPSNN inputs [R,B,Psol,D_puff,N_puff,D_core,D_perp,chi_perp] = $X"
+        if ismissing(getproperty(par, :D_perp, missing)) || ismissing(getproperty(par, :chi_perp, missing))
+            @info "ActorSOLPSNN: D_perp=$D_perp, chi_perp=$chi_perp m^2/s derived from the dd pedestal gradients"
+        end
         if haskey(actor.predictions, :psol)
             @info "ActorSOLPSNN: surrogate psol=$(actor.predictions[:psol]) W vs FUSE Psol=$Psol W"
         end
