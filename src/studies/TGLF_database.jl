@@ -391,7 +391,7 @@ function create_data_frame_row(dd::IMAS.DD, exp_values::AbstractArray)
 
     return (
       shot            = dd.dataset_description.data_entry.pulse,
-      time            = Int(dd.summary.time[1] * 1000),
+      time            = round(Int, dd.summary.time[1] * 1000),
       ne0             = cp1d.electrons.density_thermal[1],
       Te0             = cp1d.electrons.temperature[1],
       Ti0             = cp1d.ion[1].temperature[1],
@@ -439,7 +439,7 @@ function create_finn_data_frame_row(dd::IMAS.DD, exp_values::AbstractArray)
     cp1d = dd.core_profiles.profiles_1d[]
     return (
       shot    = dd.dataset_description.data_entry.pulse,
-      time    = Int(dd.summary.time[1] * 1000),
+      time    = round(Int, dd.summary.time[1] * 1000),
       ne0     = cp1d.electrons.density_thermal[1],
       Te0     = cp1d.electrons.temperature[1],
       Ti0     = cp1d.ion[1].temperature[1],
