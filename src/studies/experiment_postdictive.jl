@@ -28,9 +28,9 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
     start_time::Entry{Float64} = Entry{Float64}("s", "Override simulation start time"; default=missing)
     end_time::Entry{Float64} = Entry{Float64}("s", "Simulation end time (missing: end of the equilibrium time basis; later times are clipped to it)"; default=missing)
-    δt::Entry{Float64} = Entry{Float64}("s", "Macro time step of ActorDynamicPlasma"; default=0.04, check=x -> @assert x > 0 "δt must be > 0")
-    δt_exact::Entry{Bool} = Entry{Bool}("-", "Step exactly δt (Nt = floor(Δt / δt)), ending up to one step before end_time; false: the largest step ≤ δt that ends at end_time (Nt = ceil(Δt / δt), FUSE ≤ v1.2.1 with δt = 0.05)"; default=true)
-    qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is, FUSE ≤ v1.2.1)"; default=0.0005, check=x -> @assert x > 0 "qed_δt must be > 0")
+    δt::Entry{Float64} = Entry{Float64}("s", "Macro time step of ActorDynamicPlasma (with δt_exact = false, the largest step ≤ δt that ends at end_time)"; default=0.05, check=x -> @assert x > 0 "δt must be > 0")
+    δt_exact::Entry{Bool} = Entry{Bool}("-", "true: steps of exactly δt (Nt = floor(Δt / δt)), ending up to one step before end_time; false: Nt = ceil(Δt / δt) steps that end at end_time"; default=false)
+    qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is)"; default=missing, check=x -> @assert x > 0 "qed_δt must be > 0")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
     sawteeth_period::Entry{Float64} = Entry{Float64}("s", "ActorSawteethSource.period: keep flattening this long after the last sawtooth"; default=0.25)
 end
@@ -117,9 +117,9 @@ function run_postdictive_case!(
     verbose::Bool,
     start_time::Union{Float64,Missing}=missing,
     end_time::Union{Float64,Missing}=missing,
-    δt::Float64=0.04,
-    δt_exact::Bool=true,
-    qed_δt::Union{Float64,Missing}=0.0005,
+    δt::Float64=0.05,
+    δt_exact::Bool=false,
+    qed_δt::Union{Float64,Missing}=missing,
     qmin_desired::Float64=1.0,
     sawteeth_period::Float64=0.25,
     act_overrides::Union{Nothing,ParametersAllActors}=nothing,
