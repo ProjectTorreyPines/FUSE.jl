@@ -4,7 +4,7 @@ import CHEASE
 
 Base.@kwdef mutable struct MARS_BASIC
     NCASE::Int = 1
-    TALPHA1::ComplexF64 = 1.e-4 + 0im
+    TALPHA1::ComplexF64 = 1.e-2 + 0im # initial eigenvalue guess γ·τ_A (MARS converges to the nearest eigenvalue)
     NITMAX::Int = 100
     NSWEEP::Int = 1
     GAMMA::Float64 = 1.66667
@@ -189,6 +189,7 @@ Container for the MARS results that are stored into `dd.mhd_linear`.
 
 - `n_tor`       : toroidal mode number (from `RNTOR`)
 - `iterations`  : number of MARS eigenvalue iterations
+- `converged`   : `false` if MARS hit `NITMAX` iterations, in which case the eigenvalue is meaningless
 - `growthrate`  : `Re(γ)·τ_A`, growth rate normalized to the Alfvén time
 - `frequency`   : `Im(γ)·τ_A`, frequency normalized to the Alfvén time
 - `ideal`       : `true` for ideal MHD (`ETA == 0`), `false` for resistive
@@ -197,6 +198,7 @@ Container for the MARS results that are stored into `dd.mhd_linear`.
 mutable struct MarsOutputs
     n_tor::Int
     iterations::Int
+    converged::Bool
     growthrate::Float64
     frequency::Float64
     ideal::Bool
@@ -359,7 +361,7 @@ end
 Store the MARS results into `dd.mhd_linear`:
 
 - growth rate and frequency (`Re(γ)·τ_A`, `Im(γ)·τ_A`, normalized to the Alfvén time)
-  in `time_slice[].toroidal_mode[].growthrate` / `.frequency`
+  in `time_slice[].toroidal_mode[].growthrate` / `.frequency` (`NaN` if MARS did not converge)
 - the toroidal mode number `n_tor` and the dominant poloidal mode number
 - the mode structure (displacement eigenfunction, and perturbed velocity if available)
   in `time_slice[].toroidal_mode[].plasma`
@@ -394,10 +396,15 @@ function _finalize(actor::ActorMars)
     mhd = resize!(ml.time_slice; wipe=false)
     mode = resize!(mhd.toroidal_mode, "n_tor" => out.n_tor)
     mode.n_tor = out.n_tor
-    mode.growthrate = out.growthrate / τA0             # [1/s]
-    mode.frequency = out.frequency / τA0 / (2π)        # [Hz] (MARS gives angular frequency ω·τ_A)
+    if out.converged
+        mode.growthrate = out.growthrate / τA0             # [1/s]
+        mode.frequency = out.frequency / τA0 / (2π)        # [Hz] (MARS gives angular frequency ω·τ_A)
+    else
+        mode.growthrate = NaN
+        mode.frequency = NaN
+    end
     mode.perturbation_type.name = "MHD"
-    mode.perturbation_type.description = "MARS-F/Q linear MHD eigenmode"
+    mode.perturbation_type.description = "MARS-F/Q linear MHD eigenmode" * (out.converged ? "" : " (NOT converged)")
 
     # mode structure (eigenfunction)
     if out.mode !== nothing
@@ -533,6 +540,11 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
     ok = success(cmd)
     ok || error("CHEASE failed — see log_chease")
 
+    # CHEASE reports array-size limits of the compiled executable (e.g. NCHI > NPCHI)
+    # without a non-zero exit status, and then writes empty output files for MARS
+    limits = filter(l -> occursin("RECOMPILE", l), readlines("log_chease"))
+    isempty(limits) || error("CHEASE: $(strip(first(limits))) — see log_chease")
+
     # basic checks on CHEASE output
     keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
     println(julia_grep(keys, "log_chease"))
@@ -567,6 +579,12 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # Determine which profiles to pull from dd, i.e. experiment
     write_exp_profiles(core_profiles, mars_namelist)
 
+    # Remove outputs of a previous MARS run in this directory, so that a run that aborts
+    # cannot be mistaken for a successful one by reading stale results
+    for f in ("RESULT.OUT", "XPLASMA.OUT", "VPLASMA.OUT")
+        rm(f; force=true)
+    end
+
     # Execute MARS
     mars_exec = par.mars_exec
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
@@ -590,8 +608,16 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
     ok || error("MARS failed — see log_mars")
 
+    # MARS aborts on bad inputs via Fortran `STOP '<reason>'` with a zero exit status;
+    # a normal run ends with `STOP NORMAL`
+    if isfile("log_mars")
+        stops = filter(l -> startswith(strip(l), "STOP") && strip(l) != "STOP NORMAL", readlines("log_mars"))
+        isempty(stops) || error("MARS aborted with `$(strip(first(stops)))` — see log_mars")
+    end
+    isfile("RESULT.OUT") || error("MARS did not write RESULT.OUT — see log_mars")
+
     # Display growth rate and iteration count
-    iter, growth, freq = parse_MARS_results("RESULT.OUT")
+    iter, growth, freq = parse_MARS_results("RESULT.OUT"; nitmax=mars_namelist.BASIC.NITMAX)
     @info "MARS iterations = $iter"
     @info "Growth rate = $growth"
     @info "Frequency = $freq"
@@ -617,7 +643,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
         @info "XPLASMA.OUT and/or RMZM_F.OUT not found; mode structure will not be stored in dd."
     end
 
-    return MarsOutputs(n_tor, iter, growth, freq, ideal, mode)
+    return MarsOutputs(n_tor, iter, iter < mars_namelist.BASIC.NITMAX, growth, freq, ideal, mode)
 end
 
 
@@ -932,8 +958,9 @@ function write_exp_profiles(profiles, mars_namelist)
             msg !== nothing && @info msg
 
             for (file, getter) in outputs
+                # normalize a copy: the getter may return the array stored in dd
                 profile = getter(profiles)
-                profile ./= maximum(profile)
+                profile = profile ./ maximum(profile)
                 write_profile_IN(file, s, profile)
             end
         end
@@ -963,7 +990,7 @@ function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile:
 end
 
 
-function parse_MARS_results(filename::AbstractString)
+function parse_MARS_results(filename::AbstractString; nitmax::Int=100)
     isfile(filename) || error("File not found: $filename")
 
     line = strip(readline(filename))
@@ -976,7 +1003,7 @@ function parse_MARS_results(filename::AbstractString)
     freq   = parse(Float64, vals[6])
 
     # Convergence warning
-    if iter > 99
+    if iter >= nitmax
         @warn "MARS did not converge (iterations = $iter). A better initial guess for the eigenvalue may be required."
     end
 
@@ -1100,9 +1127,10 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
     r_bound_norm = rb_new / R0
     z_bound_norm = zb_new / R0
 
-    #plt = plot()
-    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
-    display(plt)
+    if par.do_plot
+        plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
+        display(plt)
+    end
 
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
     
@@ -1128,8 +1156,10 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
         
-        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal,label="MARS resistive wall", legend=:outertop)
-        display(plt)
+        if par.do_plot
+            plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal,label="MARS resistive wall", legend=:outertop)
+            display(plt)
+        end
         
     end
   
