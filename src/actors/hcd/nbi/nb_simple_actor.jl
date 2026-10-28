@@ -8,6 +8,12 @@ end
 
 @actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
+    power_fractions::Switch{Symbol} = Switch{Symbol}(
+        [:beam_current_fraction, :beam_power_fraction],
+        "-",
+        "Component (E, E/2, E/3) power split: beam_current_fraction used as power fractions, or normalized beam_power_fraction (falls back to beam_current_fraction converted to power)";
+        default=:beam_current_fraction
+    )
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -112,7 +118,7 @@ function _step(actor::ActorSimpleNB)
         end
         @ddtime(nbu.energy.data = beam_energy)
 
-        fbcur = @ddtime(nbu.beam_current_fraction.data)
+        fbcur = nb_component_power_fractions(nbu, @ddtime(nbu.beam_current_fraction.data), par.power_fractions)
 
         qbeam .*= 0.0
         sbeam .*= 0.0
@@ -280,4 +286,26 @@ function _step(actor::ActorSimpleNB)
     IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
+end
+
+"""
+    nb_component_power_fractions(nbu::IMAS.nbi__unit, fbcur::AbstractVector, mode::Symbol)
+
+Power fraction of each beam energy component (E, E/2, E/3).
+
+  - `:beam_current_fraction`: `fbcur` as is
+  - `:beam_power_fraction`: `nbu.beam_power_fraction` normalized to 1; if missing or invalid, the
+    power carried by the current fractions `fbcur` (P_k ∝ f_k E/k)
+"""
+function nb_component_power_fractions(nbu::IMAS.nbi__unit, fbcur::AbstractVector, mode::Symbol)
+    mode === :beam_current_fraction && return fbcur
+    f = IMAS.hasdata(nbu.beam_power_fraction, :data) ? @ddtime(nbu.beam_power_fraction.data) : Float64[]
+    if length(f) != length(fbcur) || !all(x -> isfinite(x) && x >= 0, f) || sum(f) <= 0
+        p = fbcur ./ (1:length(fbcur))
+        sum(p) > 0 || return fbcur
+        p = p ./ sum(p)
+        @warn "$(nbu.name) has no usable beam_power_fraction ($f): using beam_current_fraction $fbcur as power fractions $p" maxlog = 1
+        return p
+    end
+    return f ./ sum(f)
 end
