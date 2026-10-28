@@ -19,6 +19,7 @@
         pull_gslite_min::Bool=false,
         offaxis_beams::Vector{String}=["15"],
         counter_beams::Vector{String}=["21"],
+        data_dir::String="",
         EFIT_fallback_tree::String="",
         EFIT_gap_factor::Float64=2.0,
         EFIT_hard_gap_s::Float64=0.035,
@@ -26,6 +27,13 @@
     )
 
 DIII-D from experimental shot
+
+`data_dir` is where the shot data lives: `D3D_<shot>_<EFIT_tree>_<PROFILES_tree>_<CER_analysis_type>.h5`
+(OMAS `fuse_data_export.py` output, see [`d3d_local_filename`](@ref)) plus `nbi_ods_<shot>.h5` (RABBIT beam
+geometry) when available. With `use_local_cache=true` an existing file there is loaded as is, otherwise the
+data is fetched from `omfit_host` into `data_dir`. Default: a per-user temporary directory. A pre-exported
+file (e.g. produced off-site through FDP) is therefore used with `data_dir=<dir>, use_local_cache=true`.
+Beams without geometry get it from [`d3d_beam_template`](@ref).
 
 `offaxis_beams` and `counter_beams` select which neutral-beam beamlines are treated as
 off-axis / counter-Ip when filling beam geometry from templates in the `pull_gslite_min` path
@@ -55,6 +63,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
     pull_gslite_min::Bool=false,
     offaxis_beams::Vector{String}=["15"],
     counter_beams::Vector{String}=["21"],
+    data_dir::String="",
     EFIT_fallback_tree::String="",
     EFIT_gap_factor::Float64=2.0,
     EFIT_hard_gap_s::Float64=0.035,
@@ -65,161 +74,155 @@ function case_parameters(::Val{:D3D}, shot::Int;
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
-    if omfit_host == "localhost"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
-        filename = "D3D_$(shot)_$(phash).h5"
-        local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
+    # where the shot data lives (fetched into it, or already there)
+    if isempty(data_dir)
+        user = omfit_host == "localhost" ? ENV["USER"] : d3d_omfit_user(omfit_host)
+        data_dir = joinpath(tempdir(), "$(user)_D3D_$(shot)")
+    end
+    mkpath(data_dir)
+    filename = d3d_local_filename(shot, EFIT_tree, PROFILES_tree, CER_analysis_type; EFIT_run_id, PROFILES_run_id)
+    data_file = joinpath(data_dir, filename)
+
+    if use_local_cache && isfile(data_file)
+        @info("D3D shot $shot: using $data_file")
     else
-        # Resolve remote username using the ssh config
-        output = read(`ssh -T -G $omfit_host`, String)
-        omfit_user = nothing
-        for line in split(output, '\n')
-            if startswith(line, "user ")
-                omfit_user = strip(split(line, ' ', limit=2)[2])
-                break
-            end
+        local_path = data_dir
+        if omfit_host != "localhost"
+            omfit_user = d3d_omfit_user(omfit_host)
+            omfit_host = "$omfit_user@$omfit_host"
+            remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/" * omfit_user * "/d3d_data/$shot")
         end
-        if isnothing(omfit_user)
-            throw(ErrorException("Need to add $omfit_host to ~/.ssh"))
+
+
+        # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
+        if contains(EFIT_tree, "USER")
+            efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
+            EFIT_tree = "EFIT"
+        else
+            efit_shot = shot
         end
-        omfit_host = "$omfit_user@$omfit_host"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omfit_user, omfit_root, omas_root))
-        remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omfit_user*"/d3d_data/$shot")
-        filename = "D3D_$(shot)_$(phash).h5"
-        local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
-    end
-    if isdir(local_path) && !use_local_cache
-        rm(local_path; recursive=true)
-    end
-    if !isdir(local_path)
-        mkdir(local_path)
-    end
 
+        # Build OMAS command string (same for both localhost and remote execution)
+        # Note: OUTPUT_FILE is a placeholder that gets replaced with actual path (local or remote)
+        omas_command = "python -u $(omas_root)/omas/examples/fuse_data_export.py OUTPUT_FILE d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"
+        if length(EFIT_run_id) > 0
+            omas_command *= " --EFIT_RUN_ID $EFIT_run_id"
+        end
+        if length(PROFILES_run_id) > 0
+            omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
+        end
 
-    # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
-    if contains(EFIT_tree, "USER")
-        efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
-        EFIT_tree = "EFIT"
-    else
-        efit_shot = shot
-    end
-
-    # Build OMAS command string (same for both localhost and remote execution)
-    # Note: OUTPUT_FILE is a placeholder that gets replaced with actual path (local or remote)
-    omas_command = "python -u $(omas_root)/omas/examples/fuse_data_export.py OUTPUT_FILE d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"
-    if length(EFIT_run_id) > 0
-        omas_command *= " --EFIT_RUN_ID $EFIT_run_id"
-    end
-    if length(PROFILES_run_id) > 0
-        omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
-    end
-
-    if pull_gslite_min
-        omas_command *= " --PULL_GSLITE_MIN"
-        omfit_block = """
-        """
-    else
-        if omfit_host == "localhost"
+        if pull_gslite_min
+            omas_command *= " --PULL_GSLITE_MIN"
             omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
             """
         else
-            omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null    
-            """
+            if omfit_host == "localhost"
+                omfit_block = """
+            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
+                """
+            else
+                omfit_block = """
+            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null    
+                """
+            end
         end
-    end
-    if omfit_host == "localhost"
-        setup_block = """#!/bin/bash -l
-        module purge
-        module load omfit
-        cd $local_path
-        export PYTHONPATH=$(omas_root):\$PYTHONPATH
-        """
-
-        # Substitute OUTPUT_FILE placeholder with actual path for localhost
-        omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
-        omfit_sh = joinpath(local_path, "omfit.sh")
-        open(omfit_sh, "w") do io
-            return write(io, setup_block*omfit_block)
-        end
-        omas_sh = joinpath(local_path, "omas.sh")
-        open(omas_sh, "w") do io
-            return write(io, setup_block*omas_block)
-        end
-        Base.run(`chmod +x $omfit_sh`)
-        Base.run(`chmod +x $omas_sh`)
-        task = @async Base.run(`$omfit_sh`)
-        Base.run(`$omas_sh`)
-        wait(task)
-    else
-        # remote bash/slurm script
-        remote_slurm = """#!/bin/bash -l
-            #SBATCH --job-name=fetch_d3d_omas
-            #SBATCH --partition=short
-            #SBATCH --cpus-per-task=1
-            #SBATCH --ntasks=2
-            #SBATCH --output=$remote_path/%j.out
-            #SBATCH --error=$remote_path/%j.err
-            #SBATCH --wait
-
-            # Load any required modules
+        if omfit_host == "localhost"
+            setup_block = """#!/bin/bash -l
             module purge
             module load omfit
-
-            echo "Starting parallel tasks..." >&2
-
-            # Run both tasks in parallel
-            mkdir -p $remote_path
-            cd $remote_path
-
+            cd $local_path
             export PYTHONPATH=$(omas_root):\$PYTHONPATH
-
-            $(omfit_block)
-
-            $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
-
-            echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
-            wait
-            echo "Transfering data from remote" >&2
             """
-        open(joinpath(local_path, "remote_slurm.sh"), "w") do io
-            return write(io, remote_slurm)
+
+            # Substitute OUTPUT_FILE placeholder with actual path for localhost
+            omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
+            omfit_sh = joinpath(local_path, "omfit.sh")
+            open(omfit_sh, "w") do io
+                return write(io, setup_block*omfit_block)
+            end
+            omas_sh = joinpath(local_path, "omas.sh")
+            open(omas_sh, "w") do io
+                return write(io, setup_block*omas_block)
+            end
+            Base.run(`chmod +x $omfit_sh`)
+            Base.run(`chmod +x $omas_sh`)
+            task = @async Base.run(`$omfit_sh`)
+            Base.run(`$omas_sh`)
+            wait(task)
+        else
+            # remote bash/slurm script
+            remote_slurm = """#!/bin/bash -l
+                #SBATCH --job-name=fetch_d3d_omas
+                #SBATCH --partition=short
+                #SBATCH --cpus-per-task=1
+                #SBATCH --ntasks=2
+                #SBATCH --output=$remote_path/%j.out
+                #SBATCH --error=$remote_path/%j.err
+                #SBATCH --wait
+
+                # Load any required modules
+                module purge
+                module load omfit
+
+                echo "Starting parallel tasks..." >&2
+
+                # Run both tasks in parallel
+                mkdir -p $remote_path
+                cd $remote_path
+
+                export PYTHONPATH=$(omas_root):\$PYTHONPATH
+
+                $(omfit_block)
+
+                $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
+
+                echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
+                wait
+                echo "Transfering data from remote" >&2
+                """
+            open(joinpath(local_path, "remote_slurm.sh"), "w") do io
+                return write(io, remote_slurm)
+            end
+            # local driver script
+            local_driver = """
+                #!/bin/bash
+
+                # Use rsync to create directory if it doesn't exist and copy the script
+                $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
+                $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh"], remote_path))
+
+                # Execute script remotely
+                $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
+
+                # Retrieve results using rsync
+                $(downsync_command(omfit_host, pull_gslite_min ? ["$remote_path/$(filename)"] : ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+            """
+
+            open(joinpath(local_path, "local_driver.sh"), "w") do io
+                return write(io, local_driver)
+            end
+
+            # run data fetching
+            @info "Connecting to $omfit_host"
+            @info("Remote D3D data fetching for shot $shot")
+            @info("Path on $omfit_host: $remote_path")
+            @info("Path on Localhost: $local_path")
+            try
+                Base.run(`bash $local_path/local_driver.sh`)
+            catch e
+                error("D3D shot $shot: data fetching from $omfit_host_original failed ($(sprint(showerror, e))). " *
+                      "Off-site, pass `data_dir` holding a pre-exported `$filename` and `use_local_cache=true`.")
+            end
         end
-        # local driver script
-        local_driver = """
-            #!/bin/bash
-
-            # Use rsync to create directory if it doesn't exist and copy the script
-            $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
-            $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh"], remote_path))
-
-            # Execute script remotely
-            $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
-
-            # Retrieve results using rsync
-            $(downsync_command(omfit_host, pull_gslite_min ? ["$remote_path/$(filename)"] : ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
-        """
-
-        open(joinpath(local_path, "local_driver.sh"), "w") do io
-            return write(io, local_driver)
-        end
-
-        # run data fetching
-        @info "Connecting to $omfit_host"
-        @info("Remote D3D data fetching for shot $shot")
-        @info("Path on $omfit_host: $remote_path")
-        @info("Path on Localhost: $local_path")
-        if !isfile(joinpath(local_path, filename)) || !use_local_cache
-            Base.run(`bash $local_path/local_driver.sh`)
-        end
+        isfile(data_file) || error("D3D shot $shot: data fetching did not produce $data_file")
     end
-    # load experimental ods
-    if pull_gslite_min
-        # gslite-min pull: nbi geometry comes from DIII-D templates (no nbi_ods file)
-        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename))"
-    else
-        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    # load experimental ods, plus the RABBIT beam geometry when the fetch produced it (not with pull_gslite_min,
+    # nor for pre-exported data): beams without geometry get DIII-D templates below
+    ini.ods.filename = "$(ini.ods.filename),$(data_file)"
+    nbi_file = joinpath(data_dir, "nbi_ods_$shot.h5")
+    if isfile(nbi_file)
+        ini.ods.filename *= ",$(nbi_file)"
     end
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
@@ -230,7 +233,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         fetch_fallback() = case_parameters(Val(:D3D), shot;
             fit_profiles=false, EFIT_tree=EFIT_fallback_tree, PROFILES_tree, CER_analysis_type,
             PROFILES_run_id, omfit_host=omfit_host_original, omfit_root, omas_root,
-            use_local_cache=true, use_interferometer, pull_gslite_min, offaxis_beams, counter_beams)[1].general.dd
+            use_local_cache=true, use_interferometer, pull_gslite_min, offaxis_beams, counter_beams, data_dir)[1].general.dd
         prov = d3d_efit_fallback!(dd1, fetch_fallback, EFIT_tree_name, EFIT_fallback_tree; gap_factor=EFIT_gap_factor, hard_gap_s=EFIT_hard_gap_s)
     else
         prov = efit_provenance === nothing ? nothing : d3d_efit_provenance(dd1, EFIT_tree_name, EFIT_fallback_tree; gap_factor=EFIT_gap_factor, hard_gap_s=NaN)
@@ -251,14 +254,15 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
-    if pull_gslite_min
-        # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
-        for nbu in dd1.nbi.unit
-            if isempty(nbu.beamlets_group)
-                add_beam_examples!(nbu, d3d_beam_template(shot, nbu.name, offaxis_beams, counter_beams))
-            end
+    # beams without geometry (no nbi_ods_<shot>.h5: gslite-min pull or pre-exported data):
+    # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
+    for nbu in dd1.nbi.unit
+        if isempty(nbu.beamlets_group)
+            add_beam_examples!(nbu, d3d_beam_template(shot, nbu.name, offaxis_beams, counter_beams))
         end
+    end
 
+    if pull_gslite_min
         for launcher in dd1.ec_launchers.beam
             IMAS.hasdata(launcher.power_launched, :data) && (launcher.power_launched.data = max.(launcher.power_launched.data, 0.0))
         end
@@ -266,6 +270,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
             IMAS.hasdata(unit.power_launched, :data) && (unit.power_launched.data = max.(unit.power_launched.data, 0.0))
         end
     end
+
+    # The omas D3D mapping (division added in v0.92.0 as dead code, live since v0.96.0) divides the F-coil PTDATA by turns_with_sign although
+    # PTDATA already is the IMAS per-turn current (gafusion/omas#449): such exports carry F-coils 55-58x too
+    # small, which starves the fuse29 actuators and starts FRESCO far from the solution. Repaired here.
+    repair_pf_active_omas_turns!(dd1.pf_active)
 
     if !isempty(dd1.equilibrium.time_slice)
         IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
@@ -296,7 +305,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams,
+                pull_gslite_min, offaxis_beams, counter_beams, data_dir,
                 EFIT_fallback_tree, EFIT_gap_factor, EFIT_hard_gap_s, efit_provenance)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
@@ -494,6 +503,31 @@ function d3d_efit_fallback!(dd1::IMAS.DD, fetch_fallback::Function, primary::Abs
     eq.vacuum_toroidal_field.b0 = [b0_of[t] for t in eq.time]
     eq.code.name = "$(primary)+$(fallback)"
     return unmerged(; gaps, checks, fill_counts, slice_trees=[tree_of[ts.time] for ts in eq.time_slice])
+end
+
+"""
+    d3d_local_filename(shot::Integer, EFIT_tree, PROFILES_tree, CER_analysis_type)
+
+Name of the OMAS shot-data file that `case_parameters(:D3D, shot; data_dir)` fetches or loads, e.g.
+`D3D_200000_EFIT02_ZIPFIT01_CERAUTO.h5` (run ids, when given, are appended to the tree names)
+"""
+function d3d_local_filename(shot::Integer, EFIT_tree::AbstractString, PROFILES_tree::AbstractString, CER_analysis_type::AbstractString;
+    EFIT_run_id::AbstractString="", PROFILES_run_id::AbstractString="")
+    return "D3D_$(shot)_$(EFIT_tree)$(EFIT_run_id)_$(PROFILES_tree)$(PROFILES_run_id)_$(CER_analysis_type).h5"
+end
+
+"""
+    d3d_omfit_user(omfit_host::AbstractString)
+
+Remote user name for `omfit_host` from the ssh config (`ssh -G`)
+"""
+function d3d_omfit_user(omfit_host::AbstractString)
+    for line in split(read(`ssh -T -G $omfit_host`, String), '\n')
+        if startswith(line, "user ")
+            return String(strip(split(line, ' '; limit=2)[2]))
+        end
+    end
+    throw(ErrorException("Need to add $omfit_host to ~/.ssh/config"))
 end
 
 """
@@ -704,4 +738,39 @@ function TraceCAD(::Val{:D3D})
     x_offset = -0.0303
     y_offset = -0.0303
     return TraceCAD(:D3D, x_length, x_offset, y_offset)
+end
+
+
+"""
+    repair_pf_active_omas_turns!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+
+Undo the omas D3D mapping bug (gafusion/omas#449; dead code since v0.92.0, live since v0.96.0 of 2026-04-08) that divides the F-coil PTDATA by
+`turns_with_sign`: PTDATA already is the IMAS per-turn current (a free-boundary refit of the EFIT02 boundary of
+shot 200000 needs F6A = -227.7 kA-turns = -4.14 kA x 55, the undivided PTDATA), so the exported F-coils are 55-58x
+too small. The convention is a property of the dd, so the decision is made once for the group of coils whose first
+element has |turns_with_sign| > 1: if the largest |current| among them over their traces is below `threshold` A
+(a divided DIII-D F-coil set peaks near 154 A, a correct one at 6-9 kA), every coil of the group is multiplied by
+its element turns (one warning listing them). The E-coil segments are single-turn elements and are never touched.
+"""
+function repair_pf_active_omas_turns!(pf_active::IMAS.pf_active; threshold::Float64=500.0)
+    group = Tuple{eltype(pf_active.coil),Float64}[]
+    imax = 0.0
+    for coil in pf_active.coil
+        isempty(coil.element) && continue
+        # per-element turns: an F-coil is one 55-58-turn element, an E-coil segment 6-48 single-turn elements
+        turns = ismissing(coil.element[1], :turns_with_sign) ? 1.0 : coil.element[1].turns_with_sign
+        abs(turns) > 1.0 || continue
+        (ismissing(coil.current, :data) || isempty(coil.current.data)) && continue
+        push!(group, (coil, turns))
+        imax = max(imax, maximum(abs, coil.current.data))
+    end
+    (isempty(group) || imax >= threshold) && return pf_active
+    for (coil, turns) in group
+        coil.current.data .*= turns
+        if !ismissing(coil.current, :data_σ) && !isempty(coil.current.data_σ)
+            coil.current.data_σ .*= abs(turns)
+        end
+    end
+    @warn "pf_active: multi-turn coil currents divided by turns_with_sign (omas D3D mapping ≥ v0.96.0, gafusion/omas#449, |I|max = $(round(imax; digits=1)) A) multiplied back to the IMAS per-turn (PTDATA) convention: $(join((c.name for (c, _) in group), ", "))"
+    return pf_active
 end
