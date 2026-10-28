@@ -19,7 +19,8 @@
         pull_gslite_min::Bool=false,
         offaxis_beams::Vector{String}=["15"],
         counter_beams::Vector{String}=["21"],
-        data_dir::String=""
+        data_dir::String="",
+        rho_grid::Union{Nothing,Int}=nothing
     )
 
 DIII-D from experimental shot
@@ -36,6 +37,8 @@ off-axis / counter-Ip when filling beam geometry from templates in the `pull_gsl
 (matched against the source name, e.g. "15"/"21"); everything else is co-Ip. The known
 shot-dependent history of the 150° and 210° beamlines overrides this configuration
 (see [`d3d_beam_template`](@ref)).
+
+`rho_grid` sets the number of radial points of the profile fit (`act.ActorFitProfiles.rho_grid`; `nothing` keeps its default).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -55,9 +58,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
     pull_gslite_min::Bool=false,
     offaxis_beams::Vector{String}=["15"],
     counter_beams::Vector{String}=["21"],
-    data_dir::String=""
+    data_dir::String="",
+    rho_grid::Union{Nothing,Int}=nothing
 )
     ini, act = case_parameters(Val(:D3D_machine))
+    rho_grid === nothing || (act.ActorFitProfiles.rho_grid = rho_grid)
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
@@ -279,7 +284,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams, data_dir)
+                pull_gslite_min, offaxis_beams, counter_beams, data_dir, rho_grid)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
