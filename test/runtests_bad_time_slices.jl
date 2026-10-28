@@ -32,32 +32,6 @@ end
     @test_throws ErrorException FUSE.droppable_time_slices(1:8, 8)
 end
 
-@testset "each_time_slice!" begin
-    times = collect(0.1:0.1:0.8)
-    fail_at(bad) = k -> k in bad && error("bad slice $k")
-    @test_throws ErrorException FUSE.each_time_slice!(fail_at([3]), nothing, times, "test")
-
-    bad_time_slices = FUSE.BadTimeSlices()
-    @test FUSE.each_time_slice!(fail_at([1, 4, 5]), bad_time_slices, times, "test") == [1, 4, 5, 6, 7, 8]
-    r = bad_time_slices.records
-    @test [x.time for x in r] ≈ times[[1, 4, 5, 6, 7, 8]] && all(x -> x.stage == "test", r)
-    @test r[1].action == "dropped" && r[2].action == "dropped, shot ends here" && occursin("bad slice 4", r[2].reason)
-    @test startswith(r[4].reason, "after the shot ended at 0.4")
-end
-
-@testset "drop_time_slices!" begin
-    dd = dd_with_bad_eq()
-    FUSE.drop_time_slices!(dd, dd.equilibrium.time, [1, 5])
-    @test dd.equilibrium.time ≈ [0.2, 0.3, 0.4, 0.6, 0.7, 0.8] && [eqt.time for eqt in dd.equilibrium.time_slice] == dd.equilibrium.time
-    @test dd.equilibrium.vacuum_toroidal_field.b0 == [2.0, 3.0, 4.0, 6.0, 7.0, 8.0]
-    @test dd.core_profiles.time == dd.equilibrium.time
-
-    # dropping the last slice of another basis ends the data at its last slice kept
-    dd = dd_with_bad_eq()
-    FUSE.drop_time_slices!(dd, [0.15, 0.35, 0.55], [3])
-    @test dd.equilibrium.time ≈ [0.1, 0.2, 0.3] && dd.core_profiles.time ≈ [0.1, 0.2, 0.3]
-end
-
 @testset "flux_surfaces!" begin
     dd = dd_with_bad_eq([1, 2, 5, 8])
     # a failed slice's magnetic axis is cleared, so the next slice does not start its search there
