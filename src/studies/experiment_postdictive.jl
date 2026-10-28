@@ -26,6 +26,9 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
+    drop_bad_time_slices::Entry{Bool} =
+        Entry{Bool}("-", "Drop the experimental time slices that cannot be used, and survive a single failed step of the run, instead of failing the shot " *
+                         "(the case must support `bad_time_slices`, e.g. :D3D); what was dropped and why goes to bad_time_slices.json"; default=false)
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
@@ -84,7 +87,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
+            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, sty.drop_bad_time_slices, kw_case_parameters)
         end
     end
 end
@@ -105,6 +108,7 @@ function run_postdictive_case!(
     save_gif::Bool=false,
     reconstruction::Bool,
     verbose::Bool,
+    drop_bad_time_slices::Bool=false,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -116,11 +120,15 @@ function run_postdictive_case!(
 
     # Get case parameters
     @info "StudyPostdictive: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
-    ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
+    bad_time_slices = drop_bad_time_slices ? BadTimeSlices() : nothing
+    kw_case = bad_time_slices === nothing ? kw_case_parameters : merge(kw_case_parameters, Dict{Symbol,Any}(:bad_time_slices => bad_time_slices))
+    ini, act = FUSE.case_parameters(device, shot; kw_case...)
 
     # init
-    @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
-    FUSE.init!(dd, ini, act)
+    init_dropping_bad_start!(dd, ini, bad_time_slices) do
+        @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
+        FUSE.init!(dd, ini, act)
+    end
 
     # keep aside the dd with experimental data
     IMAS.fill!(dd_exp, dd)
@@ -212,7 +220,7 @@ function run_postdictive_case!(
     # Run the simulation
     try
         @info "StudyPostdictive: ActorDynamicPlasma(dd, act)"
-        FUSE.ActorDynamicPlasma(dd, act; verbose)
+        FUSE.ActorDynamicPlasma(dd, act; verbose, bad_time_slices)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
@@ -244,6 +252,12 @@ function run_postdictive_case!(
 
         @info "StudyPostdictive: save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
+
+        if bad_time_slices !== nothing
+            open(joinpath(savedir, "bad_time_slices.json"), "w") do io
+                JSON.print(io, bad_time_slices.records, 1)
+            end
+        end
 
         if save_gif
             @info "StudyPostdictive: save animated gif"

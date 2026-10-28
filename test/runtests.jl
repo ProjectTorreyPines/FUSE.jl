@@ -18,6 +18,8 @@ else
 
     include("runtests_basics.jl")
 
+    include("runtests_bad_time_slices.jl")
+
     include("runtests_cases.jl")
 
     include("runtests_actors.jl")
