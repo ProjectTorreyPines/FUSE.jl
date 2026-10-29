@@ -83,10 +83,12 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 ZMQ = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
 
 [weakdeps]
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [extensions]
+PythonCallExt = "PythonCall"
 ThermalSystemModelsExt = "ThermalSystemModels"
 WeaveExt = "Weave"
 
@@ -140,6 +142,7 @@ Plots = "1"
 PolygonOps = "0.1"
 ProgressMeter = "1"
 ProtoBuf = "1.3.0"
+PythonCall = "0.9"
 QED = "1.6"
 QuadGK = "2"
 RABBIT = "2"

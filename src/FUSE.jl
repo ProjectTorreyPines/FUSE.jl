@@ -171,6 +171,7 @@ include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 include(joinpath("actors", "sol", "sol_box_actor.jl"))
 include(joinpath("actors", "sol", "solps_nn_actor.jl"))
+include(joinpath("actors", "sol", "solwidth_actor.jl"))
 include(joinpath("actors", "sol", "sol_actor.jl"))
 
 # NOTE: compound actors should be defined last
