@@ -175,6 +175,7 @@ end
 
 # vacuum-only mode: append the vacuum ψ as a new time slice at dd.global_time
 function _finalize_vacuum(actor::ActorFRESCO)
+    dd = actor.dd
     eq = dd.equilibrium
     canvas = actor.canvas
 
