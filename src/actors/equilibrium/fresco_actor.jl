@@ -13,6 +13,7 @@ import FRESCO
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
     vacuum_only::Entry{Bool} = Entry{Bool}("-", "Only compute the vacuum ψ of the dd.pf_active currents and append it as a new equilibrium time slice at dd.global_time (no Grad-Shafranov solve, pf_active currents untouched)"; default=false)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
@@ -51,8 +52,7 @@ The solver supports:
   - Green's function table reuse for computational efficiency
   - Relaxation and tolerance control for convergence
   - Vacuum-only mode (`vacuum_only=true`): appends the coils vacuum ψ at `dd.global_time` as a new
-    equilibrium time slice, e.g. for breakdown studies. Call `ActorFRESCO` directly (not through
-    `ActorEquilibrium`, which would try to trace flux surfaces) on a dd without later equilibrium slices.
+    equilibrium time slice, e.g. for breakdown studies. `ActorEquilibrium` uses it below `vacuum_ip_threshold`.
 
 !!! note
 
@@ -175,10 +175,19 @@ end
 
 # vacuum-only mode: append the vacuum ψ as a new time slice at dd.global_time
 function _finalize_vacuum(actor::ActorFRESCO)
+    eq = dd.equilibrium
     canvas = actor.canvas
-    eqt = resize!(actor.dd.equilibrium.time_slice)
+
+    # get r0 and b0 before adding the time slice in case vacuum_r0_b0_from=:equilibrium
+    r0, b0 = IMAS.get_from(dd, Val(:vacuum_r0_b0), actor.par.vacuum_r0_b0_from)
+
+    eqt = resize!(eq.time_slice)
     eqt.global_quantities.ip = 0.0
     eqt.global_quantities.free_boundary = 1
+    eqt.global_quantities.vacuum_toroidal_field.r0 = r0
+    eqt.global_quantities.vacuum_toroidal_field.b0 = b0
+    @ddtime(eq.vacuum_toroidal_field.b0 = b0)
+    eq.vacuum_toroidal_field.r0 = r0
     eq2d = resize!(eqt.profiles_2d, 1)[1]
     eq2d.grid_type.index = 1
     eq2d.grid.dim1 = canvas.Rs

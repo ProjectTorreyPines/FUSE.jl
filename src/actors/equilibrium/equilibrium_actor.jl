@@ -5,7 +5,7 @@
     #== actor parameters ==#
     model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :EGGO, :CHEASE, :replay, :none], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
-    vacuum_ip_threshold::Entry{Float64} = Entry{Float64}("A", "Below this |Ip| (taken via `ip_from`) only the coils vacuum field is computed with ActorFRESCO(vacuum_only=true), e.g. before breakdown"; default=0.0)
+    vacuum_ip_threshold::Entry{Float64} = Entry{Float64}("A", "Below this |Ip| (taken via `ip_from`, which cannot be :equilibrium) only the coils vacuum field is computed with ActorFRESCO(vacuum_only=true), e.g. before breakdown"; default=0.0)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -19,8 +19,6 @@ mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    vacuum_actor::Union{Nothing,ActorFRESCO{D,P}}
-    vacuum_step::Bool
 end
 
 """
@@ -71,7 +69,7 @@ function ActorEquilibrium(dd::IMAS.DD, par::FUSEparameters__ActorEquilibrium, ac
     par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorEquilibrium(dd, par, act, noop, nothing, false)
+    actor = ActorEquilibrium(dd, par, act, noop)
 
     if par.model == :FRESCO
         actor.eq_actor = ActorFRESCO(dd, act.ActorFRESCO, act)
@@ -98,12 +96,8 @@ function _step(actor::ActorEquilibrium)
     par = actor.par
 
     # below the Ip threshold (e.g. before breakdown) only compute the coils vacuum field
-    actor.vacuum_step = par.vacuum_ip_threshold > 0.0 && abs(IMAS.get_from(dd, Val(:ip), par.ip_from)) < par.vacuum_ip_threshold
-    if actor.vacuum_step
-        if actor.vacuum_actor === nothing
-            actor.vacuum_actor = ActorFRESCO(dd, actor.act.ActorFRESCO, actor.act; vacuum_only=true)
-        end
-        step(actor.vacuum_actor)
+    if is_vacuum_step(actor)
+        ActorFRESCO(dd, actor.act; vacuum_only=true, par.vacuum_r0_b0_from)
         return actor
     end
 
@@ -141,15 +135,8 @@ function _finalize(actor::ActorEquilibrium)
     dd = actor.dd
     par = actor.par
 
-    # vacuum-only time slice: no flux surfaces to trace
-    if actor.vacuum_step
-        finalize(actor.vacuum_actor)
-        if par.vacuum_r0_b0_from == :pulse_schedule && IMAS.hasdata(dd.pulse_schedule.tf.b_field_tor_vacuum, :reference)
-            eqt = dd.equilibrium.time_slice[]
-            r0, b0 = IMAS.get_from(dd, Val(:vacuum_r0_b0), par.vacuum_r0_b0_from)
-            eqt.global_quantities.vacuum_toroidal_field.r0 = r0
-            eqt.global_quantities.vacuum_toroidal_field.b0 = b0
-        end
+    # vacuum-only time slice was already written by ActorFRESCO in _step: no flux surfaces to trace
+    if is_vacuum_step(actor)
         return actor
     end
 
@@ -240,6 +227,21 @@ function _finalize(actor::ActorEquilibrium)
 end
 
 """
+    is_vacuum_step(actor::ActorEquilibrium)
+
+Returns true if |Ip| (taken via `ip_from`) is below `vacuum_ip_threshold`, so that only the coils vacuum field is computed
+"""
+function is_vacuum_step(actor::ActorEquilibrium)
+    par = actor.par
+    if par.vacuum_ip_threshold <= 0.0
+        return false
+    end
+    # a vacuum slice has ip=0, so taking ip from the equilibrium would never leave vacuum mode
+    @assert par.ip_from != :equilibrium "ActorEquilibrium: vacuum_ip_threshold > 0 requires ip_from != :equilibrium"
+    return abs(IMAS.get_from(actor.dd, Val(:ip), par.ip_from)) < par.vacuum_ip_threshold
+end
+
+"""
     prepare(actor::ActorEquilibrium)
 
 Prepare `dd.equilibrium` to run equilibrium actors
@@ -272,6 +274,7 @@ function prepare(actor::ActorEquilibrium)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
+        @assert !ismissing(eqt1d, :psi) "ActorEquilibrium: j_p_from=:equilibrium but the last equilibrium time slice has no profiles (vacuum-only slice?)"
         psi0 = eqt1d.psi
         rho_tor_norm0 = eqt1d.rho_tor_norm
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)

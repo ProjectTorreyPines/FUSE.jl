@@ -157,3 +157,39 @@ end
         @test all(isfinite, m1d.ion[1].energy.flux)
     end
 end
+
+@testset "ActorEquilibrium vacuum slices" begin
+    ini, act = FUSE.case_parameters(:D3D, :default)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    act.ActorEquilibrium.ip_from = :pulse_schedule
+    act.ActorFRESCO.nR = 65
+    act.ActorFRESCO.nZ = 65
+    eq = dd.equilibrium
+    nslices = length(eq.time_slice)
+
+    # below the Ip threshold a vacuum-only slice is appended at dd.global_time
+    dd.global_time += 0.1
+    FUSE.ActorEquilibrium(dd, act; vacuum_ip_threshold=Inf)
+    eqt = eq.time_slice[]
+    @test length(eq.time_slice) == nslices + 1
+    @test eqt.time == dd.global_time
+    @test eqt.global_quantities.ip == 0.0
+    @test size(eqt.profiles_2d[1].psi) == (65, 65)
+    @test all(isfinite, eqt.profiles_2d[1].psi)
+    @test length(eq.vacuum_toroidal_field.b0) == length(eq.time)
+    @test eqt.global_quantities.vacuum_toroidal_field.b0 == IMAS.@ddtime(eq.vacuum_toroidal_field.b0)
+    @test eqt.global_quantities.vacuum_toroidal_field.r0 == dd.pulse_schedule.tf.r0
+
+    # above the threshold the regular solve runs on top of the previous vacuum-only slice
+    dd.global_time += 0.1
+    FUSE.ActorEquilibrium(dd, act; vacuum_ip_threshold=1.0)
+    eqt = eq.time_slice[]
+    @test length(eq.time_slice) == nslices + 2
+    @test !ismissing(eqt.profiles_1d, :psi)
+    @test length(eq.vacuum_toroidal_field.b0) == length(eq.time)
+
+    # a vacuum slice has ip=0, so ip_from=:equilibrium would never leave vacuum mode
+    act.ActorEquilibrium.ip_from = :equilibrium
+    @test_throws AssertionError FUSE.ActorEquilibrium(dd, act; vacuum_ip_threshold=1e6)
+end
