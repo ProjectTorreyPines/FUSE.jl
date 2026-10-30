@@ -180,8 +180,8 @@ function _step(actor::ActorCostingARIES)
         if item == :land
             sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
         elseif item == :buildings
-            sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
-                par.land_space, power_electric_generated,
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space,
+                par.building_volume, power_electric_generated,
                 power_thermal, power_electric_net, da)
         elseif item == :hot_cell
             sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
@@ -207,7 +207,8 @@ function _step(actor::ActorCostingARIES)
     for item in (:blanket_replacement,)
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
-            blanket_cost = findfirst(item -> item.name == "blanket", tokamak.subsystem)
+            k_blanket = findfirst(item -> item.name == "blanket", tokamak.subsystem)
+            blanket_cost = k_blanket === nothing ? nothing : tokamak.subsystem[k_blanket].cost
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
         else
             sub.yearly_cost = cost_operations_ARIES(item, da)
@@ -469,7 +470,7 @@ function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_the
                 cost *= @ddtime(bop.thermal_efficiency_plant) / 0.6
             end
         else
-            error("ARIES has no costing model for power cycle $power_cycle_type")
+            error("ARIES has no costing model for power cycle $(bop.power_plant.power_cycle_type)")
         end
         cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
         cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
@@ -535,14 +536,13 @@ end
 
 Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust{T}) where {T<:Real}
     if cost_blanket === nothing
-        cost = 0.0
+        return zero(T)
     else
-        da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
-        cost = cost_blanket / blanket_lifetime
+        # cost_blanket is the blanket direct capital cost, which is already in future dollars
+        return T(cost_blanket / blanket_lifetime)
     end
-    return future_dollars(cost, da)
 end
 
 #= =================== =#

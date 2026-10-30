@@ -32,7 +32,8 @@ end
 #= ====================== =#
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "copper"
-        return unit_cost(Material(:copper), cst)
+        fraction_copper = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
+        return coil_tech.fraction_steel * unit_cost(Material(:steel), cst) + fraction_copper * unit_cost(Material(:copper), cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
@@ -120,7 +121,9 @@ function future_dollars(dollars::Real, da::DollarAdjust{T})::T where {T<:Real}
     if da.construction_start_year < CPI.Year[1]
         error("Cannot translate cost earlier than $(CPI.Year[1])")
     elseif da.construction_start_year <= CPI.Year[end]
-        CPI_const_year = CPI[findfirst(x -> x == da.construction_start_year, CPI.Year), "Year Avg"]
+        # lookup by nominal integer year (construction_start_year can be non-integer and/or a Measurement)
+        construction_year = round(Int, da.construction_start_year isa Measurement ? da.construction_start_year.val : da.construction_start_year)
+        CPI_const_year = CPI[findfirst(x -> x == construction_year, CPI.Year), "Year Avg"]
         value = CPI_const_year ./ CPI[end, "Year Avg"] .* val_today
     else
         n_years = da.construction_start_year - CPI.Year[end]

@@ -80,7 +80,7 @@ function coil_selfB(coil::IMAS.pf_active__coil{T}, total_current::T) where {T<:R
         # for the ohmic solenoid we take the maximum b-field used for the flux-swing
         b = IMAS.top_dd(coil).build.oh.max_b_field
     else
-        r = sqrt(IMAS.area(coil)) / π
+        r = sqrt(IMAS.area(coil) / π) # radius of round conductor with same cross-sectional area
         b = abs.(IMAS.mks.μ_0 * total_current / (2π * r))
     end
     if b < 0.1
@@ -114,10 +114,9 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
             # current limit evaluated at all magnetic fields and temperatures
             mat_pf = Material(coil_tech)
             coil_area = IMAS.area(coil)
-            frac_conductor = IMAS.fraction_conductor(coil_tech)
             turns = coil.element[1].turns_with_sign
             coil.current_limit_max = [
-                abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
+                abs(mat_pf.critical_current_density(; Bext=b) * coil_area / turns) for
                 b in coil.b_field_max,
                 t in coil.temperature
             ]
@@ -286,8 +285,8 @@ function size_pf_active(
         Ic = coil.current_per_turn * coil.turns
         Bext = coil_selfB(pfcoil, Ic)
 
-        needed_conductor_area = abs(Ic) / mat.critical_current_density(; Bext)
-        needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        # critical_current_density is an engineering current density (already accounts for fraction_conductor)
+        needed_area = abs(Ic) / mat.critical_current_density(; Bext) * (1.0 .+ tolerance)
         if needed_area > 1E6 # to handle cases where needed_area == Inf
             needed_area = 1E6
         end

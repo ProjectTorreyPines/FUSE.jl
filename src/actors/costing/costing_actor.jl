@@ -70,12 +70,12 @@ function ActorCosting(dd::IMAS.DD, par::FUSEparameters__ActorCosting, act::Param
     ddR = IMAS.get_timeslice(Measurement{Float64}, dd)
     copy_workflow!(ddR, dd) # to let FUSE continue tracking the execution workflow on ddR
 
-    ddR.costing.construction_start_year = act.ActorCosting.construction_start_year
-    ddR.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
-    ddR.costing.plant_lifetime = act.ActorCosting.plant_lifetime
-    ddR.costing.availability = act.ActorCosting.availability
-    ddR.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
-    ddR.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
+    ddR.costing.construction_start_year = par.construction_start_year
+    ddR.costing.future.inflation_rate = par.future_inflation_rate
+    ddR.costing.plant_lifetime = par.plant_lifetime
+    ddR.costing.availability = par.availability
+    ddR.costing.future.learning.hts.production_increase = par.production_increase
+    ddR.costing.future.learning.hts.learning_rate = par.learning_rate
 
     if par.model == :Sheffield
         cst_actor = ActorCostingSheffield(ddR, act.ActorCostingSheffield)

@@ -340,6 +340,9 @@ function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::Do
 
     vol_fusion_island = 0.0
     for layer in bd.layer
+        if layer.side == Int(_lfs_)
+            continue # hfs layer volume already accounts for its lfs counterpart
+        end
         vol_fusion_island += layer.volume
     end
 
