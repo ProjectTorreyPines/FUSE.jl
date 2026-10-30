@@ -137,11 +137,19 @@ function LH_analysis(dd::IMAS.DD; scale_LH::Real=0.0, transition_start::Real=0.0
         density_transition_end = transition_start + tau_n
         temperature_transition_end = transition_start + tau_t
 
-        # smooth density based on L-H transition timescale 
-        fs = 1 / (time[2] - time[1])
+        # smooth density based on L-H transition timescale
+        # sample rate from the median step: time bases (e.g. EFIT) can open with an outsized gap
+        dts = sort!(diff(time))
+        fs = 1 / dts[(length(dts)+1)÷2]
         band = 1 / tau_n
-        ne_smoothed = IMAS.lowpassfilter(ne, fs, band)
-        zeff_smoothed = IMAS.lowpassfilter(zeff09, fs, band)
+        if band < fs / 2
+            ne_smoothed = IMAS.lowpassfilter(ne, fs, band)
+            zeff_smoothed = IMAS.lowpassfilter(zeff09, fs, band)
+        else
+            # sampling too coarse to resolve tau_n: nothing to smooth
+            ne_smoothed = ne
+            zeff_smoothed = zeff09
+        end
 
         # ne_L/ne_H as a ne_L_over_H factor
         ne_L = IMAS.interp1d(time[index_L], ne_smoothed[index_L], :constant).(time)
