@@ -12,6 +12,8 @@ import FRESCO
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:psi_norm, :rho_tor_norm], "-", "Fix P and Jt on this grid"; default=:rho_tor_norm)
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
+    vacuum_only::Entry{Bool} = Entry{Bool}("-", "Only compute the vacuum ψ of the dd.pf_active currents and append it as a new equilibrium time slice at dd.global_time (no Grad-Shafranov solve, pf_active currents untouched)"; default=false)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
@@ -49,6 +51,8 @@ The solver supports:
   - Active X-point specification
   - Green's function table reuse for computational efficiency
   - Relaxation and tolerance control for convergence
+  - Vacuum-only mode (`vacuum_only=true`): appends the coils vacuum ψ at `dd.global_time` as a new
+    equilibrium time slice, e.g. for breakdown studies. `ActorEquilibrium` uses it below `vacuum_ip_threshold`.
 
 !!! note
 
@@ -77,13 +81,12 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     act = actor.act
-    eqt = dd.equilibrium.time_slice[]
 
     # FRESCO requires wall information
     if IMAS.hasdata(dd.wall)
         fw_r, fw_z = IMAS.first_wall(dd.wall)
-    elseif IMAS.hasdata(dd.pf_active) && findfirst(:rectangular, eqt.profiles_2d) !== nothing
-        fw_r, fw_z = IMAS.first_wall(eqt, dd.pf_active)
+    elseif IMAS.hasdata(dd.pf_active) && !isempty(dd.equilibrium.time_slice) && findfirst(:rectangular, dd.equilibrium.time_slice[].profiles_2d) !== nothing
+        fw_r, fw_z = IMAS.first_wall(dd.equilibrium.time_slice[], dd.pf_active)
     elseif IMAS.hasdata(dd.pf_active)
         fw_r, fw_z = IMAS.first_wall(dd.pf_active)
     else
@@ -93,6 +96,12 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     ΔZ = maximum(fw_z) - minimum(fw_z)
     Rs = range(max(0.01, minimum(fw_r) - ΔR / 20), maximum(fw_r) + ΔR / 20, par.nR)
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
+
+    if par.vacuum_only
+        return _step_vacuum(actor, Rs, Zs, fw_r, fw_z)
+    end
+
+    eqt = dd.equilibrium.time_slice[]
 
     # reuse green table if possible
     gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table=actor.canvas.Green_table)
@@ -141,8 +150,58 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+"""
+    _step_vacuum(actor::ActorFRESCO, Rs, Zs, fw_r, fw_z)
+
+Vacuum-only mode (e.g. breakdown / field-null studies): evaluates the coils flux with FRESCO's
+own `set_Ψvac!` using the `dd.pf_active` currents at `dd.global_time`.
+The Canvas and its Green table are built once and reused as long as the grid is unchanged.
+"""
+function _step_vacuum(actor::ActorFRESCO{D,P}, Rs, Zs, fw_r, fw_z) where {D<:Real,P<:Real}
+    dd = actor.dd
+    canvas = actor.canvas
+    if canvas === nothing || canvas.Rs != Rs || canvas.Zs != Zs
+        coils = VacuumFields.MultiCoils(dd; load_pf_active=true, load_pf_passive=false)
+        actor.canvas = canvas = FRESCO.Canvas(; Rs, Zs, Ip=zero(D), Fbnd=zero(D), coils, Rw=fw_r, Zw=fw_z, Rb_target=D[], Zb_target=D[])
+    else
+        for (icoil, mcoil) in zip(dd.pf_active.coil, canvas.coils)
+            VacuumFields.set_current_per_turn!(mcoil, VacuumFields.current_per_turn(icoil))
+        end
+    end
+    FRESCO.set_Ψvac!(canvas)
+    actor.converged = true
+    return actor
+end
+
+# vacuum-only mode: append the vacuum ψ as a new time slice at dd.global_time
+function _finalize_vacuum(actor::ActorFRESCO)
+    dd = actor.dd
+    eq = dd.equilibrium
+    canvas = actor.canvas
+
+    # get r0 and b0 before adding the time slice in case vacuum_r0_b0_from=:equilibrium
+    r0, b0 = IMAS.get_from(dd, Val(:vacuum_r0_b0), actor.par.vacuum_r0_b0_from)
+
+    eqt = resize!(eq.time_slice)
+    eqt.global_quantities.ip = 0.0
+    eqt.global_quantities.free_boundary = 1
+    eqt.global_quantities.vacuum_toroidal_field.r0 = r0
+    eqt.global_quantities.vacuum_toroidal_field.b0 = b0
+    @ddtime(eq.vacuum_toroidal_field.b0 = b0)
+    eq.vacuum_toroidal_field.r0 = r0
+    eq2d = resize!(eqt.profiles_2d, 1)[1]
+    eq2d.grid_type.index = 1
+    eq2d.grid.dim1 = canvas.Rs
+    eq2d.grid.dim2 = canvas.Zs
+    eq2d.psi = copy(canvas._Ψvac)
+    return actor
+end
+
 # finalize by converting FRESCO canvas to dd.equilibrium and updating currents in dd.pf_active and dd.pf_passive
 function _finalize(actor::ActorFRESCO)
+    if actor.par.vacuum_only
+        return _finalize_vacuum(actor)
+    end
     if !actor.converged
         # A non-converged canvas carries an unreliable current distribution
         # (observed: recomputed ip at ~50% of target, inflated psi span whose
