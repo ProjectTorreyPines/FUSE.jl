@@ -7,6 +7,12 @@
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
+    psin_cut::Entry{T} = Entry{T}(
+        "-",
+        "With j_p_from=:core_profiles, j_tor and pressure at psi_norm <= psin_cut are replaced by a symmetric bridge across the axis";
+        default=0.02,
+        check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= psin_cut < 1.0"
+    )
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
@@ -236,7 +242,7 @@ function prepare(actor::ActorEquilibrium)
     if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
-        index = cp1d.grid.psi_norm .> 0.02
+        index = cp1d.grid.psi_norm .> par.psin_cut
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
