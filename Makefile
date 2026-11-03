@@ -5,7 +5,8 @@ JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
-export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
+# lastword: site julia wrappers (omega) print a "Note: ..." line before the number.
+export JULIA_NUM_THREADS ?= $(lastword $(shell julia -e "println(length(Sys.cpu_info()))"))
 
 ifdef GITHUB_HEAD_REF
     # On GitHub for pull_request events
