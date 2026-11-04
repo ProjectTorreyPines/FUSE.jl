@@ -7,6 +7,8 @@
 #
 # NERSC:
 #   module load julia/1.11.7 && bash scripts/verify_fluxmatcher_notebook.sh
+#
+# omega: the site `fuse` module is loaded automatically when julia is not on PATH.
 
 set -euo pipefail
 
@@ -33,7 +35,15 @@ SCRIPT_DIR="$(resolve_script_dir)"
 log() { echo "[verify_fluxmatcher] $*"; }
 
 if command -v module >/dev/null 2>&1 && ! command -v julia >/dev/null 2>&1; then
-    module load "${FUSE_JULIA_MODULE:-julia/1.11.7}" 2>/dev/null || module load julia
+    # omega: the site `fuse` module provides julia and the per-user depot the
+    # one-command install used. Fall back to a plain julia module elsewhere.
+    site_module="${FUSE_SITE_MODULE:-fuse}"
+    if [[ "${site_module}" != "none" ]] && module is-avail "${site_module}" >/dev/null 2>&1; then
+        module load "${site_module}" 2>/dev/null || true
+    fi
+    if ! command -v julia >/dev/null 2>&1; then
+        module load "${FUSE_JULIA_MODULE:-julia/1.11.7}" 2>/dev/null || module load julia
+    fi
 fi
 
 if [[ -f "${HOME}/.juliaup/bin/julia" ]]; then
