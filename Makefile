@@ -5,7 +5,8 @@ JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
-export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
+# lastword: site julia wrappers (omega) print a "Note: ..." line before the number.
+export JULIA_NUM_THREADS ?= $(lastword $(shell julia -e "println(length(Sys.cpu_info()))"))
 
 ifdef GITHUB_HEAD_REF
     # On GitHub for pull_request events
@@ -19,6 +20,9 @@ else
        FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
     endif
 endif
+
+# HTTPS credentials for ProjectTorreyPines repos; empty when PTP_READ_TOKEN is not set (e.g. CI on PRs from forks)
+PTP_GITHUB_AUTH := $(if $(PTP_READ_TOKEN),project-torrey-pines:$(PTP_READ_TOKEN)@,)
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
 FUSE_PACKAGES_MAKEFILE := ADAS ALPHA BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TJLFEP TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
@@ -68,6 +72,9 @@ end ;\
 ;\
 function feature_or_master(package, feature_branch) ;\
     token = "$(PTP_READ_TOKEN)" ;\
+    if isempty(token) ;\
+        return "master" ;\
+    end ;\
     url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
     headers = ["Authorization" => "Bearer $$(token)", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
     max_attempts = 5 ;\
@@ -99,6 +106,9 @@ function feature_or_master(package, feature_branch) ;\
     else ;\
         error("GitHub API returned status code: $$(response.status)") ;\
     end ;\
+end ;\
+if isempty("$(PTP_READ_TOKEN)") ;\
+    @warn "PTP_READ_TOKEN is not set: skipping feature branch lookup and using master for all packages" ;\
 end
 endef
 
@@ -688,7 +698,7 @@ install_ci_master:
 
 # @devs
 install_ci_dev:
-# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN (anonymous HTTPS on master if the token is not set)
 # Looks for same branch name for all repositories otherwise falls back to master
 # Respects [sources] section in Project.toml for package overrides
 	julia --project=@. -e ';\
@@ -710,10 +720,10 @@ install_ci_dev:
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
             println(">>> $$(package)");\
-			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+			push!(dependencies, Pkg.PackageSpec(url="https://$(PTP_GITHUB_AUTH)github.com/ProjectTorreyPines/"*package*".jl.git"));\
         else;\
             println(">>> $$(package) @ $$(branch)");\
-			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
+			push!(dependencies, Pkg.PackageSpec(url="https://$(PTP_GITHUB_AUTH)github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
         end;\
 	end;\
 	Pkg.add(dependencies);\
