@@ -2,6 +2,7 @@ using FUSE
 using Test
 
 #include("test_zmq_actor.jl")  # requires GSLite connection — disabled until GSLite integration is merged
+include("test_zmq_publish_actor.jl")
 
 @testset "fluxmatcher" begin
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
