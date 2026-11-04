@@ -112,7 +112,8 @@ jobs:
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+          AUTH="${PTP_READ_TOKEN:+project-torrey-pines:$PTP_READ_TOKEN@}"
+          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' "s|git@github.com:|https://${AUTH}github.com/|g" {} +
 
       # FuseRegistry management on Linux
       - name: Remove FuseRegistry and Add Registry on Linux
@@ -120,7 +121,8 @@ jobs:
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+          AUTH="${PTP_READ_TOKEN:+project-torrey-pines:$PTP_READ_TOKEN@}"
+          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i "s|git@github.com:|https://${AUTH}github.com/|g" {} +
 
       # FuseRegistry management on Windows
       - name: Remove FuseRegistry and Add Registry on Windows
@@ -134,8 +136,9 @@ jobs:
             Write-Host "Directory does not exist, skipping removal."
           }
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
+          $auth = if ($env:PTP_READ_TOKEN) { "project-torrey-pines:$($env:PTP_READ_TOKEN)@" } else { "" }
           Get-ChildItem -Path "$env:USERPROFILE\.julia\registries\FuseRegistry" -Recurse -Filter 'Package.toml' | ForEach-Object {
-            (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
+            (Get-Content $_.FullName) -replace 'git@github.com:', "https://${auth}github.com/" | Set-Content $_.FullName
           }
 
       # JULIA_PKG_PRECOMPILE_AUTO=0: skip Pkg's post-add auto-precompile, which on Julia 1.13.2 fails with
