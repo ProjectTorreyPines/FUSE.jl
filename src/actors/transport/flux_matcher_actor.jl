@@ -1085,7 +1085,9 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     if par.evolve_rotation == :flux_match
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
         rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
+        if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
+            # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
+            # mixed-sign or identically zero profiles use the rotation-shear path below
             z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
             append!(z_profiles, z_rot)
         else
@@ -1211,8 +1213,12 @@ function unpack_z_profiles(
     if par.evolve_rotation == :flux_match
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
         rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
-            cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
+            # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
+            # mixed-sign or identically zero profiles use the rotation-shear path below
+            # the 1 rad/s offset guards log(0) when the edge rotation is exactly zero and is removed again so that it does not accumulate across iterations
+            rot_sign = all(x -> x <= 0, rot_check) ? -1.0 : 1.0
+            cp1d.rotation_frequency_tor_sonic = rot_sign .* (IMAS.profile_from_z_transport(rot_sign .* cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N]) .- 1)
         else
             # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
             w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
