@@ -3,6 +3,8 @@ using IMAS
 using Test
 using ZMQ
 using Serialization
+using Logging
+import YAML
 
 # A stand-in for the digital twin's registry: it answers OK to `n` requests and keeps them.
 function _stand_in_registry(n)
@@ -30,7 +32,10 @@ end
     dd = IMAS.dd()
     dd.global_time = 1.0
     dd.equilibrium.time = [1.0]
-    resize!(dd.equilibrium.time_slice, 1)[1].time = 1.0
+    eqt = resize!(dd.equilibrium.time_slice, 1)[1]
+    eqt.time = 1.0
+    eqt.global_quantities.ip = 1.0e6  # listed in zmq_publish_fields.yaml
+    eqt.global_quantities.psi_axis = 0.1  # not listed
 
     actor = FUSE.ActorZMQPublish(dd, act)
     @test startswith(asked[1], "REGISTER|FUSE_CENTER|tcp://")
@@ -41,16 +46,31 @@ end
     ZMQ.connect(sub, "tcp://127.0.0.1:" * split(asked[1], ":")[end])
     sleep(0.5)  # a PUB drops what it sends before the subscription reaches it
 
+    # the dd lacks most listed fields: nothing is sent, and the warning names the first
+    logger = Test.TestLogger()
+    with_logger(() -> FUSE.publish!(actor), logger)
+    err = sprint(showerror, only(logger.logs).kwargs[:exception])
+    @test occursin("build.layer[:].outline.r is listed in zmq_publish_fields.yaml", err)
+
+    actor.fields = [IMAS.i2p("equilibrium.time_slice[:].global_quantities.ip")]
     FUSE.publish!(actor)
     FUSE.disconnect!(actor)
 
     slice = deserialize(IOBuffer(ZMQ.recv(sub)))
     @test slice.global_time == 1.0
     @test slice.equilibrium.time_slice[1].time == 1.0
+    @test slice.equilibrium.time_slice[1].global_quantities.ip == 1.0e6
+    @test ismissing(slice.equilibrium.time_slice[1].global_quantities, :psi_axis)
     @test isempty(ZMQ.recv(sub))  # the end of the run
     wait(served)
     @test asked[2] == "DEREGISTER|FUSE_CENTER"
     ZMQ.close(sub)
+end
+
+@testset "ActorZMQPublish fields are in the dd" begin
+    @testset "$path" for path in YAML.load_file(FUSE.PUBLISH_FIELDS_FILE)["sim"]
+        @test IMAS.info(path) isa IMAS.IMASdd.Info  # throws for a path the dd doesn't have
+    end
 end
 
 @testset "ActorZMQPublish is off by default" begin

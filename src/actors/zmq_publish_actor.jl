@@ -5,16 +5,19 @@
 # twin's FUSE center takes the slices on to FUSEGUI and Omniverse, and archives them.
 #
 # It binds a ZMQ PUB socket and registers it with the digital twin's registry as
-# FUSE_CENTER, the way every DT runner registers. Each message is
-# serialize(io, IMAS.get_timeslice(dd; slice_pulse_schedule=true)), and an empty message
-# ends the run. A PUB never holds FUSE up: with nobody subscribed, it drops the slice.
+# FUSE_CENTER, the way every DT runner registers. Each message is the dd at its global_time
+# cut down to the fields in zmq_publish_fields.yaml, the ones the viewers read, and
+# serialized; an empty message ends the run. A PUB never holds FUSE up: with nobody
+# subscribed, it drops the slice.
 #
 # Julia Serialization only round-trips between the same Julia and IMAS/IMASdd versions,
 # so a reader must run the ones FUSE runs.
 
 import Serialization
+import YAML
 
 const PUBLISH_NAME = "FUSE_CENTER"
+const PUBLISH_FIELDS_FILE = joinpath(@__DIR__, "zmq_publish_fields.yaml")
 
 @actor_parameters_struct ActorZMQPublish{T} begin
     enabled::Entry{Bool} = Entry{Bool}("-", "Publish the dd at the end of each dynamic step over ZMQ, registered as $PUBLISH_NAME"; default=false)
@@ -26,12 +29,13 @@ mutable struct ActorZMQPublish{D,P} <: SingleAbstractActor{D,P}
     par::OverrideParameters{P,FUSEparameters__ActorZMQPublish{P}}
     context::Union{Nothing,ZMQ.Context}
     socket::Union{Nothing,ZMQ.Socket}
+    fields::Vector{Vector{String}}
 end
 
 function ActorZMQPublish(dd::IMAS.DD{D}, par::FUSEparameters__ActorZMQPublish{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQPublish)
     par = OverrideParameters(par; kw...)
-    return ActorZMQPublish{D,P}(dd, par, nothing, nothing)
+    return ActorZMQPublish{D,P}(dd, par, nothing, nothing, Vector{String}[])
 end
 
 """
@@ -42,8 +46,8 @@ Publishes the dd at the end of each dynamic step over ZeroMQ, for viewers outsid
 When enabled, it binds a PUB socket and registers it with the digital twin's registry as
 `FUSE_CENTER`. In ActorDynamicPlasma:
 
-  - Phase 2 end, after `send!(actor_zmq)`: `publish!(actor_publish)` sends
-    `serialize(io, IMAS.get_timeslice(dd; slice_pulse_schedule=true))`
+  - Phase 2 end, after `send!(actor_zmq)`: `publish!(actor_publish)` sends the dd at its
+    global_time, cut down to the fields in `zmq_publish_fields.yaml`, serialized
   - When the run ends, also by an error: `disconnect!(actor_publish)` sends an empty
     message and deregisters
 
@@ -61,12 +65,13 @@ end
 """
     connect!(actor::ActorZMQPublish)
 
-Bind the PUB socket and register it with the registry as `FUSE_CENTER`.
+Load the fields to publish, bind the PUB socket and register it with the registry as `FUSE_CENTER`.
 """
 function connect!(actor::ActorZMQPublish)
     if actor.socket !== nothing
         return actor
     end
+    actor.fields = [IMAS.i2p(path) for path in YAML.load_file(PUBLISH_FIELDS_FILE)["sim"]]
     ctx = ZMQ.Context()
     sock = ZMQ.Socket(ctx, ZMQ.PUB)
     sock.linger = 1000  # close waits up to 1 s, so the end-of-run message still goes out
@@ -81,15 +86,21 @@ end
 """
     publish!(actor::ActorZMQPublish)
 
-Send the dd at its global_time, sliced, with the pulse schedule cut to the slice.
+Send the dd at its global_time, cut down to the fields in `zmq_publish_fields.yaml`.
+Every listed field must have data, or the slice is not sent and the warning names the field.
 """
 function publish!(actor::ActorZMQPublish)
     if actor.socket === nothing
         return actor
     end
     try
+        slice = IMAS.dd()
+        for path in actor.fields
+            IMAS.selective_copy!(actor.dd, slice, path, actor.dd.global_time)
+            @assert _has_data(slice, path) "$(IMAS.p2i(path)) is listed in zmq_publish_fields.yaml but the dd has no data for it at t=$(actor.dd.global_time) s"
+        end
         io = IOBuffer()
-        Serialization.serialize(io, IMAS.get_timeslice(actor.dd; slice_pulse_schedule=true))
+        Serialization.serialize(io, slice)
         ZMQ.send(actor.socket, take!(io))
     catch e
         # the viewers miss a step; the run itself is not worth stopping for them
@@ -119,6 +130,14 @@ function disconnect!(actor::ActorZMQPublish)
     actor.context = nothing
     return actor
 end
+
+# Whether `path` (as IMAS.i2p splits it) has data in any element along it; selective_copy!
+# copies nothing for a field the dd does not have.
+function _has_data(ids::IMAS.IDS, path::AbstractVector{<:AbstractString})
+    field = Symbol(path[1])
+    return length(path) == 1 ? IMAS.hasdata(ids, field) : _has_data(getfield(ids, field), @view path[2:end])
+end
+_has_data(ids::IMAS.IDSvector, path::AbstractVector{<:AbstractString}) = any(el -> _has_data(el, @view path[2:end]), ids)
 
 # The digital twin's runners bind in this port range.
 function _bind_random_port(sock::ZMQ.Socket)
