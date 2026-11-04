@@ -34,6 +34,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_pf::ActorPFactive{D,P}
     actor_saw::ActorSawteethSource{D,P}
     actor_zmq::ActorZMQ{D,P}
+    actor_publish::ActorZMQPublish{D,P}
     substep_failures::Dict{Symbol,Int}       # total guarded-substep failures, by substep
     substep_consecutive::Dict{Symbol,Int}    # current consecutive-failure streak, by substep
 end
@@ -167,7 +168,9 @@ function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma
 
     actor_zmq = ActorZMQ(dd, act)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq,
+    actor_publish = ActorZMQPublish(dd, act)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq, actor_publish,
         Dict{Symbol,Int}(), Dict{Symbol,Int}())
 end
 
@@ -203,6 +206,7 @@ function _step(actor::ActorDynamicPlasma)
     finally
         actor_logging(dd, old_logging)
         disconnect!(actor.actor_zmq)
+        disconnect!(actor.actor_publish)
         report_substep_failures(actor)
     end
 
@@ -407,9 +411,10 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
     guarded_substep(actor, Val(:run_equilibrium), δt / 2; progr)
     guarded_substep(actor, Val(:run_pf_active), δt / 2; progr)
 
-    # ZMQ: send results to GSLite at Phase 2 end
+    # ZMQ: send results to GSLite at Phase 2 end, then publish the step's dd
     if phase == 2
         send!(actor.actor_zmq)
+        publish!(actor.actor_publish)
     end
 
     return actor
