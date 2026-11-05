@@ -8,6 +8,7 @@ end
 
 @actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
+    axis_mirror::Entry{Bool} = Entry{Bool}("-", "Add each deposition gaussian's mirror image about rho=0 (zero gradient on axis)"; default=false)
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -34,7 +35,7 @@ This actor models the deposition of neutral beam energy and momentum through:
 
 The model includes:
 - Multiple beam energy components (full, half, third energy)
-- Gaussian deposition profiles with configurable width
+- Gaussian deposition profiles with configurable width (optionally mirrored about the axis)
 - Banana orbit shift correction for trapped particles
 - Fast ion thermalization time smoothing of launched power
 
@@ -216,6 +217,9 @@ function _step(actor::ActorSimpleNB)
                 for i in 1:ngrid-1
                     rho_beam_banana = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
                     @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam_banana) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    if par.axis_mirror
+                        @. gaus .+= exp.(-0.5 .* (rho_cp .+ rho_beam_banana) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    end
                     gaus ./= IMAS.trapz(volume_cp, gaus)
                     @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
                     @. qbeam[igroup, ifpow, :] .+= qbeamtmp
