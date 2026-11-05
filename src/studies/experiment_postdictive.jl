@@ -26,16 +26,23 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
+    start_time::Entry{Float64} = Entry{Float64}("s", "Override simulation start time"; default=missing)
+    end_time::Entry{Float64} = Entry{Float64}("s", "Simulation end time (missing: end of the equilibrium time basis; later times are clipped to it)"; default=missing)
+    δt::Entry{Float64} = Entry{Float64}("s", "Macro time step of ActorDynamicPlasma (with δt_exact = false, the largest step ≤ δt that ends at end_time)"; default=0.05, check=x -> @assert x > 0 "δt must be > 0")
+    δt_exact::Entry{Bool} = Entry{Bool}("-", "true: steps of exactly δt (Nt = floor(Δt / δt)), ending up to one step before end_time; false: Nt = ceil(Δt / δt) steps that end at end_time"; default=false)
+    qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is)"; default=missing, check=x -> @assert x > 0 "qed_δt must be > 0")
+    qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
+    sawteeth_period::Entry{Float64} = Entry{Float64}("s", "ActorSawteethSource.period: keep flattening this long after the last sawtooth"; default=0.25)
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyPostdictive{T}}
-    act::ParametersActors
+    act::ParametersActors # actor parameters forced on every case; unset (missing) ones keep the case and study settings
 end
 
 function StudyPostdictive(sty::ParametersStudy; kw...)
     sty = OverrideParameters(sty; kw...)
-    study = StudyPostdictive(sty, ParametersActors())
+    study = StudyPostdictive(sty, unset_parameters!(ParametersActors()))
     parallel_environment(sty.server, sty.n_workers)
     return study
 end
@@ -84,7 +91,10 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
+            # these may be unset (missing), which reading them as sty.<name> refuses
+            start_time, end_time, qed_δt = (getproperty(sty, name, missing) for name in (:start_time, :end_time, :qed_δt))
+            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, start_time, end_time, sty.δt, sty.δt_exact, qed_δt,
+                sty.qmin_desired, sty.sawteeth_period, act_overrides=study.act, kw_case_parameters)
         end
     end
 end
@@ -105,6 +115,14 @@ function run_postdictive_case!(
     save_gif::Bool=false,
     reconstruction::Bool,
     verbose::Bool,
+    start_time::Union{Float64,Missing}=missing,
+    end_time::Union{Float64,Missing}=missing,
+    δt::Float64=0.05,
+    δt_exact::Bool=false,
+    qed_δt::Union{Float64,Missing}=missing,
+    qmin_desired::Float64=1.0,
+    sawteeth_period::Float64=0.25,
+    act_overrides::Union{Nothing,ParametersAllActors}=nothing,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -117,6 +135,19 @@ function run_postdictive_case!(
     # Get case parameters
     @info "StudyPostdictive: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
+    if !ismissing(start_time)
+        ini.time.simulation_start = start_time
+    end
+
+    # time window
+    t0 = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
+    final_time = ini.general.dd.equilibrium.time[end]
+    if !ismissing(end_time)
+        final_time = min(end_time, final_time)
+    end
+    Nt = δt_exact ? floor(Int, (final_time - t0) / δt) : ceil(Int, (final_time - t0) / δt)
+    @assert Nt >= 1 "empty time window: simulation start $t0 s, end $final_time s, δt $δt s"
+    Δt = δt_exact ? Nt * δt : final_time - t0
 
     # init
     @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
@@ -165,16 +196,19 @@ function run_postdictive_case!(
     act.ActorPedestal.rotation_model = :replay
 
     act.ActorSawteethSource.flat_factor = 1.0
-    act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
+    act.ActorSawteethSource.period = sawteeth_period # turn off flattening after this long with no sawteeth events
+    act.ActorQED.qmin_desired = qmin_desired
+    act.ActorSawteethSource.qmin_desired = qmin_desired
     act.ActorTGLF.model = :GKNN
     act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
-    δt = 0.05
-    dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
-    final_time = ini.general.dd.equilibrium.time[end]
-    act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
-    act.ActorDynamicPlasma.Δt = final_time - dd.global_time
+    dd.global_time = t0
+    act.ActorDynamicPlasma.Nt = Nt
+    act.ActorDynamicPlasma.Δt = Δt
+    if !ismissing(qed_δt)
+        act.ActorQED.Nt = round(Int, Δt / Nt / qed_δt)
+    end
 
     # choose what to evolve
     act.ActorDynamicPlasma.evolve_current = true
@@ -200,14 +234,19 @@ function run_postdictive_case!(
         act.ActorPFactive.flux_loop_weight = 0.0
         act.ActorPFactive.strike_points_weight = 0.0
         act.ActorPFactive.x_points_weight = 1.0
+    end
 
+    if act_overrides !== nothing
+        apply_act_overrides!(act, act_overrides)
+    end
+
+    if !reconstruction
         # it's best to start from a transport simulation that is flux-matched
         ped_mod = act.ActorPedestal.model
         act.ActorPedestal.model = :WPED
         FUSE.ActorFluxMatcher(dd, act; verbose, evolve_plasma_sources=true, evolve_pedestal=true, max_iterations=1000, do_plot=false);
         act.ActorPedestal.model = ped_mod
     end
-
 
     # Run the simulation
     try
@@ -221,14 +260,11 @@ function run_postdictive_case!(
         end
     end
 
-    Nt_OK = round(Int, (dd.global_time - ini.time.simulation_start) / δt)
-    times = range(ini.time.simulation_start, dd.global_time, Nt_OK)
-
-    @info "StudyPostdictive: IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
-    bnch = IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);
-
     # save simulation data to directory
     if !isempty(savedir)
+        @info "StudyPostdictive: IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
+        bnch = IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);
+
         @info "StudyPostdictive: saving simulation results to: $(savedir)"
         @info "StudyPostdictive: save act.json"
         tmp = act.ActorReplay.replay_dd
@@ -245,6 +281,10 @@ function run_postdictive_case!(
         @info "StudyPostdictive: save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
+        open(joinpath(savedir, "step_provenance.json"), "w") do io
+            JSON.print(io, Dict("start" => t0, "δt" => Δt / Nt, "Nt" => Nt, "end" => t0 + Δt, "reached" => dd.global_time), 1)
+        end
+
         if save_gif
             @info "StudyPostdictive: save animated gif"
             mkdir(joinpath(savedir, "gif"))
@@ -252,7 +292,7 @@ function run_postdictive_case!(
         end
     end
 
-    return nothing
+    return (; act, t0, Δt, Nt)
 end
 
 function animated_plasma_overview(dd::IMAS.DD, dir::AbstractString, dd1::Union{IMAS.dd,Nothing}=nothing; aggregate_hcd::Bool=true, fps::Int=12)
