@@ -106,6 +106,7 @@ include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "current", "qed_actor.jl"))
+include(joinpath("actors", "current", "qed_sawtooth_crash.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 
