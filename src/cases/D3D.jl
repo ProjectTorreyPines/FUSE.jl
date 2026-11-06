@@ -19,7 +19,11 @@
         pull_gslite_min::Bool=false,
         offaxis_beams::Vector{String}=["15"],
         counter_beams::Vector{String}=["21"],
-        data_dir::String=""
+        data_dir::String="",
+        EFIT_fallback_tree::String="",
+        EFIT_gap_factor::Float64=2.0,
+        EFIT_hard_gap_s::Float64=0.035,
+        efit_provenance::Union{Nothing,Dict{String,Any}}=nothing
     )
 
 DIII-D from experimental shot
@@ -36,6 +40,10 @@ off-axis / counter-Ip when filling beam geometry from templates in the `pull_gsl
 (matched against the source name, e.g. "15"/"21"); everything else is co-Ip. The known
 shot-dependent history of the 150° and 210° beamlines overrides this configuration
 (see [`d3d_beam_template`](@ref)).
+
+`EFIT_fallback_tree` (e.g. "EFIT01") fills interior gaps of `EFIT_tree` wider than `EFIT_gap_factor` times its median
+spacing (or, EFIT02 from EFIT01 only, `>= EFIT_hard_gap_s`) with the fallback tree's slices; `efit_provenance`, if given,
+receives the source tree of each slice (see [`d3d_efit_fallback!`](@ref)).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -55,9 +63,14 @@ function case_parameters(::Val{:D3D}, shot::Int;
     pull_gslite_min::Bool=false,
     offaxis_beams::Vector{String}=["15"],
     counter_beams::Vector{String}=["21"],
-    data_dir::String=""
+    data_dir::String="",
+    EFIT_fallback_tree::String="",
+    EFIT_gap_factor::Float64=2.0,
+    EFIT_hard_gap_s::Float64=0.035,
+    efit_provenance::Union{Nothing,Dict{String,Any}}=nothing
 )
     ini, act = case_parameters(Val(:D3D_machine))
+    EFIT_tree_name = EFIT_tree # EFIT_tree is rewritten for USERnn trees below
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
@@ -214,6 +227,19 @@ function case_parameters(::Val{:D3D}, shot::Int;
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
+    # the fetch does not fill equilibrium.code.name: record the tree, then backfill its gaps from a fallback tree
+    dd1.equilibrium.code.name = EFIT_tree_name
+    if !isempty(EFIT_fallback_tree) && EFIT_fallback_tree != EFIT_tree_name
+        fetch_fallback() = case_parameters(Val(:D3D), shot;
+            fit_profiles=false, EFIT_tree=EFIT_fallback_tree, PROFILES_tree, CER_analysis_type,
+            PROFILES_run_id, omfit_host=omfit_host_original, omfit_root, omas_root,
+            use_local_cache=true, use_interferometer, pull_gslite_min, offaxis_beams, counter_beams, data_dir)[1].general.dd
+        prov = d3d_efit_fallback!(dd1, fetch_fallback, EFIT_tree_name, EFIT_fallback_tree; gap_factor=EFIT_gap_factor, hard_gap_s=EFIT_hard_gap_s)
+    else
+        prov = efit_provenance === nothing ? nothing : d3d_efit_provenance(dd1, EFIT_tree_name, EFIT_fallback_tree; gap_factor=EFIT_gap_factor, hard_gap_s=NaN)
+    end
+    efit_provenance === nothing || merge!(efit_provenance, prov)
+
     n_eq = length(ini.general.dd.equilibrium.time_slice)
     t_eq = n_eq >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : (n_eq == 1 ? ini.general.dd.equilibrium.time_slice[1].time : -Inf)
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
@@ -279,7 +305,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams, data_dir)
+                pull_gslite_min, offaxis_beams, counter_beams, data_dir,
+                EFIT_fallback_tree, EFIT_gap_factor, EFIT_hard_gap_s, efit_provenance)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
@@ -336,6 +363,146 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     return ini, act
+end
+
+"""
+    d3d_efit_interior_gaps(time::AbstractVector, gap_factor::Real, hard_gap_s::Real)
+
+Intervals `(time[i], time[i+1])`, `i >= 2`, wider than `gap_factor` times the median spacing or `>= hard_gap_s`.
+
+The first interval is excluded: the simulation starts at `time_slice[2]`, and a slice inserted before it would move the start.
+"""
+function d3d_efit_interior_gaps(time::AbstractVector, gap_factor::Real, hard_gap_s::Real)
+    dts = sort!(diff(time))
+    dt_med = dts[(length(dts)+1)÷2]
+    gaps = [(time[i], time[i+1]) for i in 2:length(time)-1 if (time[i+1] - time[i] > gap_factor * dt_med || time[i+1] - time[i] >= hard_gap_s)]
+    return gaps, dt_med
+end
+
+"""
+    d3d_efit_splice_checks(dd1::IMAS.DD, dd_fb::IMAS.DD)
+
+Whether slices of `dd_fb` can be copied into `dd1`: equal `vacuum_toroidal_field.r0` and equal (sign b0, sign ip).
+Grid and profile-length differences are reported but not fatal.
+"""
+function d3d_efit_splice_checks(dd1::IMAS.DD, dd_fb::IMAS.DD)
+    checks = Pair{String,String}[]
+    ts1, tsf = dd1.equilibrium.time_slice, dd_fb.equilibrium.time_slice
+    if isempty(ts1) || isempty(tsf)
+        push!(checks, "slices_present" => "FAIL: $(length(ts1)) vs $(length(tsf))")
+        return false, checks
+    end
+    ok = true
+    r1, rf = dd1.equilibrium.vacuum_toroidal_field.r0, dd_fb.equilibrium.vacuum_toroidal_field.r0
+    if isapprox(r1, rf; rtol=1e-9)
+        push!(checks, "vacuum_toroidal_field.r0" => "PASS: $r1")
+    else
+        push!(checks, "vacuum_toroidal_field.r0" => "FAIL: $r1 vs $rf")
+        ok = false
+    end
+    mean(x) = sum(x) / length(x)
+    sb1 = Int(sign(mean(dd1.equilibrium.vacuum_toroidal_field.b0)))
+    sbf = Int(sign(mean(dd_fb.equilibrium.vacuum_toroidal_field.b0)))
+    si1 = Int(sign(mean([ts.global_quantities.ip for ts in ts1])))
+    sif = Int(sign(mean([ts.global_quantities.ip for ts in tsf])))
+    if sb1 == sbf && si1 == sif
+        push!(checks, "cocos_sign_pair" => "PASS: (sign b0, sign ip) = ($sb1, $si1)")
+    else
+        push!(checks, "cocos_sign_pair" => "FAIL: ($sb1, $si1) vs ($sbf, $sif)")
+        ok = false
+    end
+    g1, gf = ts1[1].profiles_2d[1].grid, tsf[1].profiles_2d[1].grid
+    for (name, a, b) in (("grid.dim1", g1.dim1, gf.dim1), ("grid.dim2", g1.dim2, gf.dim2))
+        same = length(a) == length(b) && isapprox(first(a), first(b)) && isapprox(last(a), last(b))
+        push!(checks, "profiles_2d[0].$name" => (same ? "PASS: n=$(length(a)) [$(first(a)), $(last(a))]" :
+                                                 "WARN: n=$(length(a)) [$(first(a)), $(last(a))] vs n=$(length(b)) [$(first(b)), $(last(b))]"))
+    end
+    n1, nf = length(ts1[1].profiles_1d.psi), length(tsf[1].profiles_1d.psi)
+    push!(checks, "profiles_1d.psi length" => (n1 == nf ? "PASS: $n1" : "WARN: $n1 vs $nf"))
+    return ok, checks
+end
+
+function d3d_efit_provenance(dd1::IMAS.DD, primary::AbstractString, fallback::AbstractString;
+    gap_factor::Real, hard_gap_s::Real, gaps=Tuple{Float64,Float64}[], fill_counts=Int[], checks=Pair{String,String}[],
+    slice_trees=fill(String(primary), length(dd1.equilibrium.time_slice)))
+    return Dict{String,Any}(
+        "primary_tree" => String(primary),
+        "fallback_tree" => String(fallback),
+        "gap_factor" => Float64(gap_factor),
+        "hard_gap_s" => Float64(hard_gap_s),
+        "gaps" => [Dict("t_lo" => lo, "t_hi" => hi, "n_filled" => get(fill_counts, i, 0)) for (i, (lo, hi)) in enumerate(gaps)],
+        "checks" => checks,
+        "slice_times" => [ts.time for ts in dd1.equilibrium.time_slice],
+        "slice_trees" => collect(String, slice_trees))
+end
+
+"""
+    d3d_efit_fallback!(dd1::IMAS.DD, fetch_fallback::Function, primary::AbstractString, fallback::AbstractString; gap_factor::Real, hard_gap_s::Real)
+
+Fill interior gaps of `dd1.equilibrium` (see [`d3d_efit_interior_gaps`](@ref); `hard_gap_s` applies to EFIT02 -> EFIT01 only)
+with the slices of the `fallback` tree that fall strictly inside them. With fewer than 3 primary slices, the fallback replaces the primary.
+
+`fetch_fallback()` returns the fallback tree's `dd` and is only called when there is something to fill.
+`equilibrium.vacuum_toroidal_field.b0` is rebuilt from each tree's own values and `equilibrium.code.name` becomes `"<primary>+<fallback>"`.
+Returns the provenance (source tree of each slice, gaps, splice checks) as a Dict.
+"""
+function d3d_efit_fallback!(dd1::IMAS.DD, fetch_fallback::Function, primary::AbstractString, fallback::AbstractString; gap_factor::Real, hard_gap_s::Real)
+    eq = dd1.equilibrium
+    t1 = isempty(eq.time_slice) ? Float64[] : copy(eq.time)
+    too_sparse = length(t1) < 3
+    gaps = Tuple{Float64,Float64}[]
+    hard_gap_s = (primary == "EFIT02" && fallback == "EFIT01") ? hard_gap_s : Inf
+    unmerged(; kw...) = d3d_efit_provenance(dd1, primary, fallback; gap_factor, hard_gap_s, kw...)
+    if too_sparse
+        @warn "$primary has only $(length(t1)) equilibrium slice(s): using $fallback instead"
+    else
+        gaps, dt_med = d3d_efit_interior_gaps(t1, gap_factor, hard_gap_s)
+        isempty(gaps) && return unmerged()
+        @warn "$primary has $(length(gaps)) gap(s) beyond $(gap_factor)x its median spacing ($(round(dt_med; digits=4)) s) or $(hard_gap_s) s: " *
+              join(("$(round(lo; digits=4))-$(round(hi; digits=4)) s" for (lo, hi) in gaps), ", ") * ", filling from $fallback"
+    end
+
+    dd_fb = fetch_fallback()
+    # an empty primary has nothing to be consistent with
+    ok, checks = isempty(t1) ? (true, Pair{String,String}[]) : d3d_efit_splice_checks(dd1, dd_fb)
+    if !ok
+        @error "$primary and $fallback cannot be spliced, keeping $primary as fetched:\n" * join(("    $k  $v" for (k, v) in checks), "\n")
+        return unmerged(; gaps, checks)
+    end
+
+    # per-slice b0 is an expression of the parent's b0 array: snapshot each tree's values before moving slices
+    tree_of, b0_of = Dict{Float64,String}(), Dict{Float64,Float64}()
+    if too_sparse
+        resize!(eq.time_slice, 0)
+    else
+        @assert length(eq.vacuum_toroidal_field.b0) == length(t1) "$primary b0 has $(length(eq.vacuum_toroidal_field.b0)) entries for $(length(t1)) times"
+        for (t, b0) in zip(t1, eq.vacuum_toroidal_field.b0)
+            tree_of[t] = String(primary)
+            b0_of[t] = b0
+        end
+    end
+    b0_fb = Dict{Float64,Float64}(zip(dd_fb.equilibrium.time, dd_fb.equilibrium.vacuum_toroidal_field.b0))
+    fill_counts = zeros(Int, length(gaps))
+    n_filled = 0
+    for ts in dd_fb.equilibrium.time_slice
+        gi = too_sparse ? 0 : findfirst(g -> g[1] < ts.time < g[2], gaps)
+        gi === nothing && continue
+        push!(eq.time_slice, deepcopy(ts))
+        tree_of[ts.time] = String(fallback)
+        b0_of[ts.time] = b0_fb[ts.time]
+        gi > 0 && (fill_counts[gi] += 1)
+        n_filled += 1
+    end
+    if n_filled == 0
+        @warn "$fallback has no slices inside the gaps of $primary"
+        return unmerged(; gaps, checks)
+    end
+
+    sort!(eq.time_slice; by=ts -> ts.time)
+    eq.time = [ts.time for ts in eq.time_slice]
+    eq.vacuum_toroidal_field.b0 = [b0_of[t] for t in eq.time]
+    eq.code.name = "$(primary)+$(fallback)"
+    return unmerged(; gaps, checks, fill_counts, slice_trees=[tree_of[ts.time] for ts in eq.time_slice])
 end
 
 """
