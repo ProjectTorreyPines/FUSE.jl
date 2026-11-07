@@ -12,6 +12,8 @@ else
         using Pkg
         Pkg.add("ThermalSystemModels")
         using ThermalSystemModels
+        Pkg.add(url="https://github.com/OpenFUSIONToolkit/GPEC.git", rev="bfc60610ee04511c830a502c704f269671714691")
+        using GeneralizedPerturbedEquilibrium
     end
 
     include("runtests_warmup.jl")
@@ -27,6 +29,7 @@ else
     # Conditionally run extension tests if environment variable is set.
     if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
         include("runtests_study.jl")
+        include("runtests_gpec.jl")
     end
 
     include("runtests_study_database.jl")
