@@ -3,7 +3,6 @@ using IMAS
 using Test
 using ZMQ
 using Serialization
-using Logging
 import YAML
 
 # A stand-in for the digital twin's registry: it answers OK to `n` requests and keeps them.
@@ -46,13 +45,7 @@ end
     ZMQ.connect(sub, "tcp://127.0.0.1:" * split(asked[1], ":")[end])
     sleep(0.5)  # a PUB drops what it sends before the subscription reaches it
 
-    # the dd lacks most listed fields: nothing is sent, and the warning names the first
-    logger = Test.TestLogger()
-    with_logger(() -> FUSE.publish!(actor), logger)
-    err = sprint(showerror, only(logger.logs).kwargs[:exception])
-    @test occursin("build.layer[:].outline.r is listed in zmq_publish_fields.yaml", err)
-
-    actor.fields = [IMAS.i2p("equilibrium.time_slice[:].global_quantities.ip")]
+    # the dd has one of the listed fields: the slice holds that one, and the rest are left out
     FUSE.publish!(actor)
     FUSE.disconnect!(actor)
 
@@ -61,6 +54,7 @@ end
     @test slice.equilibrium.time_slice[1].time == 1.0
     @test slice.equilibrium.time_slice[1].global_quantities.ip == 1.0e6
     @test ismissing(slice.equilibrium.time_slice[1].global_quantities, :psi_axis)
+    @test isempty(slice.build.layer)  # listed, but the dd has no build
     @test isempty(ZMQ.recv(sub))  # the end of the run
     wait(served)
     @test asked[2] == "DEREGISTER|FUSE_CENTER"

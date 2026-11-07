@@ -87,7 +87,7 @@ end
     publish!(actor::ActorZMQPublish)
 
 Send the dd at its global_time, cut down to the fields in `zmq_publish_fields.yaml`.
-Every listed field must have data, or the slice is not sent and the warning names the field.
+A listed field the dd has no data for is left out: a DIII-D run has no LH or IC antennas.
 """
 function publish!(actor::ActorZMQPublish)
     if actor.socket === nothing
@@ -97,7 +97,6 @@ function publish!(actor::ActorZMQPublish)
         slice = IMAS.dd()
         for path in actor.fields
             IMAS.selective_copy!(actor.dd, slice, path, actor.dd.global_time)
-            @assert _has_data(slice, path) "$(IMAS.p2i(path)) is listed in zmq_publish_fields.yaml but the dd has no data for it at t=$(actor.dd.global_time) s"
         end
         io = IOBuffer()
         Serialization.serialize(io, slice)
@@ -130,14 +129,6 @@ function disconnect!(actor::ActorZMQPublish)
     actor.context = nothing
     return actor
 end
-
-# Whether `path` (as IMAS.i2p splits it) has data in any element along it; selective_copy!
-# copies nothing for a field the dd does not have.
-function _has_data(ids::IMAS.IDS, path::AbstractVector{<:AbstractString})
-    field = Symbol(path[1])
-    return length(path) == 1 ? IMAS.hasdata(ids, field) : _has_data(getfield(ids, field), @view path[2:end])
-end
-_has_data(ids::IMAS.IDSvector, path::AbstractVector{<:AbstractString}) = any(el -> _has_data(el, @view path[2:end]), ids)
 
 # The digital twin's runners bind in this port range.
 function _bind_random_port(sock::ZMQ.Socket)
