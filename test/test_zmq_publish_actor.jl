@@ -1,9 +1,8 @@
 using FUSE
-using IMAS
 using Test
-using ZMQ
-using Serialization
-import YAML
+# Pkg.test's environment holds only FUSE and test/Project.toml: reach FUSE's own dependencies through FUSE
+import FUSE: ZMQ, YAML
+using FUSE.Serialization: deserialize
 
 # A stand-in for the digital twin's registry: it answers OK to `n` requests and keeps them.
 function _stand_in_registry(n)
