@@ -3,6 +3,7 @@ using Test
 
 #include("test_zmq_actor.jl")  # requires GSLite connection — disabled until GSLite integration is merged
 include("test_zmq_publish_actor.jl")
+include("test_zmq_follow_equilibrium.jl")
 
 @testset "fluxmatcher" begin
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)

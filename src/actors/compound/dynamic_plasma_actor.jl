@@ -8,7 +8,7 @@
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal"; default=true)
     evolve_sources::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
-    evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
+    evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium (if false with ActorZMQ enabled, follow GSLite's)"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=false)
     evolve_sawteeth::Entry{Bool} = Entry{Bool}("-", "Evolve current and sources with sawteeth"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
@@ -511,6 +511,10 @@ function substep(actor::ActorDynamicPlasma, ::Val{:run_equilibrium}, δt::Float6
     end
     if par.evolve_equilibrium
         finalize(step(actor.actor_eq))
+    elseif actor.actor_zmq.par.enabled
+        # GSLite owns the equilibrium: follow its map. Phase 2's betap and li are what send! gives
+        # GSLite, so log those, once per exchange.
+        follow_gslite_equilibrium!(actor.dd; verbose=(progr !== nothing && last(progr) == 2))
     end
 end
 

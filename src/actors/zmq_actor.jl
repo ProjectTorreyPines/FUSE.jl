@@ -6,6 +6,7 @@
 # In the dynamic plasma loop:
 #   Phase 1 start: receive!(actor_zmq) — gets flux matrix + Ip from GSLite
 #   Phase 2 end:   send!(actor_zmq)    — sends FRESCO equilibrium back to GSLite
+# With evolve_equilibrium=false, :run_equilibrium calls follow_gslite_equilibrium! instead of FRESCO
 #
 # Message format: Protocol Buffers over ZMQ REQ/REP
 # Schema defined in zmq_messages.proto
@@ -720,6 +721,105 @@ function receive!(actor::ActorZMQ)
     end
 
     return actor
+end
+
+#= ================================== =#
+#  Follow GSLite's equilibrium (EQ=0)  #
+#= ================================== =#
+
+# GSLite's map is followed on this grid, resampled through ψ's cubic interpolant. On GSLite's own
+# 33×33 grid (5 cm × 10 cm cells) the traced boundary cuts the X-point corner by 10–15 cm.
+const GSLITE_FOLLOW_GRID = 129
+
+"""
+    follow_gslite_equilibrium!(dd::IMAS.dd; verbose::Bool=false)
+
+With `evolve_equilibrium=false` GSLite owns the equilibrium, and `receive!` commits only its map,
+boundary and axis. This recomputes the rest of the slice on that map:
+
+  - the map is resampled onto a `GSLITE_FOLLOW_GRID`² grid, so the boundary isn't snapped to GSLite's
+  - pressure comes from FUSE's core_profiles, and ff' is scaled so that the slice carries GSLite's Ip
+  - `beta_pol` and `li_1`, which `send!` gives GSLite, come from FUSE's own pressure and current
+    profiles on the map's flux surfaces, normalized by FUSE's Ip
+
+On failure the slice is left as it was, with a warning. With `verbose` it logs
+`eq-follow: betap=<value> li=<value>`, which the image build checks for.
+"""
+function follow_gslite_equilibrium!(dd::IMAS.dd; verbose::Bool=false)
+    eqt = dd.equilibrium.time_slice[]
+    eqt_bkp = deepcopy(eqt)
+    try
+        _follow_gslite_equilibrium!(dd; verbose)
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        @warn "eq-follow: failed at t=$(dd.global_time) s — keeping the previous equilibrium" exception = e maxlog = 20
+        empty!(eqt)
+        IMAS.fill!(eqt, eqt_bkp)
+    end
+    return dd
+end
+
+function _follow_gslite_equilibrium!(dd::IMAS.dd; verbose::Bool)
+    μ0 = IMAS.mks.μ_0
+    eqt = dd.equilibrium.time_slice[]
+    eqt1d = eqt.profiles_1d
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    cp1d = dd.core_profiles.profiles_1d[]
+    fw_r, fw_z = IMAS.first_wall(dd.wall)
+
+    # GSLite's map on the finer grid (a slice that was already followed is on it)
+    if size(eqt2d.psi) != (GSLITE_FOLLOW_GRID, GSLITE_FOLLOW_GRID)
+        r, z, PSI_interpolant = IMAS.ψ_interpolant(eqt2d)
+        dim1 = collect(range(r[1], r[end], GSLITE_FOLLOW_GRID))
+        dim2 = collect(range(z[1], z[end], GSLITE_FOLLOW_GRID))
+        psi = [PSI_interpolant(rr, zz) for rr in dim1, zz in dim2]
+        # stored 2-D fields are on the old grid: flux_surfaces rebuilds phi, the others are expressions
+        for f in (:phi, :b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
+            IMAS.hasdata(eqt2d, f) && empty!(eqt2d, f)
+        end
+        eqt2d.grid.dim1 = dim1
+        eqt2d.grid.dim2 = dim2
+        eqt2d.psi = psi
+    end
+
+    # pressure from FUSE's core_profiles
+    n = length(eqt1d.psi)
+    eqt1d.psi = collect(range(eqt.global_quantities.psi_axis, eqt.global_quantities.psi_boundary, n))
+    eqt1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure, :pchip).(range(0.0, 1.0, n))
+    eqt1d.dpressure_dpsi = IMAS.gradient(eqt1d.psi, eqt1d.pressure)
+    IMAS.flux_surfaces(eqt, fw_r, fw_z)
+
+    # flux_surfaces moved psi to the boundary on the finer grid, so p' follows. Then ff' is scaled to
+    # GSLite's Ip: flux_surfaces takes j_tor = -(p' + ff' gm1/μ0) 2π/gm9 and Ip = ∫j_tor dA.
+    eqt1d.dpressure_dpsi = IMAS.gradient(eqt1d.psi, eqt1d.pressure)
+    ip = IMAS.get_from(dd, Val(:ip), :pulse_schedule)
+    w = 2π ./ eqt1d.gm9
+    ip_p = trapz(eqt1d.area, -eqt1d.dpressure_dpsi .* w)
+    ip_f = trapz(eqt1d.area, -eqt1d.f_df_dpsi .* eqt1d.gm1 ./ μ0 .* w)
+    s = (ip - ip_p) / ip_f
+    if isfinite(s) && 0.02 < s < 50
+        eqt1d.f_df_dpsi = eqt1d.f_df_dpsi .* s
+    end
+    IMAS.flux_surfaces(eqt, fw_r, fw_z)
+
+    # beta_pol and li_1 from FUSE's own profiles on the map's flux surfaces. The map's Bp carries
+    # GSLite's current. By Ampère a surface's enclosed current I sets its Bp, so with the map's
+    # surfaces fixed, ∫Bp² dV = μ0 ∫I_fuse² / I_map dψ, where I_map = ∮Bp dl / μ0 on that surface.
+    gq = eqt.global_quantities
+    rho = eqt1d.rho_tor_norm
+    vol = eqt1d.volume[end]
+    L = gq.length_pol
+    i_fuse = IMAS.cumtrapz(cp1d.grid.area, cp1d.j_tor)
+    ip_fuse = i_fuse[end]
+    i_on_map = IMAS.interp1d(cp1d.grid.rho_tor_norm, i_fuse, :cubic).(rho)
+    p_on_map = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.pressure, :cubic).(rho)
+    i_map = [trapz(surface.ll, surface.Bp) / μ0 for surface in IMAS.trace_surfaces(eqt, fw_r, fw_z)]
+    bp2v = μ0 * abs(trapz(eqt1d.psi, [k == 1 ? 0.0 : i_on_map[k]^2 / i_map[k] for k in eachindex(i_map)]))
+    gq.li_1 = L^2 * bp2v / (vol * μ0^2 * ip_fuse^2)
+    gq.beta_pol = abs(trapz(eqt1d.volume, p_on_map) / vol / ((μ0 * ip_fuse / L)^2 / 2 / μ0))
+
+    verbose && @info "eq-follow: betap=$(gq.beta_pol) li=$(gq.li_1) t=$(dd.global_time) Ip_fuse=$(ip_fuse) Ip_gslite=$(ip) ff_scale=$(s)"
+    return dd
 end
 
 #= ================== =#
