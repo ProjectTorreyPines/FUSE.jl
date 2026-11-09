@@ -40,7 +40,14 @@ Requires `using PythonCall` (which loads the FUSE `PythonCallExt` extension) wit
 
     Stores `Te_sep`, `Ti_sep` and `ne_sep` in `dd.edge_profiles.profiles_1d[].electrons/t_i_average` at
     `rho_pol_norm=1.0`. The full solwidth result is kept in `actor.result`.
-    To feed it back to the pedestal set `act.ActorPedestal.Te_sep = actor.result["Te_sep"]`.
+    To feed it back self-consistently to the pedestal, set `act.ActorSOL.model = :solwidth` and
+    `act.ActorStationaryPlasma.couple_sol = true`: at each iteration `Te_sep` is then passed to
+    ActorPedestal as the separatrix boundary condition (under-relaxed by `act.ActorStationaryPlasma.sol_relaxation`).
+
+    By default only `Te_sep` is fed back, and the pedestal sets `Ti_sep = Te_sep * Ti/Te` from
+    `act.ActorPedestal.T_ratio_pedestal`. Set `act.ActorStationaryPlasma.couple_sol_ti = true` to also use the
+    solwidth `Ti_sep` as the pedestal separatrix Ti (separatrix point only; the pedestal Ti height still follows
+    `T_ratio_pedestal`). Note that HD and SSF assume Ti=2Te; HD2T, SSF2T and SSF2TFLUX solve for `Ti_sep`.
 """
 function ActorSOLWidth(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOLWidth(dd, act.ActorSOLWidth; kw...)

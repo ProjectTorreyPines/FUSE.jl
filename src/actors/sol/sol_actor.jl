@@ -21,7 +21,7 @@ configuration:
 
 - `:box` - Uses ActorSOLBox for 0D box model calculations
 - `:solps_nn` - Uses ActorSOLPSNN edge-plasma surrogate (SOLPS-NN)
-- `:solwidth` - Uses ActorSOLWidth (external solwidth reduced SOL-width models, file-based coupling)
+- `:solwidth` - Uses ActorSOLWidth (solwidth reduced SOL-width models via PythonCall; requires `using PythonCall`)
 - `:replay` - Uses ActorReplay to replay previously calculated data  
 - `:none` - Uses ActorNoOperation for no SOL modeling
 

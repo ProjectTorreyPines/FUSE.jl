@@ -4,6 +4,16 @@
 @actor_parameters_struct ActorStationaryPlasma{T} begin
     max_iterations::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
+    couple_sol::Entry{Bool} = Entry{Bool}("-", "Run ActorSOL at each iteration and use its separatrix Te as the pedestal boundary condition"; default=false)
+    couple_sol_ti::Entry{Bool} = Entry{Bool}(
+        "-",
+        "With `couple_sol=true`, also use the SOL separatrix Ti as ActorPedestal `Ti_sep` (only the separatrix point: the pedestal Ti height still follows `T_ratio_pedestal`)";
+        default=false)
+    sol_relaxation::Entry{T} = Entry{T}(
+        "-",
+        "Under-relaxation of the SOL-coupled Te_sep (and Ti_sep): Te_sep ← Te_sep + α (Te_sep_SOL - Te_sep). The first iteration always takes the SOL value (α=1)";
+        default=1.0,
+        check=x -> @assert 0.0 < x <= 1.0 "sol_relaxation must be in (0, 1]")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
@@ -19,6 +29,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_saw::ActorSawteethSource{D,P}
+    actor_sol::Union{Nothing,ActorSOL{D,P}}
 end
 
 """
@@ -55,6 +66,11 @@ Actors coordinated:
 - **ActorCoreTransport**: Core transport flux calculations
 - **ActorSawteethSource**: Sawtooth crash mixing and q-profile flattening
 - **ActorEquilibrium**: MHD equilibrium solution with updated profiles
+- **ActorSOL** (only if `couple_sol=true`): separatrix Te from a SOL model (e.g. `:solwidth` or `:box`),
+  run after the sources and fed to ActorPedestal as `Te_sep` (under-relaxed by `sol_relaxation`).
+  With `couple_sol_ti=true` the SOL separatrix Ti is also passed as `Ti_sep` (separatrix point only).
+  The relative change of `Te_sep` (and `Ti_sep`) is included in the convergence error.
+  Only pedestal models that use `Te_sep` (`:EPED`, `:WPED`, `:analytic`, `:dynamic`) are affected by it.
 
 !!! note
 
@@ -108,7 +124,18 @@ function ActorStationaryPlasma(dd::IMAS.DD, par::FUSEparameters__ActorStationary
 
     actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw)
+    if par.couple_sol
+        @assert actor_ped isa ActorPedestal "ActorStationaryPlasma: couple_sol=true requires ActorPedestal"
+        @assert act.ActorSOL.model ∉ (:none, :solps_nn) "ActorStationaryPlasma: couple_sol=true requires an ActorSOL model that sets the separatrix Te in dd.edge_profiles.profiles_1d (e.g. :solwidth or :box), not :$(act.ActorSOL.model)"
+        if actor_ped.par.model ∈ (:replay, :none)
+            @warn "ActorStationaryPlasma: couple_sol=true has no effect with ActorPedestal.model=:$(actor_ped.par.model), which does not use Te_sep"
+        end
+        actor_sol = ActorSOL(dd, act.ActorSOL, act)
+    else
+        actor_sol = nothing
+    end
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw, actor_sol)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -149,7 +176,7 @@ function _step(actor::ActorStationaryPlasma)
     was_logging = actor_logging(dd)
     is_logging = was_logging && !(par.verbose && !par.do_plot)
     actor_logging(dd, is_logging)
-    prog = ProgressMeter.Progress((par.max_iterations + 1) * 6 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iterations + 1) * (6 + par.couple_sol) + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
@@ -172,6 +199,22 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
             finalize(step(actor.actor_src))
 
+            # run SOL actor and use its separatrix Te as pedestal boundary condition
+            error_te_sep = 0.0
+            if actor.actor_sol !== nothing
+                ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_sol))
+                finalize(step(actor.actor_sol))
+                Te_sep_before = actor.actor_ped.par.Te_sep
+                Ti_sep_before = getproperty(actor.actor_ped.par, :Ti_sep, missing)
+                α = isempty(total_error) ? 1.0 : par.sol_relaxation
+                sep = couple_separatrix!(actor.actor_ped, dd; relaxation=α, couple_ti=par.couple_sol_ti)
+                if !isempty(total_error)
+                    error_te_sep = ((sep.Te_sep - Te_sep_before) / Te_sep_before)^2
+                    if par.couple_sol_ti && !ismissing(Ti_sep_before)
+                        error_te_sep += ((sep.Ti_sep - Ti_sep_before) / Ti_sep_before)^2
+                    end
+                end
+            end
 
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
@@ -202,7 +245,7 @@ function _step(actor::ActorStationaryPlasma)
             dp2 = (k, x) -> (pressure[k] .- pressure_before[k])^2
             p2 = (k, x) -> pressure_before[k]^2
             error_pressure = trapz(cp1d.grid.volume, dp2) / trapz(cp1d.grid.volume, p2)
-            push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
+            push!(total_error, sqrt(error_jtor + error_pressure + error_te_sep) / 2.0)
 
             if par.do_plot
                 plot!(pe, dd.equilibrium; label="", coordinate=:rho_tor_norm)
@@ -219,6 +262,11 @@ function _step(actor::ActorStationaryPlasma)
                 @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
                 @printf(" ϵ jtor = %.4f\n", error_jtor)
                 @printf(" ϵ pres = %.4f\n", error_pressure)
+                if actor.actor_sol !== nothing
+                    @printf("Te_sep = %.1f eV\n", actor.actor_ped.par.Te_sep)
+                    par.couple_sol_ti && @printf("Ti_sep = %.1f eV\n", actor.actor_ped.par.Ti_sep)
+                    @printf("ϵ Tsep = %.4f\n", error_te_sep)
+                end
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
@@ -258,6 +306,36 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     return actor
+end
+
+"""
+    couple_separatrix!(actor_ped::ActorPedestal, dd::IMAS.DD; relaxation::Real=1.0, couple_ti::Bool=false)
+
+Sets `Te_sep` (and `Ti_sep` if `couple_ti`) of `actor_ped` from the separatrix point (`rho_pol_norm=1.0`)
+of `dd.edge_profiles.profiles_1d[]`, under-relaxed as `X ← X + relaxation * (X_SOL - X)`.
+A `Ti_sep` that was not set before is taken directly from the SOL model.
+
+Returns `(Te_sep=..., Ti_sep=...)` with the new values (`Ti_sep` is `missing` if not set).
+"""
+function couple_separatrix!(actor_ped::ActorPedestal, dd::IMAS.DD; relaxation::Real=1.0, couple_ti::Bool=false)
+    @assert 0.0 < relaxation <= 1.0 "relaxation must be in (0, 1]"
+    ep1d = dd.edge_profiles.profiles_1d[]
+    @assert !ismissing(ep1d.grid, :rho_pol_norm) && ep1d.grid.rho_pol_norm[1] == 1.0 "SOL model did not populate the separatrix in dd.edge_profiles"
+    par = actor_ped.par
+
+    Te_sep_sol = ep1d.electrons.temperature[1]
+    @assert isfinite(Te_sep_sol) && Te_sep_sol > 0.0 "SOL model returned invalid Te_sep = $Te_sep_sol"
+    par.Te_sep = par.Te_sep + relaxation * (Te_sep_sol - par.Te_sep)
+
+    if couple_ti
+        @assert !ismissing(ep1d, :t_i_average) "couple_sol_ti=true but the SOL model did not set the separatrix Ti in dd.edge_profiles (use e.g. ActorSOL.model=:solwidth)"
+        Ti_sep_sol = ep1d.t_i_average[1]
+        @assert isfinite(Ti_sep_sol) && Ti_sep_sol > 0.0 "SOL model returned invalid Ti_sep = $Ti_sep_sol"
+        Ti_sep_old = getproperty(par, :Ti_sep, missing)
+        par.Ti_sep = ismissing(Ti_sep_old) ? Ti_sep_sol : Ti_sep_old + relaxation * (Ti_sep_sol - Ti_sep_old)
+    end
+
+    return (Te_sep=par.Te_sep, Ti_sep=getproperty(par, :Ti_sep, missing))
 end
 
 function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)

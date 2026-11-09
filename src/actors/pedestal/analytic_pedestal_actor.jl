@@ -8,7 +8,8 @@ import EPEDNN
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    Te_sep::Entry{T} = Entry{T}("eV", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    Ti_sep::Entry{T} = Entry{T}("eV", "Separatrix ion temperature (if not set, Ti_sep = Te_sep * Ti/Te from `T_ratio_pedestal`)"; check=x -> @assert x > 0 "Ti_sep must be > 0")
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -151,6 +152,7 @@ end
 
 
 function pedestal_poloidal_βn_scaling_from_βn(βn::Float64)
+    βn = min(βn, 3.0)
     return 0.015βn + 0.008βn^3
 end
 

@@ -7,7 +7,8 @@
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    Te_sep::Entry{T} = Entry{T}("eV", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    Ti_sep::Entry{T} = Entry{T}("eV", "Separatrix ion temperature (if not set, Ti_sep = Te_sep * Ti/Te from `T_ratio_pedestal`)"; check=x -> @assert x > 0 "Ti_sep must be > 0")
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -158,6 +159,9 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+
+    # separatrix boundary condition may have been changed since construction
+    sync_separatrix!(actor)
 
     # Run the fuse29 pedestal predictor once per time step. One call provides
     # ne, Te, Ti and T_rot at rho_tor = 0.85 plus the H-mode probability; the
@@ -909,7 +913,7 @@ function pedestal_nn_apply!(actor::ActorPedestal)
 
     Ti_ped_keV = nn.ti_ped
     if isfinite(Ti_ped_keV) && Ti_ped_keV > 0
-        Ti_sep = Float64(par.Te_sep) * Ti_over_Te
+        Ti_sep = Float64(separatrix_ti(par, Ti_over_Te))
         for ion in cp1d.ion
             if !ismissing(ion, :temperature)
                 ion.temperature = _apply_edge(ion.temperature, Ti_ped_keV * 1e3, Ti_sep)
@@ -1010,6 +1014,33 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     pedestal_nn_apply!(actor)
 
     return actor
+end
+
+"""
+    sync_separatrix!(actor::ActorPedestal)
+
+Pushes `Te_sep` and `Ti_sep` of ActorPedestal down to its sub-pedestal actors,
+so that changes to `actor.par.Te_sep` / `actor.par.Ti_sep` made after construction
+(e.g. by a SOL model coupled in ActorStationaryPlasma) are honored at the next step
+"""
+function sync_separatrix!(actor::ActorPedestal)
+    par = actor.par
+    Ti_sep = getproperty(par, :Ti_sep, missing)
+    for sub_actor in (actor.eped_actor, actor.wped_actor, actor.analytic_actor)
+        sub_actor.par.Te_sep = par.Te_sep
+        sub_actor.par.Ti_sep = Ti_sep
+    end
+    return actor
+end
+
+"""
+    separatrix_ti(par, Ti_over_Te::Real)
+
+Separatrix ion temperature: `par.Ti_sep` if set, otherwise `par.Te_sep * Ti_over_Te`
+"""
+function separatrix_ti(par, Ti_over_Te::Real)
+    Ti_sep = getproperty(par, :Ti_sep, missing)
+    return ismissing(Ti_sep) ? par.Te_sep * Ti_over_Te : Ti_sep
 end
 
 function ti_te_ratio(cp1d, T_ratio_pedestal, rho_nml, rho_ped)

@@ -158,3 +158,53 @@ end
         @test all(isfinite, m1d.ion[1].energy.flux)
     end
 end
+
+@testset "SOL-pedestal separatrix coupling" begin
+    ini, act = FUSE.case_parameters(:D3D, :default)
+    dd = FUSE.init(ini, act)
+    rho_nml, rho_ped = act.ActorFluxMatcher.rho_transport[end-1:end]
+    actor_ped = FUSE.ActorPedestal(dd, act.ActorPedestal, act; ip_from=:core_profiles, βn_from=:core_profiles, ne_from=:pulse_schedule, zeff_from=:pulse_schedule, rho_nml, rho_ped)
+
+    # SOL model output: separatrix point of edge_profiles
+    ep1d = resize!(dd.edge_profiles.profiles_1d)
+    ep1d.grid.rho_pol_norm = [1.0]
+    ep1d.electrons.density = [1e19]
+    ep1d.electrons.temperature = [120.0]
+    ep1d.t_i_average = [200.0]
+
+    # full update, then under-relaxed update
+    actor_ped.par.Te_sep = 80.0
+    sep = FUSE.couple_separatrix!(actor_ped, dd)
+    @test sep.Te_sep ≈ 120.0
+    @test ismissing(sep.Ti_sep) # Ti_sep is not coupled by default
+    ep1d.electrons.temperature[1] = 100.0
+    @test FUSE.couple_separatrix!(actor_ped, dd; relaxation=0.5).Te_sep ≈ 110.0
+    @test actor_ped.par.Te_sep ≈ 110.0
+    # Ti_sep: first coupling takes the SOL value, then it is under-relaxed (SOL Te held at the current Te_sep)
+    ep1d.electrons.temperature[1] = 110.0
+    sep = FUSE.couple_separatrix!(actor_ped, dd; relaxation=0.5, couple_ti=true)
+    @test sep.Ti_sep ≈ 200.0
+    @test sep.Te_sep ≈ 110.0
+    ep1d.t_i_average[1] = 160.0
+    @test FUSE.couple_separatrix!(actor_ped, dd; relaxation=0.5, couple_ti=true).Ti_sep ≈ 180.0
+    @test_throws AssertionError FUSE.couple_separatrix!(actor_ped, dd; relaxation=0.0)
+
+    # Te_sep changed after construction must reach the sub-pedestal actors at the next step
+    FUSE.sync_separatrix!(actor_ped)
+    for sub_actor in (actor_ped.eped_actor, actor_ped.wped_actor, actor_ped.analytic_actor)
+        @test sub_actor.par.Te_sep ≈ 110.0
+        @test sub_actor.par.Ti_sep ≈ 180.0
+    end
+    FUSE.finalize(FUSE.step(actor_ped))
+    cp1d = dd.core_profiles.profiles_1d[]
+    @test cp1d.electrons.temperature[end] ≈ 110.0 rtol = 0.2
+    @test cp1d.t_i_average[end] ≈ 180.0 rtol = 0.2
+    @test FUSE.separatrix_ti(actor_ped.par, 1.0) ≈ 180.0
+    actor_ped.par.Ti_sep = missing
+    @test FUSE.separatrix_ti(actor_ped.par, 1.5) ≈ 1.5 * 110.0
+
+    # SOL models that do not populate the separatrix are rejected
+    act.ActorStationaryPlasma.couple_sol = true
+    act.ActorSOL.model = :none
+    @test_throws AssertionError FUSE.ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act)
+end
