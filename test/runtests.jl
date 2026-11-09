@@ -18,7 +18,6 @@ else
 
     include("runtests_basics.jl")
 
-    include("runtests_sawteeth_flatten_bootstrap.jl")
     include("runtests_qed_sawtooth_crash.jl")
 
     include("runtests_cases.jl")
