@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     δt::Entry{Float64} = Entry{Float64}("s", "Macro time step of ActorDynamicPlasma (with δt_exact = false, the largest step ≤ δt that ends at end_time)"; default=0.05, check=x -> @assert x > 0 "δt must be > 0")
     δt_exact::Entry{Bool} = Entry{Bool}("-", "true: steps of exactly δt (Nt = floor(Δt / δt)), ending up to one step before end_time; false: Nt = ceil(Δt / δt) steps that end at end_time"; default=false)
     qed_δt::Entry{Float64} = Entry{Float64}("s", "ActorQED internal time step (sets ActorQED.Nt per macro step; missing: ActorQED.Nt as is)"; default=missing, check=x -> @assert x > 0 "qed_δt must be > 0")
-    qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
+    qmin_desired::Entry{Float64} = Entry{Float64}("-", "ActorQED and ActorSawteethSource qmin_desired (ActorDynamicPlasma sets ActorQED.qmin_desired to 1.0 if ≤ 0 with evolve_sawteeth and to 0.0 without, and passes it to ActorSawteethSource)"; default=1.0, check=x -> @assert x >= 0 "qmin_desired must be >= 0")
     sawteeth_period::Entry{Float64} = Entry{Float64}("s", "ActorSawteethSource.period: keep flattening this long after the last sawtooth"; default=0.25)
 end
 
@@ -207,7 +207,7 @@ function run_postdictive_case!(
     act.ActorDynamicPlasma.Nt = Nt
     act.ActorDynamicPlasma.Δt = Δt
     if !ismissing(qed_δt)
-        act.ActorQED.Nt = round(Int, Δt / Nt / qed_δt)
+        act.ActorQED.Nt = max(1, round(Int, Δt / Nt / qed_δt))
     end
 
     # choose what to evolve
