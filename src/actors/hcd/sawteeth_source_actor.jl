@@ -79,12 +79,15 @@ function _last_sawteeth_event(dd::IMAS.DD, ignore_before_time::Float64)
 end
 
 """
-    sawteeth_exclude_indexes(par)
+    sawteeth_exclude_indexes(dd::IMAS.DD, par)
 
 Source indexes left out of the sawteeth flattening, given the ActorSawteethSource parameters `par`
 """
-function sawteeth_exclude_indexes(par)
-    return par.flatten_bootstrap ? filter(!=(13), IMAS.IMASdd.index_no_sawtooth) : IMAS.IMASdd.index_no_sawtooth  # 13: bootstrap_current
+function sawteeth_exclude_indexes(dd::IMAS.DD, par)
+    if par.flatten_bootstrap
+        return filter(!=(IMAS.name_2_index(dd.core_sources.source)[:bootstrap_current]), IMAS.IMASdd.index_no_sawtooth)
+    end
+    return IMAS.IMASdd.index_no_sawtooth
 end
 
 """
@@ -105,7 +108,7 @@ When `period` is finite: Retrieves the most recent non-zero sawteeth event from
 function _step(actor::ActorSawteethSource)
     dd = actor.dd
     par = actor.par
-    exclude_indexes = sawteeth_exclude_indexes(par)
+    exclude_indexes = sawteeth_exclude_indexes(dd, par)
     if isinf(par.period)
         _, rho_last = _last_sawteeth_event(dd, par.ignore_before_time)
         if rho_last === nothing
