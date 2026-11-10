@@ -373,7 +373,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         else
             # 1. In-place residual
-            function f!(F, u, initial_cp1d)
+            function f!(F, u, _)
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
                         # AD Jacobian evaluation — skip history (same residual as primal call)
@@ -383,7 +383,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                         if D <: ForwardDiff.Dual
                             last_evaluated[] = Vector{Float64}(u)
                         end
-                        result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
+                        # the solver only uses value parts: implicit derivatives of inner searches are not needed here
+                        result = Base.ScopedValues.with(IMAS.IMPLICIT_DERIVATIVES => !(D <: ForwardDiff.Dual)) do
+                            flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
+                        end
                         F .= dual_values(result.errors)
                     end
                 catch e
@@ -397,7 +400,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             end
 
             # 2. Problem definition
-            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, initial_cp1d)
+            # (the residual uses `initial_cp1d` from the enclosing scope. With a Dual element type it is not
+            #  handed to the solver as its parameter object, which would make the solver promote the unknowns
+            #  to the dual numbers it finds inside)
+            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, D <: ForwardDiff.Dual ? nothing : initial_cp1d)
 
             # 3. Algorithm selection
             alg = if algorithm == :old_anderson
@@ -469,6 +475,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 if e isa InterruptException
                     rethrow(e)
                 end
+                rethrow_if_dual_type_error(D, e)
                 @warn "$(typeof(e)) in $(algorithm), falling back to SimpleDFSane"
                 NonlinearSolve.solve(
                     problem, NonlinearSolve.SimpleDFSane();

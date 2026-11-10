@@ -103,8 +103,8 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         act.ActorPFactive.x_points_weight,
         act.ActorPFactive.strike_points_weight)
     mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics;
-        flux_loop_weight=D(act.ActorPFactive.flux_loop_weight),
-        magnetic_probe_weight=D(act.ActorPFactive.magnetic_probe_weight))
+        act.ActorPFactive.flux_loop_weight,
+        act.ActorPFactive.magnetic_probe_weight)
 
     # Umbrella: a sufficiently degenerate input map (e.g. GSLite's committed
     # psi during/after a disruption) can make FRESCO throw during Canvas
