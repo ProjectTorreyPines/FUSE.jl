@@ -69,7 +69,7 @@ function _step(actor::ActorSimpleNB)
     phi = eqt2d.phi
     R0 = eqt.global_quantities.vacuum_toroidal_field.r0
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    rho2d = sqrt.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end]
+    rho2d = IMAS.sqrt0.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end] # the toroidal flux is zero outside of the plasma on some grids
 
     r = eqt2d.grid.dim1
     z = eqt2d.grid.dim2
