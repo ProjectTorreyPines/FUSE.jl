@@ -62,15 +62,6 @@ Several actors catch any exception and carry on with a previous or default state
 that would turn a missing method or a failed conversion into a silently wrong derivative, so those
 errors are always rethrown when the element type is a Dual. No effect for other element types.
 """
-"""
-    rethrow_if_dual(::Type{D}, e)
-
-Rethrows any exception when the element type is a Dual. Used where a solver failure is otherwise
-turned into "keep the previous state": with Dual numbers the previous state has stale derivatives.
-"""
-rethrow_if_dual(::Type{<:Real}, e) = nothing
-rethrow_if_dual(::Type{<:ForwardDiff.Dual}, e) = rethrow(e)
-
 rethrow_if_dual_type_error(::Type{<:Real}, e) = nothing
 function rethrow_if_dual_type_error(::Type{<:ForwardDiff.Dual}, e)
     if e isa MethodError || e isa InexactError || e isa TypeError || e isa ForwardDiff.DualMismatchError
@@ -80,3 +71,12 @@ function rethrow_if_dual_type_error(::Type{<:ForwardDiff.Dual}, e)
     end
     return nothing
 end
+
+"""
+    rethrow_if_dual(::Type{D}, e)
+
+Rethrows any exception when the element type is a Dual. Used where a solver failure is otherwise
+turned into "keep the previous state": with Dual numbers the previous state has stale derivatives.
+"""
+rethrow_if_dual(::Type{<:Real}, e) = nothing
+rethrow_if_dual(::Type{<:ForwardDiff.Dual}, e) = rethrow(e)
