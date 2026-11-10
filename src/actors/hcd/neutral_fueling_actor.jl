@@ -89,16 +89,16 @@ end
 # ================ #
 
 """
-    g0(x::Float64)::Float64
+    g0(x::Real)
 
 Interpolation of G function (Equation 12 in Burrel et al.) pulled from onetwo. Used where QuadGK calculation is slow
 """
-function g0(x::Float64)::Float64
+function g0(x::Real)
     # Conditional logic
     if x > 8.0
         if x > 15.0
             if x > 23.0
-                return 0.0  # 23 < x
+                return zero(x)  # 23 < x
             else
                 return g0f6(x)  # 15 < x < 23
             end
@@ -172,37 +172,38 @@ function eir(x::Real)
 end
 
 """
-    nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
+    nuslv1(sn1::Vector{<:Real}, k11::Matrix{<:Real})
 
 This function solves the 1 species integral equation
 """
-function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
+function nuslv1(sn1::Vector{<:Real}, k11::Matrix{<:Real})
     A = I - k11
     return A' \ sn1
 end
 
 """
-    get_At(r::Vector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
+    get_At(r::AbstractVector{<:Real}, n::Int, r0::Real, odelr::Real, ra::Vector{<:Real}, nra::Int, a1::Vector{<:Real})
 
 This function calculates K matrix of equation 11 in Burrel 1977
 """
-function get_At(r::AbstractVector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
+function get_At(r::AbstractVector{<:Real}, n::Int, r0::Real, odelr::Real, ra::Vector{<:Real}, nra::Int, a1::Vector{<:Real})
     nram1 = nra - 1
 
-    function a1f(i::Int, rdum::Float64)
+    function a1f(i::Int, rdum::Real)
         return a1[i] + (a1[i+1] - a1[i]) * (rdum - ra[i]) * odelr
     end
 
-    function x(rdummy::Float64)
+    function x(rdummy::Real)
         return sqrt(rdummy^2 - r0^2)
     end
 
-    a1int = 0.0
+    T = promote_type(eltype(r), eltype(ra), eltype(a1), typeof(r0), typeof(odelr))
+    a1int = zero(T)
     singloid = r0 * odelr
-    i = min(round(Int, singloid) + 1, nram1)
+    i = min(round(Int, IMAS.force_float64(singloid)) + 1, nram1)
     a11 = a1f(i, r0)
-    x1 = 0.0
-    at1 = zeros(n)
+    x1 = zero(T)
+    at1 = zeros(T, n)
     for j in 1:n
         while r[j] > ra[i+1]
             i += 1
@@ -227,13 +228,14 @@ function get_At(r::AbstractVector{Float64}, n::Int, r0::Float64, odelr::Float64,
 end
 
 """
-    get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{Float64}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
+    get_K_matrix(atrr01::Matrix{<:Real}, vth::Vector{<:Real}, r::Vector{<:Real}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
 
 This function calculates K matrix of equation 9 in Burrel 1977
 """
-function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{Float64}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
+function get_K_matrix(atrr01::Matrix{<:Real}, vth::Vector{<:Real}, r::Vector{<:Real}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
 
-    k11 = zeros(nr, nr)
+    T = promote_type(eltype(atrr01), eltype(vth), eltype(r))
+    k11 = zeros(T, nr, nr)
     wt = theta[2] - theta[1]
     G0(x) = 2.0 / sqrt(π) * QuadGK.quadgk(η -> η .^ 0 .* exp.(-η .^ 2 .- x ./ η), 0.0, Inf)[1]
 
@@ -249,8 +251,8 @@ function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{F
                 g0ap = g0(apovp)
                 k11[1, j] = π * g0ap / r[j]
             else
-                sum1p = 0.0
-                sum1r = 0.0
+                sum1p = zero(T)
+                sum1r = zero(T)
                 pgt2 = r[j] * r[j]
 
                 for k in 1:nt
@@ -289,12 +291,12 @@ function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{F
 end
 
 """
-    neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::T, T_wall::T) where {T<:Real}
+    neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::Real, T_wall::Real)
 
 This model calculates neutral density source fueling based on the neucg
 model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
 """
-function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::T, T_wall::T) where {T<:Real}
+function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::Real, T_wall::Real)
     surface = cp1d.grid.surface
     volume = cp1d.grid.volume
 
@@ -328,9 +330,10 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
 
     sint = sin.(theta)
 
-    k11 = zeros(nr, nr)
-    atrr01 = zeros(nr, nt)
-    atar01 = zeros(nr, nt)
+    T = promote_type(eltype(a1), eltype(vth), eltype(r), typeof(swall))
+    k11 = zeros(T, nr, nr)
+    atrr01 = zeros(T, nr, nt)
+    atar01 = zeros(T, nr, nt)
 
     for i in 1:nr
         k11[i, i] = 0.0
@@ -363,10 +366,10 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
         return 2.0 / sqrt(π) * QuadGK.quadgk(integrand, 0.0, 1.0; rtol=1e-6, atol=1e-12)[1]
     end
 
-    G1h = zeros(nr, nt)
-    Ap = zeros(nr, nt)
-    Am = zeros(nr, nt)
-    h = zeros(nr)
+    G1h = zeros(T, nr, nt)
+    Ap = zeros(T, nr, nt)
+    Am = zeros(T, nr, nt)
+    h = zeros(T, nr)
     for ir in eachindex(rho)
         for it in eachindex(theta)
             Ap[ir, it] = abs.(atrr01[ir, it] + atar01[ir, it])
