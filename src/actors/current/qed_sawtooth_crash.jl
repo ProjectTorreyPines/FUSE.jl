@@ -236,7 +236,7 @@ function qed_sawtooth_crash!(actor::ActorQED)
         cp1d.q = q_new
     end
     saw = actor.act.ActorSawteethSource
-    sawtooth_source_jpar!(dd, ρm; saw.flat_factor, exclude_indexes=sawteeth_exclude_indexes(saw))
+    sawtooth_source_jpar!(dd, ρm; saw.flat_factor, exclude_indexes=sawteeth_exclude_indexes(dd, saw))
     actor.saw_radius = ρm
     return actor
 end
