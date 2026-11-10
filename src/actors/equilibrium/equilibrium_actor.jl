@@ -169,7 +169,7 @@ function _finalize(actor::ActorEquilibrium)
                 display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             end
             isa(e, InterruptException) && rethrow(e)
-            rethrow_if_dual_type_error(eltype(dd), e)
+            rethrow_if_dual(eltype(dd), e)
             # a converged solve can still write a psi map whose contour walk
             # runs off the grid (observed: BoundsError [66,65]/[0,65] in
             # contour_from_midplane! on GSLite-coupled shots); with the
