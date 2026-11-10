@@ -102,13 +102,23 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     Te_orig = cp1d.electrons.temperature
     Ti_orig = cp1d.t_i_average
     res_value_bound = Optim.optimize(
-        value_bound -> cost_WPED_ztarget_pedratio(cp1d, Te_orig, Ti_orig, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
+        value_bound -> IMAS.force_float64(cost_WPED_ztarget_pedratio(cp1d, Te_orig, Ti_orig, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te)),
         1.0,
-        cp1d.electrons.temperature[1],
+        IMAS.force_float64(cp1d.electrons.temperature[1]),
         Optim.Brent();
-        rel_tol=1E-3)
+        rel_tol=IMAS.pedestal_search_tolerance.brent[])
 
-    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+    _, α_Te, α_Ti = wped_apply!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+
+    if D <: ForwardDiff.Dual
+        # The searches above ran on value parts. The boundary value and the two exponents solve three
+        # conditions together (inverse scale lengths of Te and Ti continuous at the pedestal boundary,
+        # pedestal to core energy ratio); their derivatives follow from the implicit function theorem.
+        ustar = Float64[res_value_bound.minimizer, α_Te, α_Ti]
+        G = u -> wped_residuals!(cp1d, Te_orig, Ti_orig, u[1], u[2], u[3], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+        u = IMAS.implicit_solution(G, ustar, D)
+        wped_residuals!(cp1d, Te_orig, Ti_orig, u[1], u[2], u[3], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+    end
 
     if par.do_plot
         display(plot!(ppe, cp1d.electrons, :temperature; label="Te after WPED blending"))
@@ -147,10 +157,28 @@ function cost_WPED_ztarget_pedratio!(
     rho_ped::Real,
     Ti_over_Te::Real)
 
-    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te!(cp1d, α, value_bound, rho_ped), -500, 500, Optim.Brent(); rel_tol=1E-3)
+    return wped_apply!(cp1d, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)[1]
+end
+
+"""
+    wped_apply!(cp1d, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
+
+Sets the temperature profiles for a given pedestal boundary value, finding the exponents of the edge
+profiles that keep the inverse scale lengths continuous at the pedestal boundary.
+
+Returns the cost on the pedestal to core energy ratio and the two exponents (Te, Ti)
+"""
+function wped_apply!(
+    cp1d::IMAS.core_profiles__profiles_1d,
+    value_bound::Real,
+    ped_to_core_fraction::Real,
+    rho_ped::Real,
+    Ti_over_Te::Real)
+
+    res_α_Te = Optim.optimize(α -> IMAS.force_float64(cost_WPED_α_Te!(cp1d, α, value_bound, rho_ped)), -500, 500, Optim.Brent(); rel_tol=IMAS.pedestal_search_tolerance.brent[])
     cost_WPED_α_Te!(cp1d, res_α_Te.minimizer, value_bound, rho_ped)
 
-    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped), -500, 500, Optim.Brent(); rel_tol=1E-3)
+    res_α_Ti = Optim.optimize(α -> IMAS.force_float64(cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped)), -500, 500, Optim.Brent(); rel_tol=IMAS.pedestal_search_tolerance.brent[])
     cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped)
 
     rho09 = 0.9
@@ -158,7 +186,40 @@ function cost_WPED_ztarget_pedratio!(
 
     cost = (edge / core .- ped_to_core_fraction)^2
 
-    return cost
+    return cost, res_α_Te.minimizer, res_α_Ti.minimizer
+end
+
+"""
+    wped_residuals!(cp1d, Te_orig, Ti_orig, value_bound, α_Te, α_Ti, ped_to_core_fraction, rho_ped, Ti_over_Te)
+
+Sets the temperature profiles from the original ones for given pedestal boundary value and exponents,
+and returns the three conditions that the WPED solution satisfies: the signed mismatch of the inverse
+scale lengths of Te and of Ti at the pedestal boundary, and the pedestal to core energy ratio minus its target
+"""
+function wped_residuals!(
+    cp1d::IMAS.core_profiles__profiles_1d{T},
+    Te_orig::Vector{T},
+    Ti_orig::Vector{T},
+    value_bound::Real,
+    α_Te::Real,
+    α_Ti::Real,
+    ped_to_core_fraction::Real,
+    rho_ped::Real,
+    Ti_over_Te::Real) where {T<:Real}
+
+    rho = cp1d.grid.rho_tor_norm
+    Te = deepcopy(Te_orig)
+    h_Te = IMAS.residual_WPED_α!(rho, Te, α_Te, value_bound, rho_ped)
+    cp1d.electrons.temperature = Te
+    Ti = deepcopy(Ti_orig)
+    h_Ti = IMAS.residual_WPED_α!(rho, Ti, α_Ti, value_bound * Ti_over_Te, rho_ped)
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature = Ti
+        end
+    end
+    core, edge = IMAS.core_edge_energy(cp1d, 0.9)
+    return T[h_Te, h_Ti, edge / core - ped_to_core_fraction]
 end
 
 function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real)
