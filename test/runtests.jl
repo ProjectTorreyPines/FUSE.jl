@@ -18,6 +18,8 @@ else
 
     include("runtests_basics.jl")
 
+    include("runtests_dynamic_plasma_replay_first.jl")
+
     include("runtests_cases.jl")
 
     include("runtests_actors.jl")
