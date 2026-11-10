@@ -192,19 +192,19 @@ function sawtooth_reset_q(ρ::AbstractVector, q::AbstractVector, q_s::Real, dq::
 end
 
 """
-    sawtooth_source_jpar!(dd::IMAS.DD, ρ0::Real; flat_factor::Real)
+    sawtooth_source_jpar!(dd::IMAS.DD, ρ0::Real; flat_factor::Real, exclude_indexes::AbstractVector{Int})
 
 Rebuild the j_parallel of the sawteeth source (701) at this time as `IMAS.sawteeth_source!` builds it for inversion radius `ρ0`,
 and move `cp1d.j_non_inductive` by the same change, so that j_ohmic does not carry the flattening.
 """
-function sawtooth_source_jpar!(dd::IMAS.DD, ρ0::Real; flat_factor::Real)
+function sawtooth_source_jpar!(dd::IMAS.DD, ρ0::Real; flat_factor::Real, exclude_indexes::AbstractVector{Int})
     cp1d = dd.core_profiles.profiles_1d[]
     ρ, area = cp1d.grid.rho_tor_norm, cp1d.grid.area
     src = findfirst(:sawteeth, dd.core_sources.source)
     @assert src !== nothing "sawtooth_source_jpar!: no sawteeth source"
     s1d = src.profiles_1d[]
     @assert s1d.time == dd.global_time && length(s1d.grid.rho_tor_norm) == length(ρ) "sawtooth_source_jpar!: sawteeth source at t=$(s1d.time) is not at t=$(dd.global_time) on the same grid"
-    j = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes=IMAS.IMASdd.index_no_sawtooth, fields=[:j_parallel]).j_parallel
+    j = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes, fields=[:j_parallel]).j_parallel
     jsaw = ρ0 > 0 ? (IMAS.flatten_profile!(copy(j), ρ, area, ρ0, min(ρ0 / 4, 0.05)) .- j) .* flat_factor : zero(j)
     old = ismissing(s1d, :j_parallel) ? zero(j) : s1d.j_parallel
     s1d.j_parallel = jsaw
@@ -236,7 +236,7 @@ function qed_sawtooth_crash!(actor::ActorQED)
         cp1d.q = q_new
     end
     saw = actor.act.ActorSawteethSource
-    sawtooth_source_jpar!(dd, ρm; saw.flat_factor)
+    sawtooth_source_jpar!(dd, ρm; saw.flat_factor, exclude_indexes=sawteeth_exclude_indexes(saw))
     actor.saw_radius = ρm
     return actor
 end

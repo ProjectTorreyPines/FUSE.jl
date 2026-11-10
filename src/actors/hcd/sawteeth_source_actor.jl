@@ -6,6 +6,7 @@
     period::Entry{Float64} = Entry{Float64}("s", "Time after last sawteeth event to keep full flattening"; default=Inf, check=x -> @assert x >= 0.0 "period must be >= 0.0")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "Fallback qmin_desired when sawteeth diagnostics are missing"; default=1.0, check=x -> @assert x >= 0.0 "qmin_desired >= 0.0")
     ignore_before_time::Entry{Float64} = Entry{Float64}("s", "Ignore sawteeth diagnostics at times <= this value (-Inf = use all history)"; default=-Inf)
+    flatten_bootstrap::Entry{Bool} = Entry{Bool}("-", "Also flatten the bootstrap current inside the inversion radius"; default=false)
 end
 
 mutable struct ActorSawteethSource{D,P} <: AbstractActor{D,P}
@@ -38,6 +39,8 @@ during sawtooth crashes in tokamak plasmas.
 - `qmin_desired`: Fallback threshold used when no non-zero sawteeth events are found
 - `ignore_before_time`: Ignore sawteeth diagnostics at times <= this value. If `-Inf` (default),
     considers entire history. Only non-zero `rho_tor_norm_inversion` values are considered as sawteeth events.
+- `flatten_bootstrap`: Also flatten the bootstrap current, which is otherwise left out with the other profile-driven sources
+    (`IMASdd.index_no_sawtooth`). The bootstrap current vanishes on axis, so without it the flattened non-inductive current is hollow inside the inversion radius.
 """
 function ActorSawteethSource(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSawteethSource(dd, act.ActorSawteethSource; kw...)
@@ -76,6 +79,15 @@ function _last_sawteeth_event(dd::IMAS.DD, ignore_before_time::Float64)
 end
 
 """
+    sawteeth_exclude_indexes(par)
+
+Source indexes left out of the sawteeth flattening, given the ActorSawteethSource parameters `par`
+"""
+function sawteeth_exclude_indexes(par)
+    return par.flatten_bootstrap ? filter(!=(13), IMAS.IMASdd.index_no_sawtooth) : IMAS.IMASdd.index_no_sawtooth  # 13: bootstrap_current
+end
+
+"""
     _step(actor::ActorSawteethSource)
 
 Applies sawtooth source redistribution.
@@ -93,14 +105,15 @@ When `period` is finite: Retrieves the most recent non-zero sawteeth event from
 function _step(actor::ActorSawteethSource)
     dd = actor.dd
     par = actor.par
+    exclude_indexes = sawteeth_exclude_indexes(par)
     if isinf(par.period)
         _, rho_last = _last_sawteeth_event(dd, par.ignore_before_time)
         if rho_last === nothing
             # No non-zero sawteeth events found — use fallback qmin_desired
-            IMAS.sawteeth_source!(dd; qmin_desired=par.qmin_desired, flat_factor=par.flat_factor)
+            IMAS.sawteeth_source!(dd; qmin_desired=par.qmin_desired, flat_factor=par.flat_factor, exclude_indexes)
         else
             # Use the last non-zero inversion radius
-            IMAS.sawteeth_source!(dd, rho_last; par.flat_factor)
+            IMAS.sawteeth_source!(dd, rho_last; par.flat_factor, exclude_indexes)
         end
         return actor
     end
@@ -108,7 +121,7 @@ function _step(actor::ActorSawteethSource)
     t_last, rho_last = _last_sawteeth_event(dd, par.ignore_before_time)
 
     if isnothing(t_last)
-        IMAS.sawteeth_source!(dd, 0.0; par.flat_factor)
+        IMAS.sawteeth_source!(dd, 0.0; par.flat_factor, exclude_indexes)
         return actor
     end
 
@@ -121,7 +134,7 @@ function _step(actor::ActorSawteethSource)
         activity = 0.0
     end
 
-    IMAS.sawteeth_source!(dd, rho_last; flat_factor=par.flat_factor * activity)
+    IMAS.sawteeth_source!(dd, rho_last; flat_factor=par.flat_factor * activity, exclude_indexes)
 
     return actor
 end
