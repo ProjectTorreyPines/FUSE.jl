@@ -113,6 +113,8 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     err_history::Vector{Vector{D}}
     soft_failures::Dict{Symbol,Int}   # counts of the soft-fail paths below, so a completed run cannot hide them
     ad_info::Dict{Symbol,Float64}     # diagnostics of the implicit derivative of the solution (only filled for Dual element types)
+    z_solution::Vector{Float64}       # scaled unknowns of the last solution
+    reuse_solution::Bool              # skip the solver and take `z_solution` as the solution (used to iterate derivative parts at a fixed solution)
 end
 
 """
@@ -166,7 +168,7 @@ function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}(), Dict{Symbol,Float64}())
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}(), Dict{Symbol,Float64}(), Float64[], false)
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -353,8 +355,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # unknowns of the most recent residual evaluation made by the solver (used with a Dual element type)
     last_evaluated = Ref{Vector{Float64}}(Float64[])
 
+    reuse_solution = actor.reuse_solution && length(actor.z_solution) == length(opt_parameters)
+
     res = try
-        if algorithm == :none
+        if reuse_solution
+            res = (zero=copy(actor.z_solution),)
+
+        elseif algorithm == :none
             res = (zero=opt_parameters,)
 
         elseif algorithm == :newton
@@ -496,7 +503,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # model throws for ANY z when a broken equilibrium poisons its inputs —
     # observed: TGLFNN "P_PRIME_LOC is Missing" after FRESCO non-convergence).
     # Restore entry profiles and soft-fail instead of killing the coupled run.
-    if algorithm != :none && isempty(err_history)
+    if algorithm != :none && !reuse_solution && isempty(err_history)
         actor.soft_failures[:all_optimizations_failed] = get(actor.soft_failures, :all_optimizations_failed, 0) + 1
         @warn "ActorFluxMatcher: all optimization calls failed — restoring entry profiles for this step" maxlog = 10
         cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
@@ -510,6 +517,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         return actor
     end
+
+    actor.z_solution = Vector{Float64}(dual_values(collect(res.zero)))
 
     # with a Dual element type, attach to the solution its derivatives with respect to the inputs
     if D <: ForwardDiff.Dual

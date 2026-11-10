@@ -194,7 +194,9 @@ function get_At(r::AbstractVector{<:Real}, n::Int, r0::Real, odelr::Real, ra::Ve
     end
 
     function x(rdummy::Real)
-        return sqrt(rdummy^2 - r0^2)
+        d = rdummy^2 - r0^2
+        # the chord length vanishes at the tangency radius, where the derivative of sqrt is infinite
+        return d == 0 ? zero(d) : sqrt(d)
     end
 
     T = promote_type(eltype(r), eltype(ra), eltype(a1), typeof(r0), typeof(odelr))

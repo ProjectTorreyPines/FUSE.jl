@@ -19,6 +19,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_saw::ActorSawteethSource{D,P}
+    ad_info::Dict{Symbol,Any} # diagnostics of the derivative iteration (only filled for Dual element types)
 end
 
 """
@@ -108,7 +109,7 @@ function ActorStationaryPlasma(dd::IMAS.DD, par::FUSEparameters__ActorStationary
 
     actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw)
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw, Dict{Symbol,Any}())
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -165,33 +166,7 @@ function _step(actor::ActorStationaryPlasma)
             j_tor_before = cp1d.j_tor
             pressure_before = cp1d.pressure
 
-            # core_profiles, core_sources, core_transport grids from latest equilibrium
-            latest_equilibrium_grids!(dd)
-
-            # run sources to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
-            finalize(step(actor.actor_src))
-
-
-            # run pedestal actor
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
-            finalize(step(actor.actor_ped))
-
-            # run transport actor
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
-            finalize(step(actor.actor_tr))
-
-            # evolve j_ohmic
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
-
-            # run sawteeth actor
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_saw))
-            finalize(step(actor.actor_saw))
-
-            # run equilibrium actor with the updated beta
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
-            finalize(step(actor.actor_eq))
+            stationary_pass!(actor, prog, total_error)
 
             # evaluate change in current and pressure profiles after the update
             j_tor = cp1d.j_tor
@@ -202,7 +177,8 @@ function _step(actor::ActorStationaryPlasma)
             dp2 = (k, x) -> (pressure[k] .- pressure_before[k])^2
             p2 = (k, x) -> pressure_before[k]^2
             error_pressure = trapz(cp1d.grid.volume, dp2) / trapz(cp1d.grid.volume, p2)
-            push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
+            # the convergence history and every decision based on it use value parts only
+            push!(total_error, IMAS.force_float64(sqrt(error_jtor + error_pressure) / 2.0))
 
             if par.do_plot
                 plot!(pe, dd.equilibrium; label="", coordinate=:rho_tor_norm)
@@ -243,6 +219,11 @@ function _step(actor::ActorStationaryPlasma)
             end
         end
 
+        # with a Dual element type, converge the derivative parts at the solution just found
+        if eltype(dd) <: ForwardDiff.Dual
+            stationary_sensitivity!(actor, prog, total_error)
+        end
+
     finally
         if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
@@ -257,6 +238,109 @@ function _step(actor::ActorStationaryPlasma)
         display(ps)
     end
 
+    return actor
+end
+
+"""
+    stationary_pass!(actor::ActorStationaryPlasma, prog, total_error::Vector{Float64})
+
+One pass of the stationary loop: sources, pedestal, transport, current, sawteeth, equilibrium
+"""
+function stationary_pass!(actor::ActorStationaryPlasma, prog, total_error::Vector{Float64})
+    dd = actor.dd
+
+    # core_profiles, core_sources, core_transport grids from latest equilibrium
+    latest_equilibrium_grids!(dd)
+
+    # run sources to get updated current drive
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
+    finalize(step(actor.actor_src))
+
+    # run pedestal actor
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
+    finalize(step(actor.actor_ped))
+
+    # run transport actor
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
+    finalize(step(actor.actor_tr))
+
+    # evolve j_ohmic
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
+    finalize(step(actor.actor_jt))
+
+    # run sawteeth actor
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_saw))
+    finalize(step(actor.actor_saw))
+
+    # run equilibrium actor with the updated beta
+    ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
+    finalize(step(actor.actor_eq))
+
+    return actor
+end
+
+"""
+    stationary_sensitivity!(actor::ActorStationaryPlasma, prog, total_error::Vector{Float64})
+
+Converges the derivative parts of a Dual-typed dd at the stationary solution.
+
+The stationary loop is a fixed-point iteration `x ← G(x, θ)` that is stopped on value parts, exactly as a
+Float64 run. The derivatives `S = dx/dθ` of its fixed point obey `S = (∂G/∂x) S + ∂G/∂θ`, and they
+converge later than the values. This function iterates that relation at the solution: it repeats the
+pass with the value parts reset to the solution after every pass, so that only the derivative parts
+evolve, until the derivatives of the current and pressure profiles change by less than
+`convergence_error` in the same norm that the loop uses for the values, or `max_iterations` extra passes
+are done. The flux matcher keeps its solution during these passes and only updates its derivatives.
+
+The history of the derivative changes is stored in `actor.ad_info[:sensitivity_error]`.
+"""
+function stationary_sensitivity!(actor::ActorStationaryPlasma, prog, total_error::Vector{Float64})
+    dd = actor.dd
+    par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
+    N = IMAS.npartials(dd)
+
+    solution = IMAS.value_dd(dd)
+    fm = actor.actor_tr.par.model == :FluxMatcher ? actor.actor_tr.tr_actor : nothing
+
+    history = Float64[]
+    skipped = 0
+    try
+        if fm !== nothing
+            fm.reuse_solution = true
+        end
+        for iteration in 1:max(par.max_iterations, 1)
+            dj_before = partials_matrix(cp1d.j_tor)
+            dp_before = partials_matrix(cp1d.pressure)
+
+            stationary_pass!(actor, prog, total_error)
+            skipped = IMAS.replace_values!(dd, solution)
+
+            dj = partials_matrix(cp1d.j_tor)
+            dp = partials_matrix(cp1d.pressure)
+            area = dual_values(cp1d.grid.area)
+            volume = dual_values(cp1d.grid.volume)
+            change = 0.0
+            for k in 1:N
+                nj = trapz(area, dj[:, k] .^ 2)
+                np = trapz(volume, dp[:, k] .^ 2)
+                ej = nj > 0.0 ? trapz(area, (dj[:, k] .- dj_before[:, k]) .^ 2) / nj : 0.0
+                ep = np > 0.0 ? trapz(volume, (dp[:, k] .- dp_before[:, k]) .^ 2) / np : 0.0
+                change = max(change, sqrt(ej + ep) / 2.0)
+            end
+            push!(history, change)
+            if change <= par.convergence_error
+                break
+            end
+        end
+    finally
+        if fm !== nothing
+            fm.reuse_solution = false
+        end
+    end
+    actor.ad_info[:sensitivity_error] = history
+    actor.ad_info[:sensitivity_converged] = !isempty(history) && history[end] <= par.convergence_error
+    actor.ad_info[:leaves_not_reset] = skipped
     return actor
 end
 
