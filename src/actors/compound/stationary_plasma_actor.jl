@@ -289,8 +289,9 @@ Float64 run. The derivatives `S = dx/dθ` of its fixed point obey `S = (∂G/∂
 converge later than the values. This function iterates that relation at the solution: it repeats the
 pass with the value parts reset to the solution after every pass, so that only the derivative parts
 evolve, until the derivatives of the current and pressure profiles change by less than
-`convergence_error` in the same norm that the loop uses for the values, or `max_iterations` extra passes
-are done. The flux matcher keeps its solution during these passes and only updates its derivatives.
+`convergence_error` in the same norm that the loop uses for the values, or four times `max_iterations`
+extra passes are done (derivatives converge at the rate of the loop, which is usually stopped by its
+iteration limit before that rate has brought the values to the threshold). The flux matcher keeps its solution during these passes and only updates its derivatives.
 
 The history of the derivative changes is stored in `actor.ad_info[:sensitivity_error]`.
 """
@@ -309,7 +310,7 @@ function stationary_sensitivity!(actor::ActorStationaryPlasma, prog, total_error
         if fm !== nothing
             fm.reuse_solution = true
         end
-        for iteration in 1:max(par.max_iterations, 1)
+        for iteration in 1:(4 * max(par.max_iterations, 1))
             dj_before = partials_matrix(cp1d.j_tor)
             dp_before = partials_matrix(cp1d.pressure)
 

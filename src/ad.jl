@@ -80,3 +80,14 @@ turned into "keep the previous state": with Dual numbers the previous state has 
 """
 rethrow_if_dual(::Type{<:Real}, e) = nothing
 rethrow_if_dual(::Type{<:ForwardDiff.Dual}, e) = rethrow(e)
+
+"""
+    retype_struct(::Type{T}, obj)
+
+Copy of a plain parametric struct (`S{T0}` with real-valued fields) with number type `T`:
+value parts are kept and derivative parts, if any, are dropped
+"""
+function retype_struct(::Type{T}, obj) where {T<:Real}
+    S = Base.typename(typeof(obj)).wrapper{T}
+    return S((convert(fieldtype(S, name), dual_values(getfield(obj, name))) for name in fieldnames(S))...)
+end

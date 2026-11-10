@@ -831,6 +831,12 @@ function flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Floa
     overrides = Dict{Symbol,Any}(field => getproperty(par, field) for field in getfield(par, :_overwritten))
     actor_J = ActorFluxMatcher(dd_J, getfield(par, :_original), actor.act; overrides...)
     actor_J.norms = DJ.(dual_values(actor.norms))
+    # the neoclassical actor keeps the equilibrium geometry of the time slice it first saw: the copy
+    # must evaluate the same residual as the actor, so it gets the same geometry
+    neoc = actor.actor_ct.actor_neoc
+    if neoc isa ActorNeoclassical && !ismissing(neoc.equilibrium_geometry)
+        actor_J.actor_ct.actor_neoc.equilibrium_geometry = retype_struct(DJ, neoc.equilibrium_geometry)
+    end
     initial_cp1d_J = IMAS.retype(DJ, IMAS.value_dd(initial_cp1d))
     old_logging = actor_logging(dd_J, false)
 
