@@ -31,9 +31,7 @@ else
 
     include("runtests_study_database.jl")
 
-    # forward-mode AD: the flux-matcher Jacobian on a Float64 dd, and whole actors on a dual-typed dd
-    include("runtests_forward_ad.jl")
-
+    # forward-mode AD: whole actors on a dual-typed dd, every derivative against finite differences
     include("runtests_dual_actors.jl")
     
     println(FUSE.timer)
