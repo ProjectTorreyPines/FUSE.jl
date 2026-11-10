@@ -714,12 +714,10 @@ solution responds to the inputs θ as
   - the pseudo-inverse reduces to the inverse for a regular Jacobian. Unknowns that sit on the
     `z_max` clamp have a zero column: they do not respond to the inputs and are left out.
 
-The residual carries one evaluation of memory: the total pressure seen by the transport model includes
-the fast-ion pressure of the previous evaluation, since fast ions are refreshed with the sources after
-the profiles are updated. Every derivative is therefore taken from the second of two consecutive
-evaluations at the same unknowns, which is the residual of the self-consistent state. Afterwards the
-last evaluation of the solver (`z_last`) is repeated, so that the state left in the dd, and with it the
-values of everything computed next, is the one a Float64 run has at this point.
+The residual carries memory of previous evaluations (see `settled_flux_match_errors`). Every derivative
+is therefore taken from a settled evaluation, which is the residual of the self-consistent state.
+Afterwards the last evaluation of the solver (`z_last`) is repeated, so that the state left in the dd,
+and with it the values of everything computed next, is the one a Float64 run has at this point.
 
 When the solver stopped at a finite residual the result is the response of the nearby solution of
 `F(z, θ) = F(z_scaled, θ₀)`. The residual norm, the Jacobian condition number and the number of
@@ -737,8 +735,7 @@ function flux_match_implicit(
     N = IMAS.npartials(actor.dd)
 
     # ∂F/∂θ at fixed unknowns
-    flux_match_errors(actor, D.(z_scaled), initial_cp1d)
-    F = flux_match_errors(actor, D.(z_scaled), initial_cp1d).errors
+    F = settled_flux_match_errors(actor, D.(z_scaled), initial_cp1d)
     Fθ = partials_matrix(F)
     Fval = dual_values(F)
     actor.ad_info[:residual_norm] = norm(Fval)
@@ -774,6 +771,44 @@ function flux_match_implicit(
 end
 
 """
+    settled_flux_match_errors(actor::ActorFluxMatcher, z::Vector{<:Real}, initial_cp1d; max_evaluations::Int=8, rtol::Float64=1E-10)
+
+Flux-matching residual of the self-consistent state at the unknowns `z`.
+
+`flux_match_errors` carries memory of previous evaluations: the total pressure seen by the transport
+model includes the fast-ion pressure of the previous evaluation (fast ions are refreshed with the sources
+after the profiles are updated), and a pedestal evolved inside the residual reads quantities that the
+previous evaluation left in the dd. Repeating the evaluation at the same unknowns converges to the state
+that is consistent with them; this function repeats it until neither the values nor the derivative parts
+of the residual change.
+"""
+function settled_flux_match_errors(
+    actor::ActorFluxMatcher,
+    z::Vector{<:Real},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    max_evaluations::Int=8,
+    rtol::Float64=1E-10)
+
+    F = flux_match_errors(actor, copy(z), initial_cp1d).errors
+    for evaluation in 2:max_evaluations
+        Fnew = flux_match_errors(actor, copy(z), initial_cp1d).errors
+        change = maximum(abs, dual_values(Fnew) .- dual_values(F))
+        scale = max(maximum(abs, dual_values(Fnew)), floatmin())
+        if eltype(Fnew) <: ForwardDiff.Dual
+            dF = partials_matrix(Fnew)
+            change = max(change / scale, maximum(abs, dF .- partials_matrix(F)) / max(maximum(abs, dF), floatmin()))
+        else
+            change = change / scale
+        end
+        F = Fnew
+        if change <= rtol
+            break
+        end
+    end
+    return F
+end
+
+"""
     flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d) where {D<:Real,P<:Real}
 
 Jacobian `∂F/∂z` of the flux-matching residual `flux_match_errors` by forward-mode differentiation of
@@ -782,8 +817,7 @@ the complete residual (sources, time-derivative terms, pedestal, transport fluxe
 The residual is evaluated on a Dual-typed copy of the dd with the unknowns seeded, `N` columns per
 evaluation: `N` is the number of partials of `D` when the dd is already Dual-typed (the copy then has
 its input derivatives set to zero), and `par.ad_chunksize` for a Float64 dd.
-Unless `par.consistent_fast_pressure` is set, each column block is taken from the second of two
-consecutive evaluations (see `flux_match_implicit`).
+Each column block is taken from a settled evaluation (see `settled_flux_match_errors`).
 
 Returns the Jacobian and the residual values of the copy.
 """
@@ -807,10 +841,7 @@ function flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Floa
         for (slot, col) in enumerate(cols)
             seeds[col, slot] = 1.0
         end
-        if !par.consistent_fast_pressure
-            flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
-        end
-        Fc = flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J).errors
+        Fc = settled_flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
         FJ .= dual_values(Fc)
         Jc = partials_matrix(Fc)
         for (slot, col) in enumerate(cols)
