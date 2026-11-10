@@ -114,10 +114,12 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         # The searches above ran on value parts. The boundary value and the two exponents solve three
         # conditions together (inverse scale lengths of Te and Ti continuous at the pedestal boundary,
         # pedestal to core energy ratio); their derivatives follow from the implicit function theorem.
-        ustar = Float64[res_value_bound.minimizer, α_Te, α_Ti]
-        G = u -> wped_residuals!(cp1d, Te_orig, Ti_orig, u[1], u[2], u[3], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
-        u = IMAS.implicit_solution(G, ustar, D)
-        wped_residuals!(cp1d, Te_orig, Ti_orig, u[1], u[2], u[3], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+        # (ordered so that each condition is the one that determines the unknown at the same position: when a search
+        #  ends without meeting its condition, typically an exponent on a plateau of the mismatch, that unknown is held fixed)
+        ustar = Float64[α_Te, α_Ti, res_value_bound.minimizer]
+        G = u -> wped_residuals!(cp1d, Te_orig, Ti_orig, u[3], u[1], u[2], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+        u = IMAS.implicit_solution(G, ustar, D; atol=1E-2)
+        wped_residuals!(cp1d, Te_orig, Ti_orig, u[3], u[1], u[2], ped_to_core_fraction, par.rho_ped, Ti_over_Te)
     end
 
     if par.do_plot

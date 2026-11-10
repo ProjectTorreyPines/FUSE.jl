@@ -797,7 +797,10 @@ function settled_flux_match_errors(
     rtol::Float64=1E-10)
 
     F = flux_match_errors(actor, copy(z), initial_cp1d).errors
+    last_change = Inf
+    evaluations = 1
     for evaluation in 2:max_evaluations
+        evaluations = evaluation
         Fnew = flux_match_errors(actor, copy(z), initial_cp1d).errors
         change = maximum(abs, dual_values(Fnew) .- dual_values(F))
         scale = max(maximum(abs, dual_values(Fnew)), floatmin())
@@ -808,10 +811,14 @@ function settled_flux_match_errors(
             change = change / scale
         end
         F = Fnew
+        last_change = change
         if change <= rtol
             break
         end
     end
+    # worst case over the calls made for this actor: a residual that does not settle has no well-defined derivative
+    actor.ad_info[:settle_evaluations] = max(get(actor.ad_info, :settle_evaluations, 0.0), evaluations)
+    actor.ad_info[:settle_change] = max(get(actor.ad_info, :settle_change, 0.0), last_change)
     return F
 end
 
