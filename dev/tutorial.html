@@ -21,7 +21,7 @@ plot(dd.equilibrium)
 
 plot(dd.core_profiles)
 
-plot(dd.core_sources)</code></pre><img src="tutorial-9dc27244.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
+plot(dd.core_sources)</code></pre><img src="tutorial-ab21c66c.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
 pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
 #act.ActorFluxMatcher.verbose = true
 act.ActorFluxMatcher.algorithm = :anderson
@@ -45,7 +45,7 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 1/5 @ 417.07%
+actors:  --------------- 1/5 @ 417.04%
 actors:  Sources
 actors:   SimpleEC
 actors:   SimpleIC
@@ -63,7 +63,7 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 2/5 @ 503.47%
+actors:  --------------- 2/5 @ 503.52%
 actors:  Sources
 actors:   SimpleEC
 actors:   SimpleIC
@@ -99,7 +99,7 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 4/5 @ 146.05%
+actors:  --------------- 4/5 @ 146.35%
 actors:  Sources
 actors:   SimpleEC
 actors:   SimpleIC
@@ -117,17 +117,17 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 5/5 @ 51.27%</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-0d8f920c.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-8a4a7a97.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-0fc0cb3d.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-59fffb92.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
+actors:  --------------- 5/5 @ 51.36%</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-404eb956.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-afabb461.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-874abafe.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-1781709f.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-956f5957.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-5adb24e9.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-e7015a89.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-7e685587.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-495ff62c.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame</span>
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-79d28293.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame</span>
 <span class="sgr1"> Row </span>│<span class="sgr1"> group   details                            type      ΔR          R_start   R_end     material      area        volume     shape           </span>
 <span class="sgr1">     </span>│<span class="sgr90"> String  String                             String    Float64     Float64   Float64   String        Float64     Float64    String          </span>
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ in                                                   1.34134      0.0       1.34134  steel          20.2048      99.6462  rectangle
-   2 │ in                                         oh        0.307506     1.34134   1.64884  nb3sn           7.00907     81.126   rectangle
-   3 │ hfs                                        tf        1.6491       1.64884   3.29794  nb3sn_kdemo    42.9435     889.858   convex hull
+   1 │ in                                                   1.34565      0.0       1.34565  steel          20.2048      99.6462  rectangle
+   2 │ in                                         oh        0.303311     1.34565   1.64896  nb3sn           7.00907     81.126   rectangle
+   3 │ hfs                                        tf        1.64898      1.64896   3.29794  nb3sn_kdemo    42.9435     889.858   convex hull
    4 │ hfs     gap tf vacuum vessel                         0.0          3.29794   3.29794  vacuum          7.50317    492.371   double ellipse
    5 │ hfs     vacuum  outer                      vessel    0.0982993    3.29794   3.39624  steel           3.06261    124.651   negative offset
    6 │ hfs     gap water                                    0.147449     3.39624   3.54369  water           4.48005    182.456   negative offset
@@ -137,7 +137,7 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-495ff62c.svg" alt="Exam
   10 │ hfs                                        blanket   0.373538     3.84842   4.22196  lithium_lead   20.9266     950.692   negative offset
   11 │ hfs     first                              wall      0.0196599    4.22196   4.24162  tungsten        0.935159    31.1033  offset
   12 │ lhfs                                       plasma    4.51651      4.24162   8.75812  plasma         32.193     1254.96
-  13 │ lfs     first                              wall      0.0196599    8.75812   8.77778  tungsten        0.93506     31.1006  offset
+  13 │ lfs     first                              wall      0.0196599    8.75812   8.77778  tungsten        0.93506     31.1005  offset
   14 │ lfs                                        blanket   1.17959      8.77778   9.95738  lithium_lead   20.9267     950.694   negative offset
   15 │ lfs     high temp                          shield    0.196599     9.95738  10.154    steel           5.62724    229.531   negative offset
   16 │ lfs     gap high temp shield vacuum vess…            0.0442026   10.154    10.1982   vacuum          0.287739    11.7297  negative offset
@@ -145,12 +145,12 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-495ff62c.svg" alt="Exam
   18 │ lfs     gap water                                    0.147449    10.2965   10.4439   water           4.48005    182.456   negative offset
   19 │ lfs     vacuum  outer                      vessel    0.0982993   10.4439   10.5422   steel           3.06261    124.651   negative offset
   20 │ lfs     gap tf vacuum vessel                         0.775582    10.5422   11.3178   vacuum          7.50317    492.371   double ellipse
-  21 │ lfs                                        tf        1.6491      11.3178   12.9669   nb3sn_kdemo    42.9435     889.858   convex hull
-  22 │ out                                                  1.96599      0.0      14.9329   vacuum        165.654     8494.68
-  23 │ out                                        cryostat  0.0982993    0.0      15.0312   steel           4.88783    312.044   silo</code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
-plot(dd.build)</code></pre><img src="tutorial-010e5d3e.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
-plot(dd.pf_passive)</code></pre><img src="tutorial-39d78710.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
-plot(actor) # some actors define their own plot</code></pre><img src="tutorial-0878b6ee.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
+  21 │ lfs                                        tf        1.64898     11.3178   12.9668   nb3sn_kdemo    42.9435     889.858   convex hull
+  22 │ out                                                  1.96599      0.0      14.9328   vacuum        165.654     8494.68
+  23 │ out                                        cryostat  0.0982993    0.0      15.0311   steel           4.88783    312.044   silo</code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
+plot(dd.build)</code></pre><img src="tutorial-bbebe6b3.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)</code></pre><img src="tutorial-ca29ea69.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
+plot(actor) # some actors define their own plot</code></pre><img src="tutorial-095a9e9a.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">mhd_linear [DETACHED]</span>
 ├─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 └─ <span class="sgr1">time_slice</span>
@@ -162,18 +162,18 @@ IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><c
          │  ├─ <span class="sgr1">perturbation_type</span>
          │  │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Vertical stability margin &gt; 0.15 for stability&quot;</span>
          │  │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;m_s&quot;</span>
-         │  └─ stability_metric<span class="sgr31"> ➡ 0.226837</span>
+         │  └─ stability_metric<span class="sgr31"> ➡ 0.226301</span>
          └─ <span class="sgr1">2</span>
             ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
             ├─ <span class="sgr1">perturbation_type</span>
             │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Normalized vertical growth rate &lt; 10 for stability&quot;</span>
             │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;γτ&quot;</span>
-            └─ stability_metric<span class="sgr31"> ➡ 5.1168</span>
+            └─ stability_metric<span class="sgr31"> ➡ 5.13039</span>
 </code></pre><p>The <code>ActorNeutronics</code> calculates the heat flux on the first wall</p><pre><code class="language-julia hljs">FUSE.ActorNeutronics(dd, act);
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-f2e582d8.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-cfe06222.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
 blanket [DETACHED]
 ├─ module
@@ -181,54 +181,54 @@ blanket [DETACHED]
 │  │  ├─ layer
 │  │  │  ├─ 1
 │  │  │  │  ├─ material ➡ &quot;tungsten&quot;
-│  │  │  │  ├─ midplane_thickness ➡ 0.0233481 [m]
+│  │  │  │  ├─ midplane_thickness ➡ 0.0233332 [m]
 │  │  │  │  └─ name ➡ &quot;lfs first wall&quot;
 │  │  │  ├─ 2
-│  │  │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=2.947%&quot;
-│  │  │  │  ├─ midplane_thickness ➡ 1.08447 [m]
+│  │  │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=3.122%&quot;
+│  │  │  │  ├─ midplane_thickness ➡ 1.08465 [m]
 │  │  │  │  └─ name ➡ &quot;lfs blanket&quot;
 │  │  │  └─ 3
 │  │  │     ├─ material ➡ &quot;steel&quot;
-│  │  │     ├─ midplane_thickness ➡ 0.28803 [m]
+│  │  │     ├─ midplane_thickness ➡ 0.287867 [m]
 │  │  │     └─ name ➡ &quot;lfs high temp shield&quot;
 │  │  ├─ name ➡ &quot;LFS blanket&quot;
 │  │  └─ time_slice
 │  │     └─ 1
-│  │        ├─ peak_escape_flux ➡ 4891.3 [W/m^2]
-│  │        ├─ peak_wall_flux ➡ 1.73562e+06 [W/m^2]
-│  │        ├─ power_incident_neutrons ➡ 1.45748e+08 [W]
+│  │        ├─ peak_escape_flux ➡ 4899.37 [W/m^2]
+│  │        ├─ peak_wall_flux ➡ 1.73789e+06 [W/m^2]
+│  │        ├─ power_incident_neutrons ➡ 1.4584e+08 [W]
 │  │        ├─ power_incident_radiated ➡ 0 [W]
-│  │        ├─ power_thermal_extracted ➡ 1.74898e+08 [W]
-│  │        ├─ power_thermal_neutrons ➡ 1.74898e+08 [W]
+│  │        ├─ power_thermal_extracted ➡ 1.75008e+08 [W]
+│  │        ├─ power_thermal_neutrons ➡ 1.75008e+08 [W]
 │  │        ├─ power_thermal_radiated ➡ 0 [W]
 │  │        ├─ time ➡ 0 [s]
-│  │        └─ tritium_breeding_ratio ➡ 1.28166
+│  │        └─ tritium_breeding_ratio ➡ 1.28182
 │  └─ 2
 │     ├─ layer
 │     │  ├─ 1
 │     │  │  ├─ material ➡ &quot;tungsten&quot;
-│     │  │  ├─ midplane_thickness ➡ 0.0269738 [m]
+│     │  │  ├─ midplane_thickness ➡ 0.0271016 [m]
 │     │  │  └─ name ➡ &quot;hfs first wall&quot;
 │     │  ├─ 2
-│     │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=2.947%&quot;
-│     │  │  ├─ midplane_thickness ➡ 0.335895 [m]
+│     │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=3.122%&quot;
+│     │  │  ├─ midplane_thickness ➡ 0.335838 [m]
 │     │  │  └─ name ➡ &quot;hfs blanket&quot;
 │     │  └─ 3
 │     │     ├─ material ➡ &quot;steel&quot;
-│     │     ├─ midplane_thickness ➡ 0.226927 [m]
+│     │     ├─ midplane_thickness ➡ 0.226856 [m]
 │     │     └─ name ➡ &quot;hfs high temp shield&quot;
 │     ├─ name ➡ &quot;HFS blanket&quot;
 │     └─ time_slice
 │        └─ 1
-│           ├─ peak_escape_flux ➡ 58619.9 [W/m^2]
-│           ├─ peak_wall_flux ➡ 1.12749e+06 [W/m^2]
-│           ├─ power_incident_neutrons ➡ 6.36546e+07 [W]
+│           ├─ peak_escape_flux ➡ 58732.1 [W/m^2]
+│           ├─ peak_wall_flux ➡ 1.12876e+06 [W/m^2]
+│           ├─ power_incident_neutrons ➡ 6.36969e+07 [W]
 │           ├─ power_incident_radiated ➡ 0 [W]
-│           ├─ power_thermal_extracted ➡ 7.63855e+07 [W]
-│           ├─ power_thermal_neutrons ➡ 7.63855e+07 [W]
+│           ├─ power_thermal_extracted ➡ 7.64363e+07 [W]
+│           ├─ power_thermal_neutrons ➡ 7.64363e+07 [W]
 │           ├─ power_thermal_radiated ➡ 0 [W]
 │           ├─ time ➡ 0 [s]
-│           └─ tritium_breeding_ratio ➡ 0.508372
+│           └─ tritium_breeding_ratio ➡ 0.50808
 ├─ time ➡ [0] [s]
 └─ tritium_breeding_ratio ➡ [1.1]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
 print_tree(IMAS.freeze(dd.divertors); maxdepth=4)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Divertors
@@ -239,7 +239,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_conducted
-│     │  ├─ data ➡ [1.16907e+08] [W]
+│     │  ├─ data ➡ [1.1693e+08] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_convected
 │     │  ├─ data ➡ [0] [W]
@@ -248,7 +248,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_incident
-│     │  ├─ data ➡ [2902.04] [W]
+│     │  ├─ data ➡ [2900.07] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_neutrals
 │     │  ├─ data ➡ [0] [W]
@@ -263,7 +263,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_thermal_extracted
-│     │  ├─ data ➡ [2902.04] [W]
+│     │  ├─ data ➡ [2900.07] [W]
 │     │  └─ time ➡ [0] [s]
 │     └─ target
 │        ├─ 1
@@ -274,8 +274,8 @@ divertors [DETACHED]
 │
 └─ time ➡ [0] [s]</code></pre><p>The <code>ActorBalanceOfPlant</code> calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle</p><pre><code class="language-julia hljs">FUSE.ActorBalanceOfPlant(dd, act);
 IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">balance_of_plant [DETACHED]</span>
-├─ Q_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.780269]</span>
-├─ power_electric_net<span class="sgr31"> ➡ </span><span class="sgr32">[-3.18609e+07]<span class="sgr1"> [W]</span></span>
+├─ Q_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.780767]</span>
+├─ power_electric_net<span class="sgr31"> ➡ </span><span class="sgr32">[-3.17888e+07]<span class="sgr1"> [W]</span></span>
 ├─ <span class="sgr1">power_electric_plant_operation</span>
 │  ├─ <span class="sgr1">system</span>
 │  │  ├─ <span class="sgr1">1</span>
@@ -314,16 +314,16 @@ IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-outp
 │  └─ total_power<span class="sgr31"> ➡ </span><span class="sgr32">[1.45e+08]<span class="sgr1"> [W]</span></span>
 ├─ <span class="sgr1">power_plant</span>
 │  ├─ <span class="sgr1">heat_load</span>
-│  │  ├─ breeder<span class="sgr31"> ➡ </span><span class="sgr32">[2.51283e+08]<span class="sgr1"> [W]</span></span>
-│  │  ├─ divertor<span class="sgr31"> ➡ </span><span class="sgr32">[2902.04]<span class="sgr1"> [W]</span></span>
-│  │  └─ wall<span class="sgr31"> ➡ </span><span class="sgr32">[3.34885e+07]<span class="sgr1"> [W]</span></span>
+│  │  ├─ breeder<span class="sgr31"> ➡ </span><span class="sgr32">[2.51444e+08]<span class="sgr1"> [W]</span></span>
+│  │  ├─ divertor<span class="sgr31"> ➡ </span><span class="sgr32">[2900.07]<span class="sgr1"> [W]</span></span>
+│  │  └─ wall<span class="sgr31"> ➡ </span><span class="sgr32">[3.3498e+07]<span class="sgr1"> [W]</span></span>
 │  ├─ power_cycle_type<span class="sgr31"> ➡ </span><span class="sgr35">&quot;rankine&quot;</span>
-│  ├─ power_electric_generated<span class="sgr31"> ➡ </span><span class="sgr32">[1.13139e+08]<span class="sgr1"> [W]</span></span>
-│  └─ total_heat_supplied<span class="sgr31"> ➡ </span><span class="sgr32">[2.84775e+08]<span class="sgr1"> [W]</span></span>
-├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.397293]</span>
+│  ├─ power_electric_generated<span class="sgr31"> ➡ </span><span class="sgr32">[1.13211e+08]<span class="sgr1"> [W]</span></span>
+│  └─ total_heat_supplied<span class="sgr31"> ➡ </span><span class="sgr32">[2.84945e+08]<span class="sgr1"> [W]</span></span>
+├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.397309]</span>
 └─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 </code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
-plot(dd.costing)</code></pre><img src="tutorial-6a56b4ca.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
+plot(dd.costing)</code></pre><img src="tutorial-c9f207fd.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
 actors:  PFdesign
 actors:  StationaryPlasma
 actors:   --------------- 1/5
@@ -407,10 +407,8 @@ actors:   Pedestal
 actors:    EPED
 actors:   CoreTransport
 actors:    FluxMatcher
-┌ Warning: FluxMatcher f! error (primal path): AssertionError: all((n-&gt;begin
-│             #= /home/runner/.julia/packages/IMAS/q9KDc/src/physics/profiles.jl:1134 =#
-│             n &gt; 0.0
-│         end), ntot)
+┌ Warning: FluxMatcher f! error (primal path): Ion `DT` has negative densities
+│ [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 6.709265251038536e19, 6.689930489058377e19, 6.6692860095654265e19, 6.6459156813376496e19, 6.617707297891301e19, 6.581533704528826e19, 6.532818275448352e19, 6.4649816861921165e19, 6.368823750199566e19, 6.232024473754531e19, 6.0391892396729975e19, 5.77295463232668e19, 5.417340019273305e19, 4.965659803811935e19, 4.4274828090342e19, 3.8329951667459056e19, 3.228790885257021e19, 2.664528545241542e19, 2.1777067779081286e19, 1.78559082161864e19, 1.4868723296866275e19]
 └ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:370
 actors:     FluxCalculator
 actors:      TGLF
@@ -438,7 +436,6 @@ actors:  PassiveStructures
 actors:  Divertors
 actors:  PlasmaLimits
 actors:   VerticalStability
- Downloading artifact: onnxruntime_cpu
 actors:   TroyonBetaNN
 actors:  BalanceOfPlant
 actors:   ThermalPlant
@@ -475,7 +472,7 @@ Pec → 50 [MW]                          Psol → 120 [MW]                      
 rho0_ec → 0.55 [MW]                    PLH → 112 [MW]                         ip_ni → 6.13 [MA]
 Pnbi → NaN [MW]                        PLH_FUSE → 142 [MW]                    ip_bs → 3.16 [MA]
 Enbi1 → NaN [MeV]                      Bpol_omp → 1.1 [T]                     ip_aux → 2.97 [MA]
-Pic → 50 [MW]                          λq → 0.986 [mm]                        ip_ohm → 6.9 [MA]
+Pic → 50 [MW]                          λq → 0.985 [mm]                        ip_ohm → 6.9 [MA]
 Plh → NaN [MW]                         qpol → 2.29e+03 [MW/m²]                ejima → 0.4
 Paux_tot → 100 [MW]                    qpar → 1.27e+04 [MW/m²]                flattop → 0.7 [Hours]
 Pα → 54.1 [MW]                         P/R0 → 18.5 [MW/m]
@@ -486,14 +483,14 @@ Prad_tot → -34.6 [MW]                  PBϵ/R0q95 → 7.11 [MW T/m]
 
 BOP                                    BUILD                                  COSTING
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-Pfusion → 271 [MW]                     PF_material → nb3sn                    capital_cost → 5.26 [$B]
+Pfusion → 271 [MW]                     PF_material → nb3sn                    capital_cost → 5.22 [$B]
 Qfusion → 2.71                         TF_material → nb3sn_kdemo              levelized_CoE → Inf [$/kWh]
-thermal_cycle_type → rankine           OH_material → nb3sn                    TF_of_total → 23.1 [%]
-thermal_efficiency_plant → 40 [%]      TF_max_b → 15.4 [T]                    BOP_of_total → 6.23 [%]
-thermal_efficiency_cycle → NaN [%]     OH_max_b → 15.3 [T]                    blanket_of_total → 22.5 [%]
-power_electric_generated → 124 [MW]    TF_j_margin → 5.2                      cryostat_of_total → 3.96 [%]
+thermal_cycle_type → rankine           OH_material → nb3sn                    TF_of_total → 22.4 [%]
+thermal_efficiency_plant → 40 [%]      TF_max_b → 15.4 [T]                    BOP_of_total → 6.29 [%]
+thermal_efficiency_cycle → NaN [%]     OH_max_b → 15.3 [T]                    blanket_of_total → 22.7 [%]
+power_electric_generated → 124 [MW]    TF_j_margin → 4.86                     cryostat_of_total → 3.99 [%]
 Pelectric_net → -21.4 [MW]             OH_j_margin → 1.4
-Qplant → 0.852                         TF_stress_margin → 3.02
+Qplant → 0.853                         TF_stress_margin → 3.04
 TBR → 1.1                              OH_stress_margin → 1.2
 
 @ time = 0.0 [s]
@@ -557,7 +554,7 @@ Pec → 50 [MW]                          Psol → 120 [MW]                      
 rho0_ec → 0.55 [MW]                    PLH → 112 [MW]                         ip_ni → 6.13 [MA]
 Pnbi → NaN [MW]                        PLH_FUSE → 142 [MW]                    ip_bs → 3.16 [MA]
 Enbi1 → NaN [MeV]                      Bpol_omp → 1.1 [T]                     ip_aux → 2.97 [MA]
-Pic → 50 [MW]                          λq → 0.986 [mm]                        ip_ohm → 6.9 [MA]
+Pic → 50 [MW]                          λq → 0.985 [mm]                        ip_ohm → 6.9 [MA]
 Plh → NaN [MW]                         qpol → 2.29e+03 [MW/m²]                ejima → 0.4
 Paux_tot → 100 [MW]                    qpar → 1.27e+04 [MW/m²]                flattop → 0.7 [Hours]
 Pα → 54.1 [MW]                         P/R0 → 18.5 [MW/m]
@@ -568,14 +565,14 @@ Prad_tot → -34.6 [MW]                  PBϵ/R0q95 → 7.11 [MW T/m]
 
 BOP                                    BUILD                                  COSTING
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-Pfusion → 271 [MW]                     PF_material → nb3sn                    capital_cost → 5.26 [$B]
+Pfusion → 271 [MW]                     PF_material → nb3sn                    capital_cost → 5.22 [$B]
 Qfusion → 2.71                         TF_material → nb3sn_kdemo              levelized_CoE → Inf [$/kWh]
-thermal_cycle_type → rankine           OH_material → nb3sn                    TF_of_total → 23.1 [%]
-thermal_efficiency_plant → 40 [%]      TF_max_b → 15.4 [T]                    BOP_of_total → 6.23 [%]
-thermal_efficiency_cycle → NaN [%]     OH_max_b → 15.3 [T]                    blanket_of_total → 22.5 [%]
-power_electric_generated → 124 [MW]    TF_j_margin → 5.2                      cryostat_of_total → 3.96 [%]
+thermal_cycle_type → rankine           OH_material → nb3sn                    TF_of_total → 22.4 [%]
+thermal_efficiency_plant → 40 [%]      TF_max_b → 15.4 [T]                    BOP_of_total → 6.29 [%]
+thermal_efficiency_cycle → NaN [%]     OH_max_b → 15.3 [T]                    blanket_of_total → 22.7 [%]
+power_electric_generated → 124 [MW]    TF_j_margin → 4.86                     cryostat_of_total → 3.99 [%]
 Pelectric_net → -21.4 [MW]             OH_j_margin → 1.4
-Qplant → 0.852                         TF_stress_margin → 3.02
+Qplant → 0.853                         TF_stress_margin → 3.04
 TBR → 1.1                              OH_stress_margin → 1.2
 
 @ time = 0.0 [s]
@@ -606,4 +603,4 @@ TBR → 1.1                              OH_stress_margin → 1.2
 ​
 ​
 ​
-​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="pubs.html">« References</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Monday 9 November 2026 03:07">Monday 9 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="pubs.html">« References</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Tuesday 10 November 2026 03:06">Tuesday 10 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
