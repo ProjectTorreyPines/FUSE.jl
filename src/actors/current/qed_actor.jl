@@ -8,6 +8,10 @@ import QED
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x -> @assert x > 0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "Keep the minimum magnitude of the q-profile above this value"; default=1.0, check=x -> @assert x >= 0 "qmin_desired >= 0")
+    crash_period::Entry{Float64} = Entry{Float64}("s", "Period of the sawtooth crash on the equilibrium q (0: off; finite Δt only); its mixing radius replaces the qmin_desired flattening radius"; default=0.0, check=x -> @assert x >= 0 "crash_period >= 0")
+    crash_q::Entry{Float64} = Entry{Float64}("-", "q the sawtooth crash resets dips to (0: qmin_desired)"; default=0.0, check=x -> @assert x >= 0 "crash_q >= 0")
+    crash_dq::Entry{Float64} = Entry{Float64}("-", "Sawtooth crash regions extend to where q reaches crash_q + crash_dq"; default=0.03, check=x -> @assert x > 0 "crash_dq > 0")
+    crash_ramp::Entry{Float64} = Entry{Float64}("-", "Sawtooth crash weight is clamp((crash_q - min q) / crash_ramp, 0, 1) (0: always a full reset)"; default=0.01, check=x -> @assert x >= 0 "crash_ramp >= 0")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
@@ -19,6 +23,7 @@ mutable struct ActorQED{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     ip_controller::ActorControllerIp{D,P}
     QO::Union{Nothing,QED.QED_state}
+    saw_radius::Float64 # mixing radius at the end of the last step (crash_period > 0)
 end
 
 """
@@ -37,6 +42,8 @@ Key capabilities:
 - Steady-state solution: infinite time limit with equilibrium current distribution
 - Current or voltage control: can target either Ip or Vloop
 - Sawtooth modeling: automatic current profile flattening to maintain q≥1
+- Optional periodic sawtooth crash (`crash_period > 0`): resets the q implied by the current in the
+  equilibrium geometry wherever it dips below `crash_q`, a stronger constraint on q than the resistivity flattening
 
 The QED solver uses finite element methods on flux coordinates and can handle complex
 current drive scenarios including bootstrap current, ECCD, NBCD, and other sources.
@@ -64,7 +71,7 @@ function ActorQED(dd::IMAS.DD, par::FUSEparameters__ActorQED, act::ParametersAll
     logging_actor_init(ActorQED)
     par = OverrideParameters(par; kw...)
     ip_controller = ActorControllerIp(dd, act.ActorControllerIp)
-    return ActorQED(dd, par, act, ip_controller, nothing)
+    return ActorQED(dd, par, act, ip_controller, nothing, 0.0)
 end
 
 """
@@ -147,14 +154,19 @@ function _step(actor::ActorQED)
                 Vedge = IMAS.get_from(dd, Val(:vloop), par.vloop_from; time0=tt + δt)
             end
 
-            # check where q<1 based on the the q-profile at the previous
-            # time-step and change the resisitivity to keep q>1
-            qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
-            i_qdes = findlast(qval .< par.qmin_desired)
-            if i_qdes === nothing
-                rho_qdes = 0.0
+            if par.crash_period > 0.0
+                # the crash's mixing radius is the one sawtooth radius
+                rho_qdes = actor.saw_radius
             else
-                rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
+                # check where q<1 based on the the q-profile at the previous
+                # time-step and change the resisitivity to keep q>1
+                qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+                i_qdes = findlast(qval .< par.qmin_desired)
+                if i_qdes === nothing
+                    rho_qdes = 0.0
+                else
+                    rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
+                end
             end
             η_jardin, _ = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes; conductivity_parallel)
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
@@ -199,6 +211,11 @@ function _step(actor::ActorQED)
 
     cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
     cp1d.q = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+
+    if par.crash_period > 0.0 && par.Δt < Inf
+        qed_sawtooth_crash!(actor)
+        rho_qdes = actor.saw_radius
+    end
 
     # If we've been applying sawteeth flattening, record the inversion radius
     if rho_qdes > 0.0
