@@ -751,7 +751,7 @@ function flux_match_implicit(
     end
 
     # ∂F/∂z on a copy of the dd that carries no input derivatives
-    J, FJ = flux_match_jacobian(actor, z_scaled, initial_cp1d)
+    J, FJ = flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref=Fval, full_copy=get(actor.ad_info, :jacobian_full_copy, 0.0) == 1.0)
     mismatch = maximum(abs, FJ .- Fval) / max(maximum(abs, Fval), eps())
     actor.ad_info[:jacobian_copy_mismatch] = mismatch
     if mismatch > 1E-8
@@ -828,13 +828,40 @@ Each column block is taken from a settled evaluation (see `settled_flux_match_er
 
 Returns the Jacobian and the residual values of the copy.
 """
-function flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d::IMAS.core_profiles__profiles_1d) where {D<:Real,P<:Real}
+function flux_match_jacobian(
+    actor::ActorFluxMatcher{D,P},
+    z_scaled::Vector{Float64},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    Fref::Union{Nothing,Vector{Float64}}=nothing,
+    full_copy::Bool=false) where {D<:Real,P<:Real}
+
     par = actor.par
     n = length(z_scaled)
     DJ = D <: ForwardDiff.Dual ? D : IMAS.InputsDual{par.ad_chunksize > 0 ? par.ad_chunksize : 12}
     N = IMAS._npartials(DJ)
 
-    dd_J = IMAS.retype(DJ, IMAS.value_dd(actor.dd))
+    # Copy of the dd without input derivatives. A dd with many time slices is expensive to copy, and the
+    # residual only reads the current one: the copy holds the current time slice (and the whole pulse
+    # schedule). `Fref`, the residual on the dd itself, is the check that this copy is equivalent; if it
+    # is not, the whole dd is copied instead.
+    if !full_copy
+        dd_slice = try
+            IMAS.get_timeslice(actor.dd, actor.dd.global_time)
+        catch e
+            isa(e, InterruptException) && rethrow(e)
+            nothing # e.g. some time-dependent data does not cover the current time
+        end
+        if dd_slice === nothing
+            full_copy = true
+            actor.ad_info[:jacobian_full_copy] = 1.0
+        else
+            getfield(dd_slice, :_aux)[:fuse_actor_logging] = false
+            dd_J = IMAS.retype(DJ, IMAS.value_dd(dd_slice))
+        end
+    end
+    if full_copy
+        dd_J = IMAS.retype(DJ, IMAS.value_dd(actor.dd))
+    end
     overrides = Dict{Symbol,Any}(field => getproperty(par, field) for field in getfield(par, :_overwritten))
     actor_J = ActorFluxMatcher(dd_J, getfield(par, :_original), actor.act; overrides...)
     actor_J.norms = DJ.(dual_values(actor.norms))
@@ -856,6 +883,10 @@ function flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Floa
         end
         Fc = settled_flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
         FJ .= dual_values(Fc)
+        if !full_copy && Fref !== nothing && maximum(abs, FJ .- Fref) > 1E-8 * max(maximum(abs, Fref), eps())
+            actor.ad_info[:jacobian_full_copy] = 1.0
+            return flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref, full_copy=true)
+        end
         Jc = partials_matrix(Fc)
         for (slot, col) in enumerate(cols)
             J[:, col] .= @view Jc[:, slot]
