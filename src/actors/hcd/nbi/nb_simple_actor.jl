@@ -8,6 +8,8 @@ end
 
 @actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
+    axis_regularization::Entry{T} = Entry{T}("-", "Sources inside this rho are replaced by an even polynomial (zero slope on axis, same integral); 0 disables";
+        default=0.1, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= axis_regularization < 1.0")
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -35,6 +37,7 @@ This actor models the deposition of neutral beam energy and momentum through:
 The model includes:
 - Multiple beam energy components (full, half, third energy)
 - Gaussian deposition profiles with configurable width
+- On-axis regularization of the sources (zero slope at rho=0) controlled by `axis_regularization`
 - Banana orbit shift correction for trapped particles
 - Fast ion thermalization time smoothing of launched power
 
@@ -245,6 +248,12 @@ function _step(actor::ActorSimpleNB)
 
         j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam_tot ./ R0, false, eqt) ./ B0
 
+        # zero slope on axis (gaussians cut at rho=0 and the sqrt(eps) trapped-electron term otherwise leave a finite slope)
+        for prof in (electrons_energy, total_ion_energy, electrons_particles, momentum_tor)
+            regularize_on_axis!(prof, rho_cp, volume_cp, par.axis_regularization)
+        end
+        regularize_on_axis!(j_parallel, rho_cp, area_cp, par.axis_regularization)
+
         # Convert curbeam to parallel current here
         source = resize!(dd.core_sources.source, :nbi, "identifier.name" => nbu.name; wipe=false)
         IMAS.new_source(
@@ -280,4 +289,33 @@ function _step(actor::ActorSimpleNB)
     IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
+end
+
+"""
+    regularize_on_axis!(f::AbstractVector, rho::AbstractVector, measure::AbstractVector, rho_reg::Real)
+
+Replaces `f` for `rho < rho_reg` with the even polynomial `a + b ρ² + c ρ⁴`, which
+
+  - matches `f` and `df/dρ` at the first grid point with `rho >= rho_reg`
+  - preserves `∫ f d(measure)` over that region exactly (on the discrete grid, with `IMAS.trapz`)
+  - has zero slope on axis
+
+`measure` is the volume for densities (power, particles, momentum) and the area for current densities.
+"""
+function regularize_on_axis!(f::AbstractVector{T}, rho::AbstractVector, measure::AbstractVector, rho_reg::Real) where {T<:Real}
+    rho_reg > 0.0 || return f
+    ir = findfirst(>=(rho_reg), rho)
+    if ir === nothing || ir < 3
+        return f
+    end
+    r = rho[ir]
+    df = IMAS.gradient(rho, f)[ir]
+    ρ = @view rho[1:ir]
+    m = @view measure[1:ir]
+    A = [1.0 r^2 r^4
+         0.0 2r 4r^3
+         IMAS.trapz(m, ρ .^ 0) IMAS.trapz(m, ρ .^ 2) IMAS.trapz(m, ρ .^ 4)]
+    a, b, c = A \ [f[ir], df, IMAS.trapz(m, @view f[1:ir])]
+    @views @. f[1:ir-1] = a + b * rho[1:ir-1]^2 + c * rho[1:ir-1]^4
+    return f
 end
