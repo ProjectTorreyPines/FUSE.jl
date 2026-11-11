@@ -40,8 +40,18 @@ end
     restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
 
 Turn into expressions Make fields that FUSE expects to be expressions after init
+
+A species whose total `density` is stored while its `density_thermal` is derived from it gets `density_thermal`
+stored first, so that turning `density` back into an expression does not discard the only stored density.
 """
 function restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
+    for cp1d in dd.core_profiles.profiles_1d
+        for species in (cp1d.electrons, cp1d.ion...)
+            if IMAS.hasdata(species, :density) && !IMAS.hasdata(species, :density_thermal)
+                IMAS.freeze!(species, :density_thermal)
+            end
+        end
+    end
     restored_expressions = Set()
     for ulocation in load_init_expressions()
         restored = IMAS.selective_delete!(dd, IMAS.i2p(ulocation))
