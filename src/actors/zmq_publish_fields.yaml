@@ -7,7 +7,7 @@
 #
 # selective_copy! also slices each field at t and sets slice.global_time.
 # selective_copy! copies nothing for a field the dd has no data for, so a slice
-# holds the listed fields the run has.
+# holds the listed fields the run has, and publish! logs the rest once per run.
 # Fields FUSE holds as expressions (t_i_average, j_ohmic, grid.area, ...) are
 # evaluated here and sent as data, so their inputs are not listed.
 #

@@ -30,12 +30,13 @@ mutable struct ActorZMQPublish{D,P} <: SingleAbstractActor{D,P}
     context::Union{Nothing,ZMQ.Context}
     socket::Union{Nothing,ZMQ.Socket}
     fields::Vector{Vector{String}}
+    reported::Bool
 end
 
 function ActorZMQPublish(dd::IMAS.DD{D}, par::FUSEparameters__ActorZMQPublish{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQPublish)
     par = OverrideParameters(par; kw...)
-    return ActorZMQPublish{D,P}(dd, par, nothing, nothing, Vector{String}[])
+    return ActorZMQPublish{D,P}(dd, par, nothing, nothing, Vector{String}[], false)
 end
 
 """
@@ -72,6 +73,7 @@ function connect!(actor::ActorZMQPublish)
         return actor
     end
     actor.fields = [IMAS.i2p(path) for path in YAML.load_file(PUBLISH_FIELDS_FILE)["sim"]]
+    actor.reported = false  # the next run reports what it has no data for again
     ctx = ZMQ.Context()
     sock = ZMQ.Socket(ctx, ZMQ.PUB)
     sock.linger = 1000  # close waits up to 1 s, so the end-of-run message still goes out
@@ -87,7 +89,8 @@ end
     publish!(actor::ActorZMQPublish)
 
 Send the dd at its global_time, cut down to the fields in `zmq_publish_fields.yaml`.
-A listed field the dd has no data for is left out: a DIII-D run has no LH or IC antennas.
+A listed field the dd has no data for is left out, and the first slice of a run logs which
+ones those are: a run without ECH, or on a machine without LH antennas, has none to send.
 """
 function publish!(actor::ActorZMQPublish)
     if actor.socket === nothing
@@ -95,8 +98,15 @@ function publish!(actor::ActorZMQPublish)
     end
     try
         slice = IMAS.dd()
+        no_data = String[]
         for path in actor.fields
             IMAS.selective_copy!(actor.dd, slice, path, actor.dd.global_time)
+            _has_data(slice, path) || push!(no_data, IMAS.p2i(path))
+        end
+        if !actor.reported
+            actor.reported = true
+            isempty(no_data) ||
+                @warn "ActorZMQPublish: this run has no data for $(length(no_data)) of the $(length(actor.fields)) listed fields, so every slice leaves them out: $(join(no_data, ", "))"
         end
         io = IOBuffer()
         Serialization.serialize(io, slice)
@@ -129,6 +139,14 @@ function disconnect!(actor::ActorZMQPublish)
     actor.context = nothing
     return actor
 end
+
+# Whether `path` (as IMAS.i2p splits it) has data in any element along it; selective_copy!
+# copies nothing for a field the dd does not have.
+function _has_data(ids::IMAS.IDS, path::AbstractVector{<:AbstractString})
+    field = Symbol(path[1])
+    return length(path) == 1 ? IMAS.hasdata(ids, field) : _has_data(getfield(ids, field), @view path[2:end])
+end
+_has_data(ids::IMAS.IDSvector, path::AbstractVector{<:AbstractString}) = any(el -> _has_data(el, @view path[2:end]), ids)
 
 # The digital twin's runners bind in this port range.
 function _bind_random_port(sock::ZMQ.Socket)

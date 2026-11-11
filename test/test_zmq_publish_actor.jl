@@ -3,6 +3,7 @@ using Test
 # Pkg.test's environment holds only FUSE and test/Project.toml: reach FUSE's own dependencies through FUSE
 import FUSE: ZMQ, YAML
 using FUSE.Serialization: deserialize
+using FUSE.Logging: with_logger
 
 # A stand-in for the digital twin's registry: it answers OK to `n` requests and keeps them.
 function _stand_in_registry(n)
@@ -44,8 +45,17 @@ end
     ZMQ.connect(sub, "tcp://127.0.0.1:" * split(asked[1], ":")[end])
     sleep(0.5)  # a PUB drops what it sends before the subscription reaches it
 
-    # the dd has one of the listed fields: the slice holds that one, and the rest are left out
-    FUSE.publish!(actor)
+    # the dd has one of the listed fields: the slice holds that one, the rest are left out,
+    # and the run logs them once, naming them
+    logger = Test.TestLogger()
+    with_logger(() -> FUSE.publish!(actor), logger)
+    @test occursin("build.layer[:].outline.r", only(logger.logs).message)
+
+    # once per run: a second slice adds no record
+    logger = Test.TestLogger()
+    with_logger(() -> FUSE.publish!(actor), logger)
+    @test isempty(logger.logs)
+
     FUSE.disconnect!(actor)
 
     slice = deserialize(IOBuffer(ZMQ.recv(sub)))
@@ -54,6 +64,7 @@ end
     @test slice.equilibrium.time_slice[1].global_quantities.ip == 1.0e6
     @test ismissing(slice.equilibrium.time_slice[1].global_quantities, :psi_axis)
     @test isempty(slice.build.layer)  # listed, but the dd has no build
+    ZMQ.recv(sub)  # the second slice
     @test isempty(ZMQ.recv(sub))  # the end of the run
     wait(served)
     @test asked[2] == "DEREGISTER|FUSE_CENTER"
