@@ -18,7 +18,7 @@ else
 
     include("runtests_basics.jl")
 
-    include("runtests_simplenb_axis_mirror.jl")
+    include("runtests_simplenb_axis_regularization.jl")
 
     include("runtests_cases.jl")
 
