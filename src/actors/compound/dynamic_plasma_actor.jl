@@ -16,7 +16,8 @@
     max_consecutive_substep_failures::Entry{Int} =
         Entry{Int}("-",
             "Abort after this many consecutive failures of the same substep. 1 = fail fast on the first failure (the pre-guard behaviour); 0 = never abort, survive any number. " *
-            "Missing resolves to 10 when ActorZMQ is enabled and 1 otherwise: a coupled run has to ride out a non-reproducible partner, a standalone study should still fail loudly.";
+            "Missing resolves to 10 when ActorZMQ is enabled, 2 when dropping bad time slices (`bad_time_slices`: a single failed step is survived, two in a row end the run) and 1 otherwise: " *
+            "a coupled run has to ride out a non-reproducible partner, a standalone study should still fail loudly.";
             default=missing)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
@@ -36,6 +37,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_zmq::ActorZMQ{D,P}
     substep_failures::Dict{Symbol,Int}       # total guarded-substep failures, by substep
     substep_consecutive::Dict{Symbol,Int}    # current consecutive-failure streak, by substep
+    bad_time_slices::Union{Nothing,BadTimeSlices}  # where survived and fatal substep failures are recorded
 end
 
 """
@@ -92,7 +94,8 @@ function ActorDynamicPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
+function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors;
+    bad_time_slices::Union{Nothing,BadTimeSlices}=nothing, kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = OverrideParameters(par; kw...)
 
@@ -168,7 +171,7 @@ function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma
     actor_zmq = ActorZMQ(dd, act)
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq,
-        Dict{Symbol,Int}(), Dict{Symbol,Int}())
+        Dict{Symbol,Int}(), Dict{Symbol,Int}(), bad_time_slices)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -274,14 +277,16 @@ How many consecutive failures of one substep to tolerate before aborting.
 
 Left unset, this resolves differently depending on who is driving: a coupled run
 is talking to a partner that is not reproducible run-to-run, so it has to ride
-out transients (10); a standalone study has no such excuse and should fail on the
-first failure the way it did before the guards existed (1). Set the parameter
-explicitly to override, 0 to never abort.
+out transients (10); a study dropping bad time slices survives a single failed
+step and ends the run at two in a row (2); a standalone study otherwise has no
+such excuse and should fail on the first failure the way it did before the
+guards existed (1). Set the parameter explicitly to override, 0 to never abort.
 """
 function effective_substep_failure_limit(actor::ActorDynamicPlasma)
     par = actor.par
     ismissing(par, :max_consecutive_substep_failures) || return par.max_consecutive_substep_failures
-    return actor.actor_zmq.par.enabled ? 10 : 1
+    actor.actor_zmq.par.enabled && return 10
+    return actor.bad_time_slices === nothing ? 1 : 2
 end
 
 "Is this substep enabled? A disabled substep is a no-op and needs no guard or snapshot."
@@ -325,8 +330,10 @@ function guarded_substep(actor::ActorDynamicPlasma, v::Val, δt::Float64; progr=
             else
                 @error "ActorDynamicPlasma: substep $(name) failed $(streak) times in a row at t=$(dd.global_time) s — aborting rather than continuing on a trajectory that is no longer solving the equations"
             end
+            actor.bad_time_slices === nothing || record!(actor.bad_time_slices, dd.global_time, "run: $name", e, "run ended here")
             rethrow(e)
         end
+        actor.bad_time_slices === nothing || record!(actor.bad_time_slices, dd.global_time, "run: $name", e, "substep skipped, profiles restored")
         @warn "ActorDynamicPlasma: substep $(name) failed ($(sprint(showerror, e))) — restoring profiles/equilibrium and continuing [$(streak) in a row, $(actor.substep_failures[name]) total]" maxlog = 20
         empty!(dd.core_profiles.profiles_1d[])
         IMAS.fill!(dd.core_profiles.profiles_1d[], cp1d_bkp)

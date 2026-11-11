@@ -15,10 +15,12 @@ mutable struct ActorFitProfiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFitProfiles{P}}
     act::ParametersAllActors{P}
-    function ActorFitProfiles(dd::IMAS.DD{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    bad_time_slices::Union{Nothing,BadTimeSlices}
+    function ActorFitProfiles(dd::IMAS.DD{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P};
+        bad_time_slices::Union{Nothing,BadTimeSlices}=nothing, kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFitProfiles)
         par = OverrideParameters(par; kw...)
-        return new{D,P}(dd, par, act)
+        return new{D,P}(dd, par, act, bad_time_slices)
     end
 end
 
@@ -36,6 +38,9 @@ This actor performs several key operations:
   - Enforces quasi-neutrality and provides smooth, consistent profiles on a common radial grid
 
 The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
+
+With `bad_time_slices` ([`BadTimeSlices`](@ref)), a calibration time the interferometer chords cannot be traced
+through is left out of the Thomson-interferometer calibration and recorded, instead of failing the fit.
 """
 function ActorFitProfiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFitProfiles(dd, act.ActorFitProfiles, act; kw...)
@@ -132,6 +137,22 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
             data = itp_ne(ρ, range(time0, time0, length(ρ)))
             push!(chρs, ρ)
             push!(nes, data)
+        end
+        if actor.bad_time_slices !== nothing
+            usable = map(eachindex(interferometer_calibration_times)) do kt
+                eqt = dd.equilibrium.time_slice[interferometer_calibration_times[kt]]
+                index = sortperm(chρs[kt])
+                try
+                    foreach(ch -> IMAS.line_average(eqt, nes[kt][index], chρs[kt][index], ch.line_of_sight; n_points), dd.interferometer.channel)
+                    return true
+                catch e
+                    isa(e, InterruptException) && rethrow()
+                    record!(actor.bad_time_slices, interferometer_calibration_times[kt], "interferometer calibration", e, "not used for the calibration")
+                    return false
+                end
+            end
+            interferometer_calibration_times, nes, chρs = interferometer_calibration_times[usable], nes[usable], chρs[usable]
+            experiments = [experiment[usable] for experiment in experiments]
         end
 
         # optimization scales density for groups of thomson scattering channels

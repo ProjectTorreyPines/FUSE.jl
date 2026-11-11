@@ -1,10 +1,13 @@
 """
-    set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors)
+    set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors; bad_time_slices::Union{Nothing,BadTimeSlices}=nothing)
 
 The purpose of this function is to set `ini` values based on what is in the ods thus
 simplifying the logic of the init functions so that they only have to look at `ini` scalar values.
+
+With `bad_time_slices`, a core_profiles time slice whose pedestal and core values cannot be found (or
+are not finite) is dropped from the ods and recorded instead of failing ([`each_time_slice!`](@ref)).
 """
-function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors)
+function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors; bad_time_slices::Union{Nothing,BadTimeSlices}=nothing)
     if ini.general.init_from != :ods
         # don't do anything to ini and return an empty dd
         dd1 = IMAS.dd()
@@ -175,20 +178,16 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
 
         # core_profiles
         if !isempty(dd1.core_profiles.profiles_1d)
-            W_PED = Float64[]
-            NE_PED = Float64[]
-            NE_LINE = Float64[]
-            ZEFF = Float64[]
-            TI_TE_RATIO = Float64[]
-            TE_CORE = Float64[]
             if ismissing(ini.time, :pulse_shedule_time_basis)
                 time = [dd1.global_time]
             else
                 time = dd1.core_profiles.time
                 time = time[dd1.equilibrium.time[1].<=time.<=dd1.equilibrium.time[end]]
             end
+            W_PED, NE_PED, NE_LINE, ZEFF, TI_TE_RATIO, TE_CORE = (fill(NaN, length(time)) for _ in 1:6)
             pedestal = nothing
-            for time0 in time
+            drop = each_time_slice!(bad_time_slices, time, "pedestal and core values from core_profiles") do k
+                time0 = time[k]
                 cp1d = dd1.core_profiles.profiles_1d[time0]
                 if ismissing(cp1d.grid, :psi) && !isempty(dd1.equilibrium.time_slice) && !ismissing(eqt.profiles_1d, :rho_tor_norm)
                     eqt = dd1.equilibrium.time_slice[time0]
@@ -209,16 +208,17 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                         nel = IMAS.ne_line(eqt, cp1d)
                     end
 
-                    push!(W_PED, pedestal.width)
-                    push!(NE_PED, ne_ped)
-                    push!(NE_LINE, nel)
-                    push!(ZEFF, zeff_ped)
-                    push!(TI_TE_RATIO, ti_ped / te_ped)
+                    ped = (pedestal.width, ne_ped, nel, zeff_ped, ti_ped / te_ped)
+                    bad_time_slices === nothing || all(isfinite, ped) || error("non-finite (w_ped, ne_ped, ne_line, zeff, Ti/Te) = $ped")
+                    W_PED[k], NE_PED[k], NE_LINE[k], ZEFF[k], TI_TE_RATIO[k] = ped
                 end
                 if !ismissing(cp1d.electrons, :temperature)
-                    push!(TE_CORE, cp1d.electrons.temperature[1] / 1E3)
+                    TE_CORE[k] = cp1d.electrons.temperature[1] / 1E3
                 end
             end
+            drop_time_slices!(dd1, time, drop)
+            keep = setdiff(eachindex(time), drop)
+            time, W_PED, NE_PED, NE_LINE, ZEFF, TI_TE_RATIO, TE_CORE = (v[keep] for v in (time, W_PED, NE_PED, NE_LINE, ZEFF, TI_TE_RATIO, TE_CORE))
             if ismissing(ini.core_profiles, :ne_value)
                 if ismissing(ini.core_profiles, :ne_setting) || ini.core_profiles.ne_setting == :ne_ped
                     ini.core_profiles.ne_setting = :ne_ped
