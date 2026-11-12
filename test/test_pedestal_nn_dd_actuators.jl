@@ -67,9 +67,9 @@ else
         @test live[idx("bt")] && u[idx("bt")] == -2.0f0
         @test live[idx("gasa_cal")] && isapprox(u[idx("gasa_cal")], 10.0; rtol=1e-4)
         @test !live[idx("gasb_cal")]
-        # torque from geometry: P R / v, v = sqrt(2 E e / m_D)
+        # torque from geometry: 2 P R / v (momentum rate of a beam of power P), v = sqrt(2 E e / m_D)
         v = sqrt(2 * 80.0e3 * IMAS.mks.e / (2.0 * IMAS.mks.m_u))
-        @test live[idx("tinj")] && isapprox(u[idx("tinj")], 2.0e6 * 1.15 / v; rtol=1e-5)
+        @test live[idx("tinj")] && isapprox(u[idx("tinj")], 2 * 2.0e6 * 1.15 / v; rtol=1e-5)
         @test !live[idx("pinj")] # no pulse_schedule in this dd
         @test isempty(FUSE.fuse29_check_units(nn, u))
         @test getfield(dd, :_aux)[:fuse29_coil_convention_checked]

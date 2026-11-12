@@ -490,7 +490,10 @@ function fuse29_coil_convention_check(nn::Fuse29NN, coils, aux)
     return msg
 end
 
-# injected torque from the beam geometry: Σ_units P(t) R_tang / v_beam × direction, full-energy component
+# injected torque from the beam geometry: Σ_units 2 P(t) R_tang / v_beam × direction. A beam of power P
+# carries momentum at the rate 2 P / v (P = Ṅ m v² / 2, force = Ṅ m v), as in ActorSimpleNB. All the power is
+# taken at the full energy, which leaves the estimate about 10 % low: on DIII-D 193190 it gives 2.13 N·m
+# where the measured injected torque (PTDATA bmstinj) is 2.34 N·m.
 function _nbi_torque_estimate(dd::IMAS.DD, window_mean::Function, interp_at::Function)
     tinj = 0.0
     found = false
@@ -506,7 +509,7 @@ function _nbi_torque_estimate(dd::IMAS.DD, window_mean::Function, interp_at::Fun
         A = ismissing(unit.species, :a) ? 2.0 : unit.species.a
         vb = sqrt(2.0 * E * IMAS.mks.e / (A * IMAS.mks.m_u)) # energy in eV
         dir = ismissing(bg, :direction) ? 1 : (bg.direction == 0 ? 1 : sign(bg.direction))
-        tinj += P / vb * bg.tangency_radius * dir
+        tinj += 2.0 * P / vb * bg.tangency_radius * dir
         found = true
     end
     return found ? tinj : nothing
@@ -566,7 +569,7 @@ source appear in the result:
 | key | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6, window mean |
-| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]`; fallbacks as `:dd` | Σ NBI `core_sources` `torque_tor` within one tick of `time`; else Σ `dd.nbi.unit[]` P R_tang / v_beam × direction |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]`; fallbacks as `:dd` | Σ NBI `core_sources` `torque_tor` within one tick of `time`; else Σ `dd.nbi.unit[]` 2 P R_tang / v_beam × direction |
 | `ech` | MW | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6, window mean |
 | `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | `dd.gas_injection.valve[]` named `GASA..GASE`, `flow_rate` (Pa·m³/s → Torr·L/s, window mean) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
@@ -678,8 +681,8 @@ function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float6
     if !tinj_set && found_tinj
         _set!("tinj", tinj)
     elseif !tinj_set
-        # Σ_units P R_tang / v_beam × direction, full-energy component (window mean of
-        # the launched power, like pinj). Good to ~10 % against the model torque.
+        # Σ_units 2 P R_tang / v_beam × direction, all power at the full energy (window mean of
+        # the launched power, like pinj).
         v = _nbi_torque_estimate(dd, _window_mean, _interp_at)
         v === nothing || _set!("tinj", v)
     end
@@ -716,7 +719,7 @@ standard IMAS fields (no ZMQ required).
 | channel | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
-| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick); else Σ `dd.nbi.unit[]` P R_tang / v_beam × direction (window mean) |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick); else Σ `dd.nbi.unit[]` 2 P R_tang / v_beam × direction (window mean) |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
 | `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored (the IMAS per-turn current is the PTDATA signal; see the convention note) |
 | `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB`, as stored |
