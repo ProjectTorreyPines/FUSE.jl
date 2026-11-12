@@ -173,8 +173,7 @@ function _step(actor::ActorSimpleNB)
                 tt = range(t_intersects[1], t_intersects[2], ngrid)
             end
             Xs, Ys, Zs, Rs = IMAS.pencil_beam([px, py, pz], [vx, vy, vz], tt)
-            phi = asin.(Ys ./ Rs)
-            ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
+            ftors = nb_toroidal_velocity_fraction(Xs, Ys, vx, vy)
             rho_beam = rho2d_interp.(Rs, Zs)
             dist = IMAS.arc_length(Xs, Ys, Zs)
 
@@ -308,4 +307,18 @@ function nb_component_power_fractions(nbu::IMAS.nbi__unit, fbcur::AbstractVector
         return p
     end
     return f ./ sum(f)
+end
+
+"""
+    nb_toroidal_velocity_fraction(Xs::AbstractVector{<:Real}, Ys::AbstractVector{<:Real}, vx::Real, vy::Real)
+
+Magnitude of the toroidal component of the beam's unit velocity `(vx, vy, vz)` at each point `(Xs, Ys)` of its path.
+
+`R` times this fraction is the lever arm of the beam's toroidal momentum. For a straight beam it is the same at
+every point of the path: the tangency radius times the cosine of the vertical tilt.
+"""
+function nb_toroidal_velocity_fraction(Xs::AbstractVector{<:Real}, Ys::AbstractVector{<:Real}, vx::Real, vy::Real)
+    # the toroidal angle must cover all four quadrants: asin(Y / R) is only right where X > 0
+    phi = atan.(Ys, Xs)
+    return abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
 end
