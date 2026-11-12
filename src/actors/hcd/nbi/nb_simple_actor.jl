@@ -173,7 +173,7 @@ function _step(actor::ActorSimpleNB)
                 tt = range(t_intersects[1], t_intersects[2], ngrid)
             end
             Xs, Ys, Zs, Rs = IMAS.pencil_beam([px, py, pz], [vx, vy, vz], tt)
-            phi = asin.(Ys ./ Rs)
+            phi = atan.(Ys, Xs)
             ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
             dist = IMAS.arc_length(Xs, Ys, Zs)
