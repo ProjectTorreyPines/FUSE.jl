@@ -30,6 +30,11 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPredictiveRT{T<:Real} 
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run prediction in reconstruction mode")
     start_time::Entry{Float64} = Entry{Float64}("-", "Override simulation start time [s]"; default=missing)
     end_time::Entry{Float64} = Entry{Float64}("-", "Override simulation end time [s]"; default=missing)
+
+    # Pedestal predictor (run the study once per model to compare them, see `compare_pedestal_nn_runs`)
+    nn_model::Switch{Symbol} = Switch{Symbol}([:fuse29, :fuse_efit], "-", "Pedestal predictor driving the edge: `:fuse29` (coil currents) or `:fuse_efit` (Ip, boundary shape and loop voltage)"; default=:fuse29)
+    nn_state_source::Switch{Symbol} = Switch{Symbol}([:simulation, :replay], "-", "fuse_efit only: take Ip, boundary shape and loop voltage from FUSE's own equilibrium (`:simulation`) or from the experimental one (`:replay`)"; default=:simulation)
+    nn_efit_form::Switch{Symbol} = Switch{Symbol}([:single, :averaged], "-", "fuse_efit only: one network (`:single`) or the average of eight (`:averaged`)"; default=:single)
 end
 
 mutable struct StudyPredictiveRT{T<:Real} <: AbstractStudy
@@ -77,7 +82,7 @@ function run_predictive_rt_case(study::StudyPredictiveRT, shot::Int; kw_case_par
     sty = study.sty
     device = sty.device
 
-    savedir = abspath(joinpath(sty.save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())"))
+    savedir = abspath(joinpath(sty.save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())__$(sty.nn_model)"))
     @info savedir
     if !isdir(savedir)
         mkdir(savedir)
@@ -88,7 +93,8 @@ function run_predictive_rt_case(study::StudyPredictiveRT, shot::Int; kw_case_par
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_predictive_rt_case(device, shot; savedir, sty.reconstruction, sty.verbose, sty.start_time, sty.end_time, kw_case_parameters)
+            run_predictive_rt_case(device, shot; savedir, sty.reconstruction, sty.verbose, sty.start_time, sty.end_time,
+                sty.nn_model, sty.nn_state_source, sty.nn_efit_form, kw_case_parameters)
         end
     end
 end
@@ -111,6 +117,9 @@ function run_predictive_rt_case!(
     verbose::Bool,
     start_time::Union{Float64,Missing}=missing,
     end_time::Union{Float64,Missing}=missing,
+    nn_model::Symbol=:fuse29,
+    nn_state_source::Symbol=:simulation,
+    nn_efit_form::Symbol=:single,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -157,6 +166,9 @@ function run_predictive_rt_case!(
     act.ActorZMQ.enabled = false # true
     act.ActorPedestal.fpe_source = :dd #:zmq # dd
     act.ActorPedestal.ne_from = :nn_predictor  #:pulse_schedule 
+    act.ActorPedestal.nn_model = nn_model # :fuse29 or :fuse_efit
+    act.ActorPedestal.nn_state_source = nn_state_source # fuse_efit: Ip, shape and loop voltage from :simulation or :replay
+    act.ActorPedestal.nn_efit_form = nn_efit_form # fuse_efit: :single or :averaged
     act.ActorPedestal.nn_ped_quantities = :all # :ne_lh (ne_ped + L/H only, Te/Ti from EPED/WPED) or :all (also apply NN te_ped, ti_ped, rotation)
 
     # density and Zeff from experiment
@@ -284,6 +296,14 @@ function run_predictive_rt_case!(
             JSON.print(f, validation, 2)
         end
 
+        pedestal_nn = pedestal_nn_validation(dd, dd_exp)
+        if pedestal_nn !== nothing
+            @info "save pedestal_nn.json"
+            open(joinpath(savedir, "pedestal_nn.json"), "w") do f
+                JSON.print(f, pedestal_nn, 2)
+            end
+        end
+
         if save_gif
             @info "save animated gif"
             mkdir(joinpath(savedir, "gif"))
@@ -368,4 +388,209 @@ function compute_validation_residuals(dd::IMAS.DD, dd_exp::IMAS.DD)
     end
 
     return summary
+end
+
+
+#= ============================================== =#
+#  Pedestal predictor validation (fuse29/fuse_efit) #
+#= ============================================== =#
+
+# value of a core_profiles quantity at rho_tor_norm = rho; `nothing` when the slice does not carry it
+function _cp1d_at_rho(cp1d, rho::Float64, getter::Function)
+    try
+        y = getter(cp1d)
+        v = IMAS.interp1d(cp1d.grid.rho_tor_norm, y).(rho)
+        return isfinite(v) ? Float64(v) : nothing
+    catch e
+        e isa InterruptException && rethrow()
+        return nothing
+    end
+end
+
+"""
+    pedestal_nn_validation(dd::IMAS.DD, dd_exp::IMAS.DD; rho=0.85, max_dt=0.05)
+
+Everything needed to judge a pedestal predictor on one run and to compare two
+runs of the same shot made with different models. `nothing` when no predictor
+ran. Returns a JSON-ready dictionary:
+
+- the per-tick model record of [`pedestal_nn_history`](@ref) (`model`, `time`,
+  `inputs`, `indicators`, `predictions`, `is_h_mode`, `n_ticks`);
+- `experiment`: `ne` [1e19 m⁻³], `te_ped`, `ti_ped` [keV] and `t_rot_ped`
+  [krad/s] of the experimental profiles at `rho`, on the model's time base
+  (`nothing` where no experimental profile lies within `max_dt` seconds);
+- `rmse` and `n`: root-mean-square error of each of those four heads against
+  the experiment, and the number of ticks it is computed on.
+
+The model heads are the predictions the model made in the run; with
+`nn_state_source = :simulation` they depend on FUSE's own equilibrium, which is
+the point of comparing against `:replay` and against fuse29.
+"""
+function pedestal_nn_validation(dd::IMAS.DD, dd_exp::IMAS.DD; rho::Float64=0.85, max_dt::Float64=0.05)
+    out = pedestal_nn_history(dd)
+    out === nothing && return nothing
+    times = out["time"]
+
+    getters = Dict{String,Function}(
+        "ne" => cp1d -> cp1d.electrons.density_thermal ./ 1e19,
+        "te_ped" => cp1d -> cp1d.electrons.temperature ./ 1e3,
+        "ti_ped" => cp1d -> cp1d.t_i_average ./ 1e3,
+        "t_rot_ped" => cp1d -> cp1d.ion[1].rotation_frequency_tor ./ 1e3)
+    exp_times = [cp1d.time for cp1d in dd_exp.core_profiles.profiles_1d]
+    experiment = Dict{String,Any}(name => Any[] for name in keys(getters))
+    for t in times
+        k = isempty(exp_times) ? nothing : argmin(abs.(exp_times .- t))
+        for (name, getter) in getters
+            v = (k === nothing || abs(exp_times[k] - t) > max_dt) ? nothing : _cp1d_at_rho(dd_exp.core_profiles.profiles_1d[k], rho, getter)
+            push!(experiment[name], v)
+        end
+    end
+    out["rho"] = rho
+    out["experiment"] = experiment
+
+    rmse = Dict{String,Any}()
+    count = Dict{String,Any}()
+    for name in keys(getters)
+        pred = out["predictions"][name]
+        err2 = Float64[(p - e)^2 for (p, e) in zip(pred, experiment[name]) if p !== nothing && e !== nothing]
+        count[name] = length(err2)
+        rmse[name] = isempty(err2) ? nothing : sqrt(sum(err2) / length(err2))
+    end
+    out["rmse"] = rmse
+    out["n"] = count
+    return out
+end
+
+"""
+    compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; verbose=true)
+
+Side-by-side comparison of two `StudyPredictiveRT` runs of the same shot made
+with different pedestal predictors (typically `nn_model = :fuse29` and
+`nn_model = :fuse_efit`), from the `pedestal_nn.json` each run saved.
+
+Returns a dictionary with, per run, the model name and the RMSE of `ne`,
+`te_ped`, `ti_ped`, `t_rot_ped` at rho = 0.85 against the experiment — on each
+run's own ticks (`rmse`) and on the ticks the two runs share (`rmse_common`) —
+plus `hmode_agreement`, the fraction of shared ticks on which the two models'
+H-mode gates agree, and `n_common`.
+"""
+function compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; verbose::Bool=true)
+    function load(dir)
+        path = isdir(dir) ? joinpath(dir, "pedestal_nn.json") : dir
+        isfile(path) || error("compare_pedestal_nn_runs: $path not found (was the run made with ne_from=:nn_predictor?)")
+        return JSON.parsefile(path)
+    end
+    a, b = load(dir_a), load(dir_b)
+    heads = ("ne", "te_ped", "ti_ped", "t_rot_ped")
+
+    # ticks present in both runs (same model time within 1 ms)
+    pairs = Tuple{Int,Int}[]
+    for (i, t) in enumerate(a["time"])
+        j = findfirst(τ -> abs(τ - t) < 1e-3, b["time"])
+        j === nothing || push!(pairs, (i, j))
+    end
+
+    function rmse_on(run, idx, head)
+        err2 = Float64[]
+        for i in idx
+            p, e = run["predictions"][head][i], run["experiment"][head][i]
+            (p === nothing || e === nothing) || push!(err2, (p - e)^2)
+        end
+        return isempty(err2) ? nothing : sqrt(sum(err2) / length(err2))
+    end
+
+    result = Dict{String,Any}("n_common" => length(pairs))
+    for (key, run, idx) in (("a", a, first.(pairs)), ("b", b, last.(pairs)))
+        result[key] = Dict{String,Any}(
+            "model" => run["model"],
+            "rmse" => Dict{String,Any}(h => run["rmse"][h] for h in heads),
+            "rmse_common" => Dict{String,Any}(h => rmse_on(run, idx, h) for h in heads))
+    end
+    result["hmode_agreement"] = isempty(pairs) ? nothing :
+                                count(a["is_h_mode"][i] == b["is_h_mode"][j] for (i, j) in pairs) / length(pairs)
+
+    if verbose
+        fmt(v) = v === nothing ? "      n/a" : @sprintf("%9.4f", v)
+        units = Dict("ne" => "1e19 m^-3", "te_ped" => "keV", "ti_ped" => "keV", "t_rot_ped" => "krad/s")
+        println("RMSE against the experiment at rho = $(a["rho"]) on the $(length(pairs)) ticks both runs share")
+        @printf("%-10s %-10s %12s %12s\n", "head", "units", result["a"]["model"], result["b"]["model"])
+        for h in heads
+            println(@sprintf("%-10s %-10s", h, units[h]), "    ", fmt(result["a"]["rmse_common"][h]), "    ", fmt(result["b"]["rmse_common"][h]))
+        end
+        result["hmode_agreement"] === nothing || @printf("H-mode gates agree on %.1f %% of shared ticks\n", 100 * result["hmode_agreement"])
+    end
+    return result
+end
+
+"""
+    plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString; savefig=nothing, title="")
+
+Figure for two `StudyPredictiveRT` runs of the same shot made with different
+pedestal predictors, from the `pedestal_nn.json` each run saved: one panel per
+head that has an experimental counterpart (`ne`, `te_ped`, `ti_ped`,
+`t_rot_ped` at rho = 0.85; the experiment as points, each model as a line, its
+RMSE in the panel title), the H-mode probability of each model, and the state of
+each model's H-mode gate.
+
+`savefig` is a file name (`.png`, `.pdf`, ...) to write the figure to. Returns
+the plot.
+"""
+function plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString;
+                                     savefig::Union{Nothing,AbstractString}=nothing, title::AbstractString="")
+    function load(dir)
+        path = isdir(dir) ? joinpath(dir, "pedestal_nn.json") : dir
+        isfile(path) || error("plot_pedestal_nn_comparison: $path not found (was the run made with ne_from=:nn_predictor?)")
+        return JSON.parsefile(path)
+    end
+    runs = (load(dir_a), load(dir_b))
+    # a model keeps its colour whichever argument it is passed as
+    model_colors = Dict("fuse29" => "#2a78d6", "fuse_efit" => "#eb6834")
+    colors = [get(model_colors, run["model"], "") for run in runs]
+    (any(isempty, colors) || colors[1] == colors[2]) && (colors = ["#2a78d6", "#eb6834"])
+    styles = (:solid, :dash)   # the second run dashed, so that coinciding traces both show
+    ink = "#3d3d3a"
+    num(v) = v === nothing ? NaN : Float64(v)
+    reference = runs[argmax([length(run["time"]) for run in runs])]
+    rho = reference["rho"]
+    names = [run["model"] for run in runs]
+    names[1] == names[2] && (names = ["$(names[1]) (first run)", "$(names[2]) (second run)"])
+
+    common = (; xlabel="time [s]", gridalpha=0.15, legend=false, titlefontsize=9, guidefontsize=9, tickfontsize=8, titlelocation=:left)
+
+    # one legend for the whole figure, in a strip of its own above the panels
+    strip = Plots.plot(; framestyle=:none, legend=:top, legend_columns=-1, foreground_color_legend=nothing, background_color_legend=nothing,
+                       legendfontsize=9, xlims=(0, 1), ylims=(0, 1))
+    Plots.scatter!(strip, [NaN], [NaN]; color=ink, markersize=4, markerstrokewidth=0, label="experiment")
+    for (name, color, linestyle) in zip(names, colors, styles)
+        Plots.plot!(strip, [NaN], [NaN]; color, linestyle, linewidth=2, label=name)
+    end
+
+    panels = (("ne", "ne [1e19 m^-3]"), ("te_ped", "Te [keV]"), ("ti_ped", "Ti [keV]"), ("t_rot_ped", "rotation [krad/s]"))
+    plots = []
+    for (head, ylabel) in panels
+        rmse = join([@sprintf("%s %.3g", name, run["rmse"][head]) for (name, run) in zip(names, runs) if run["rmse"][head] !== nothing], ", ")
+        p = Plots.plot(; ylabel, title="$head at rho = $rho" * (isempty(rmse) ? "" : "    RMSE: $rmse"), common...)
+        Plots.scatter!(p, reference["time"], num.(reference["experiment"][head]); color=ink, markersize=3, markerstrokewidth=0)
+        for (run, color, linestyle) in zip(runs, colors, styles)
+            Plots.plot!(p, run["time"], num.(run["predictions"][head]); color, linestyle, linewidth=2)
+        end
+        push!(plots, p)
+    end
+
+    p = Plots.plot(; ylabel="probability", title="H-mode probability", ylims=(-0.03, 1.03), common...)
+    for (run, color, linestyle) in zip(runs, colors, styles)
+        Plots.plot!(p, run["time"], num.(run["predictions"]["hmode"]); color, linestyle, linewidth=2)
+    end
+    push!(plots, p)
+
+    p = Plots.plot(; ylabel="gate", title="H-mode gate (0 = L-mode, 1 = H-mode)", ylims=(-0.1, 1.1), yticks=[0, 1], common...)
+    for (run, color, linestyle) in zip(runs, colors, styles)
+        Plots.plot!(p, run["time"], Float64.(run["is_h_mode"]); seriestype=:steppost, color, linestyle, linewidth=2)
+    end
+    push!(plots, p)
+
+    fig = Plots.plot(strip, plots...; layout=Plots.@layout([a{0.04h}; Plots.grid(3, 2)]), size=(1100, 980), plot_title=title, plot_titlefontsize=11,
+                     left_margin=6 * Plots.mm, bottom_margin=3 * Plots.mm, background_color="#fcfcfb")
+    savefig === nothing || Plots.savefig(fig, savefig)
+    return fig
 end

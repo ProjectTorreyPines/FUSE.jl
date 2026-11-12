@@ -29,15 +29,27 @@
     tau_n::Entry{T} = Entry{T}("s", "Edge density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("-", "n_Lmode / n_Hmode")
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
-    #== nn_predictor FPE source ==#
+    #== nn_predictor model and input sources ==#
+    nn_model::Switch{Symbol} = Switch{Symbol}(
+        [:fuse29, :fuse_efit], "-",
+        "Pedestal predictor used when `ne_from=:nn_predictor`: `:fuse29` (29 actuators including the 20 coil currents) or `:fuse_efit` (no coil currents; measured Ip, 14 boundary-shape quantities of the equilibrium and the loop voltage instead)";
+        default=:fuse29)
+    nn_efit_form::Switch{Symbol} = Switch{Symbol}(
+        [:single, :averaged], "-",
+        "fuse_efit form: `:single` (one network, the frozen delivered model) or `:averaged` (eight networks averaged every tick: lower error, ~10x the cost, 1.5 GB download)";
+        default=:single)
+    nn_state_source::Switch{Symbol} = Switch{Symbol}(
+        [:simulation, :replay], "-",
+        "Source of the fuse_efit plasma-state inputs (Ip, boundary shape, loop voltage): `:simulation` (FUSE's own evolving equilibrium and current diffusion, or GSLite's when coupled through ZMQ) or `:replay` (the experimental equilibrium in `act.ActorReplay.replay_dd`, to separate the model's error from the equilibrium's)";
+        default=:simulation)
     fpe_source::Switch{Symbol} = Switch{Symbol}([:zmq, :dd], "-", "Source of FPE actuator inputs for nn_predictor: `:zmq` (from ActorZMQ via dd._aux) or `:dd` (directly from dd fields, no ZMQ required)"; default=:zmq)
     nn_ped_quantities::Switch{Symbol} = Switch{Symbol}(
         [:ne_lh, :all], "-",
         "NN predictor outputs to apply: `:ne_lh` (ne_ped and L/H classification only, Te/Ti from EPED/WPED) or `:all` (ne_ped, te_ped, ti_ped, and rotation from NN)";
         default=:ne_lh)
-    nn_hmode_enter::Entry{T} = Entry{T}("-", "fuse29 H-mode gate: enter H-mode when the predicted hmode probability rises above this (Schmitt trigger, see docs/GATING.md of the model)"; default=0.7)
-    nn_hmode_exit::Entry{T} = Entry{T}("-", "fuse29 H-mode gate: leave H-mode when the predicted hmode probability falls below this (must be <= nn_hmode_enter)"; default=0.3)
-    nn_warmup_time::Entry{Float64} = Entry{Float64}("s", "fuse29 recurrent state starts from zero (shot start). If the simulation starts mid-shot, replay the actuators from this time on the model's 50 ms grid before the first prediction so the state is warmed up (~1 s is enough). Missing: start from a zero state at the first call.")
+    nn_hmode_enter::Entry{T} = Entry{T}("-", "Pedestal predictor H-mode gate: enter H-mode when the predicted hmode probability rises above this (Schmitt trigger). Missing: the model's own default, 0.7 for fuse29 (docs/GATING.md of the model), the form's balanced validation threshold for fuse_efit (0.54 for `:single`)")
+    nn_hmode_exit::Entry{T} = Entry{T}("-", "Pedestal predictor H-mode gate: leave H-mode when the predicted hmode probability falls below this (must be <= nn_hmode_enter). Missing: the model's own default, 0.3 for fuse29, the form's conservative validation threshold for fuse_efit (0.50 for `:single`)")
+    nn_warmup_time::Entry{Float64} = Entry{Float64}("s", "The predictor's recurrent state starts from zero (shot start). If the simulation starts mid-shot, replay the actuators from this time on the model's 50 ms grid before the first prediction so the state is warmed up (~1 s is enough). Missing: start from a zero state at the first call.")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -57,7 +69,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     t_hl::Float64
     previous_time::Float64
     cp1d_transition::IMAS.core_profiles__profiles_1d{D}
-    nn_predictor::Union{Nothing,Fuse29NN}
+    nn_predictor::Union{Nothing,Fuse29NN,FuseEfitNN}
     nn_prediction::Union{Nothing,NamedTuple}
 end
 
@@ -109,7 +121,7 @@ function ActorPedestal(dd::IMAS.DD{D}, par::FUSEparameters__ActorPedestal{P}, ac
     # is not. cases/D3D.jl selects :ne_line by default for every shot with experimental
     # profiles, so this is the default a D3D user lands on.
     if par.ne_from == :nn_predictor && par.density_match == :ne_line
-        @warn "ActorPedestal: ne_from=:nn_predictor with density_match=:ne_line — the fuse29 density is " *
+        @warn "ActorPedestal: ne_from=:nn_predictor with density_match=:ne_line — the $(par.nn_model) density is " *
               "computed and then discarded (the :ne_line branch overrides ne_from to :core_profiles; the " *
               "magnitude comes from the line-averaged target instead). To let the NN drive the density set " *
               "ini.core_profiles.ne_setting=:ne_ped and act.ActorPedestal.density_match=:ne_ped *before* " *
@@ -159,21 +171,21 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # Run the fuse29 pedestal predictor once per time step. One call provides
-    # ne, Te, Ti and T_rot at rho_tor = 0.85 plus the H-mode probability; the
-    # recurrent state is kept on the model's own 50 ms grid by fuse29_predict!
-    # (exactly one model tick per 50 ms of simulated time, however often the
+    # Run the pedestal predictor (par.nn_model: fuse29 or fuse_efit) once per time
+    # step. One call provides ne, Te, Ti and T_rot at rho_tor = 0.85 plus the
+    # H-mode probability; the recurrent state is kept on the model's own 50 ms
+    # grid (exactly one model tick per 50 ms of simulated time, however often the
     # actor is evaluated within a step).
     if par.ne_from == :nn_predictor
-        fuse29_predict!(actor)
+        pedestal_nn_predict!(actor)
     end
     if !ismissing(par, :mode_transitions)
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
         nnp = actor.nn_prediction
-        @info "t = $(dd.global_time) s | fuse29: hmode_prob = $(round(nnp.hmode_prob; digits=3)) -> $(nnp.is_h_mode ? "H" : "L")-mode, ne(ρ=$(nnp.rho_ref)) = $(round(nnp.ne; digits=3))e19 m⁻³, ticks = $(nnp.n_ticks)"
-        # Hysteretic gate decided in fuse29_advance! (enter > nn_hmode_enter, exit < nn_hmode_exit)
+        @info "t = $(dd.global_time) s | $(par.nn_model): hmode_prob = $(round(nnp.hmode_prob; digits=3)) -> $(nnp.is_h_mode ? "H" : "L")-mode, ne(ρ=$(nnp.rho_ref)) = $(round(nnp.ne; digits=3))e19 m⁻³, ticks = $(nnp.n_ticks)"
+        # Hysteretic gate decided in pedestal_nn_advance! (enter > nn_hmode_enter, exit < nn_hmode_exit)
         mode = nnp.is_h_mode ? :H_mode : :L_mode
     elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
         mode = :H_mode
@@ -394,8 +406,8 @@ function pedestal_density_tanh(dd::IMAS.DD, par::OverrideParameters{P,FUSEparame
 
     ne_old = copy(cp1d.electrons.density_thermal)
     if par.ne_from == :nn_predictor
-        @assert nn_prediction !== nothing "ne_from=:nn_predictor requires nn_prediction (call fuse29_predict! first)"
-        # fuse29 `ne` is the electron density AT rho_tor = nn_prediction.rho_ref (0.85),
+        @assert nn_prediction !== nothing "ne_from=:nn_predictor requires nn_prediction (call pedestal_nn_predict! first)"
+        # the predictors' `ne` is the electron density AT rho_tor = nn_prediction.rho_ref (0.85),
         # valid in every regime — pin the profile there rather than at rho=0.9.
         ne_ped = Float64(nn_prediction.ne) * 1e19 * density_factor
         rho_pin = nn_prediction.rho_ref
@@ -500,6 +512,194 @@ function _nbi_torque_estimate(dd::IMAS.DD, window_mean::Function, interp_at::Fun
     return found ? tinj : nothing
 end
 
+# ── Input sourcing shared by the pedestal predictors (fuse29 and fuse_efit) ──
+
+# Latest causal sample (t_i <= time) of a `(times=..., values=...)` record that ActorZMQ keeps in
+# dd._aux; falls back to the first sample if all entries are in the future (e.g. just after a rewind).
+function _nn_aux_value_at(aux, key::Symbol, time::Float64)
+    haskey(aux, key) || return nothing
+    rec = aux[key]
+    (hasproperty(rec, :times) && hasproperty(rec, :values)) || return nothing
+    isempty(rec.times) && return nothing
+    idx = findlast(τ -> τ <= time + 1e-9, rec.times)
+    idx === nothing && (idx = 1)
+    return rec.values[idx]
+end
+
+function _nn_interp_at(t::AbstractVector, y::AbstractVector, time::Float64, scheme::Symbol)
+    (isempty(t) || length(t) != length(y)) && return nothing
+    length(t) == 1 && return y[1]
+    return IMAS.interp1d(t, y, scheme)(time)
+end
+
+# Mean of `y` over the tick interval (time - period, time], for sources that are
+# modulated faster than the tick. Point-sampling those is not a coarse estimate but
+# a wrong one: DIII-D beams are chopped, and because the chop period divides the
+# 50 ms tick the sample lands on the same phase every tick — for shot 200000 that
+# reads 0 MW at every tick from t = 2.5 to 4.0 s while the true mean is 0.95 MW.
+# The training convention is a windowed mean as well (IO_CONTRACT.md: actuators are
+# a 3-tap causal box over 20 ms samples, i.e. ~(t_k - 60 ms, t_k]).
+# Falls back to point sampling when the trace is too coarse to average.
+function _nn_window_mean(t::AbstractVector, y::AbstractVector, time::Float64, period::Float64)
+    (isempty(t) || length(t) != length(y)) && return nothing
+    length(t) == 1 && return y[1]
+    lo = time - period
+    n = 0
+    acc = zero(float(eltype(y)))
+    @inbounds for k in eachindex(t)
+        if lo < t[k] <= time
+            acc += y[k]
+            n += 1
+        end
+    end
+    n == 0 && return _nn_interp_at(t, y, time, :constant)
+    return acc / n
+end
+
+"""
+    _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float64, period::Float64) -> Dict{String,Float64}
+
+The actuator channels that fuse29 and fuse_efit share, for the `period` interval
+ending at `time`, in the models' physical units. Only channels that have a
+source appear in the result:
+
+| key | units | `:zmq` | `:dd` |
+|---|---|---|---|
+| `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6, window mean |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]`; fallbacks as `:dd` | Σ NBI `core_sources` `torque_tor` within one tick of `time`; else Σ `dd.nbi.unit[]` P R_tang / v_beam × direction |
+| `ech` | MW | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6, window mean |
+| `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | `dd.gas_injection.valve[]` named `GASA..GASE`, `flow_rate` (Pa·m³/s → Torr·L/s, window mean) |
+| `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
+"""
+function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float64, period::Float64)
+    vals = Dict{String,Float64}()
+    aux = getfield(dd, :_aux)
+
+    function _set!(name::AbstractString, value)
+        value === nothing && return
+        isfinite(value) || return
+        vals[name] = Float64(value)
+        return
+    end
+    _window_mean(t, y) = _nn_window_mean(t, y, time, period)
+    _interp_at(t, y, scheme) = _nn_interp_at(t, y, time, scheme)
+
+    if source == :dd
+        # pinj — total NBI power from pulse_schedule (W -> MW)
+        if !isempty(dd.pulse_schedule.nbi.unit) && !isempty(dd.pulse_schedule.nbi.time)
+            Pnbi = 0.0
+            found = false
+            for unit in dd.pulse_schedule.nbi.unit
+                if !ismissing(unit.power, :reference) && !isempty(unit.power.reference)
+                    v = _window_mean(dd.pulse_schedule.nbi.time, unit.power.reference)
+                    v === nothing && continue
+                    Pnbi += v
+                    found = true
+                end
+            end
+            found && _set!("pinj", Pnbi / 1e6)
+        end
+
+        # ech — total EC power from ec_launchers (W -> MW)
+        if !isempty(dd.ec_launchers.beam)
+            Pech = 0.0
+            found = false
+            for beam in dd.ec_launchers.beam
+                if !ismissing(beam, :power_launched) && !isempty(beam.power_launched.time)
+                    v = _window_mean(beam.power_launched.time, beam.power_launched.data)
+                    v === nothing && continue
+                    Pech += v
+                    found = true
+                end
+            end
+            found && _set!("ech", Pech / 1e6)
+        end
+
+        # gasa..gase_cal — gas_injection valves (IMAS Pa·m³/s -> Torr·L/s), when the loader provides them
+        if !isempty(dd.gas_injection.valve)
+            for valve in dd.gas_injection.valve
+                m = match(r"^GAS([A-E])", uppercase(strip(valve.name)))
+                m === nothing && continue
+                if !ismissing(valve.flow_rate, :data) && !isempty(valve.flow_rate.data)
+                    v = _window_mean(valve.flow_rate.time, valve.flow_rate.data)
+                    v === nothing && continue
+                    _set!("gas$(lowercase(m.captures[1]))_cal", v / PA_M3_PER_TORR_L)
+                end
+            end
+        end
+
+    elseif source == :zmq
+        let v = _nn_aux_value_at(aux, :zmq_Pnbi, time); v === nothing || _set!("pinj", v / 1e6); end
+        let v = _nn_aux_value_at(aux, :zmq_Pech, time); v === nothing || _set!("ech", v / 1e6); end
+        for (k, name) in zip(
+                (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
+                ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))
+            v = _nn_aux_value_at(aux, k, time)
+            v === nothing || _set!(name, v)
+        end
+
+    else
+        error("pedestal NN inputs: source must be :zmq or :dd, got $(repr(source))")
+    end
+
+    # tinj — in :zmq mode prefer the measured injected torque streamed by
+    # GSLite (dd._aux[:zmq_tinj_per_beam], summed over beams); otherwise fall
+    # back to the model torque from core_sources (NBI identifier index = 2).
+    # The beam actor itself is never rescaled: its energy/particles/current/
+    # momentum outputs stay mutually consistent, and only this NN input is
+    # pinned to the measurement.
+    tinj_set = false
+    if source == :zmq
+        let v = _nn_aux_value_at(aux, :zmq_tinj_per_beam, time)
+            if v !== nothing
+                _set!("tinj", sum(v))
+                tinj_set = true
+            end
+        end
+    end
+    # Model torque only when core_sources were computed within one tick of `time`:
+    # on an experimental dd straight from init! they exist at simulation_start only,
+    # and holding that value for the whole shot (0.11 N m on 200000 with 3.5 MW of
+    # beams) is worse than the beam-geometry estimate below.
+    tinj = 0.0
+    found_tinj = false
+    for src in dd.core_sources.source
+        if src.identifier.index == 2 && !isempty(src.global_quantities)
+            gq_times = [gq.time for gq in src.global_quantities]
+            k = argmin(abs.(gq_times .- time))
+            abs(gq_times[k] - time) <= period + 1e-9 || continue
+            gq = src.global_quantities[k]
+            if !ismissing(gq, :torque_tor)
+                tinj += gq.torque_tor
+                found_tinj = true
+            end
+        end
+    end
+    if !tinj_set && found_tinj
+        _set!("tinj", tinj)
+    elseif !tinj_set
+        # Σ_units P R_tang / v_beam × direction, full-energy component (window mean of
+        # the launched power, like pinj). Good to ~10 % against the model torque.
+        v = _nbi_torque_estimate(dd, _window_mean, _interp_at)
+        v === nothing || _set!("tinj", v)
+    end
+
+    # bt — signed vacuum toroidal field at `time` for both paths
+    # (b0's time coordinate is dd.equilibrium.time, resolved by get_time_array)
+    let vtf = dd.equilibrium.vacuum_toroidal_field
+        if !ismissing(vtf, :b0) && !isempty(vtf.b0)
+            v = try
+                IMAS.get_time_array(vtf, :b0, time, :constant)
+            catch
+                time <= dd.equilibrium.time[1] ? vtf.b0[1] : vtf.b0[end]
+            end
+            _set!("bt", v)
+        end
+    end
+
+    return vals
+end
+
 """
     build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time) -> (u::Vector{Float32}, live::Vector{Bool})
 
@@ -553,7 +753,6 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
     u = fuse29_median_actuators(nn)
     live = falses(FUSE29_N_ACTUATORS)
     aux = getfield(dd, :_aux)
-    period = nn.period_s
 
     function _set!(name::AbstractString, value)
         value === nothing && return
@@ -565,79 +764,12 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
         return
     end
 
-    # Latest causal sample (t_i <= time); fall back to the first sample if all
-    # entries are in the future (e.g. just after a time-rewind).
-    function _aux_value_at(key::Symbol)
-        haskey(aux, key) || return nothing
-        rec = aux[key]
-        (hasproperty(rec, :times) && hasproperty(rec, :values)) || return nothing
-        isempty(rec.times) && return nothing
-        idx = findlast(τ -> τ <= time + 1e-9, rec.times)
-        idx === nothing && (idx = 1)
-        return rec.values[idx]
-    end
-
-    function _interp_at(t::AbstractVector, y::AbstractVector, scheme::Symbol)
-        (isempty(t) || length(t) != length(y)) && return nothing
-        length(t) == 1 && return y[1]
-        return IMAS.interp1d(t, y, scheme)(time)
-    end
-
-    # Mean of `y` over the tick interval (time - period, time], for sources that are
-    # modulated faster than the tick. Point-sampling those is not a coarse estimate but
-    # a wrong one: DIII-D beams are chopped, and because the chop period divides the
-    # 50 ms tick the sample lands on the same phase every tick — for shot 200000 that
-    # reads 0 MW at every tick from t = 2.5 to 4.0 s while the true mean is 0.95 MW.
-    # The training convention is a windowed mean as well (IO_CONTRACT.md: actuators are
-    # a 3-tap causal box over 20 ms samples, i.e. ~(t_k - 60 ms, t_k]).
-    # Falls back to point sampling when the trace is too coarse to average.
-    function _window_mean(t::AbstractVector, y::AbstractVector)
-        (isempty(t) || length(t) != length(y)) && return nothing
-        length(t) == 1 && return y[1]
-        lo = time - period
-        n = 0
-        acc = zero(float(eltype(y)))
-        @inbounds for k in eachindex(t)
-            if lo < t[k] <= time
-                acc += y[k]
-                n += 1
-            end
-        end
-        n == 0 && return _interp_at(t, y, :constant)
-        return acc / n
+    # heating, torque, fuelling and field: shared with fuse_efit (`ech` is fuse29's `ech_total`)
+    for (name, value) in _pedestal_nn_common_actuators(dd; source, time, period=nn.period_s)
+        _set!(name == "ech" ? "ech_total" : name, value)
     end
 
     if source == :dd
-        # pinj — total NBI power from pulse_schedule (W -> MW)
-        if !isempty(dd.pulse_schedule.nbi.unit) && !isempty(dd.pulse_schedule.nbi.time)
-            Pnbi = 0.0
-            found = false
-            for unit in dd.pulse_schedule.nbi.unit
-                if !ismissing(unit.power, :reference) && !isempty(unit.power.reference)
-                    v = _window_mean(dd.pulse_schedule.nbi.time, unit.power.reference)
-                    v === nothing && continue
-                    Pnbi += v
-                    found = true
-                end
-            end
-            found && _set!("pinj", Pnbi / 1e6)
-        end
-
-        # ech_total — total EC power from ec_launchers (W -> "MW", see docstring)
-        if !isempty(dd.ec_launchers.beam)
-            Pech = 0.0
-            found = false
-            for beam in dd.ec_launchers.beam
-                if !ismissing(beam, :power_launched) && !isempty(beam.power_launched.time)
-                    v = _window_mean(beam.power_launched.time, beam.power_launched.data)
-                    v === nothing && continue
-                    Pech += v
-                    found = true
-                end
-            end
-            found && _set!("ech_total", Pech / 1e6)
-        end
-
         # coil currents from dd.pf_active — DIII-D names as loaded from the OMFIT/D3D machine mapping
         coil_name_map = Dict(
             "ECOILA" => "ecoila", "ECOILB" => "ecoilb",
@@ -666,36 +798,15 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
                 # mapping of v0.96.0+ holds PTDATA / turns (F6A -53.6 A instead of -3065 A on
                 # 199055) and must be repaired by the loader first. Coils are the strongest
                 # channel group for ne (f6b: dne = 3.22 in sensitivity_s0.json, four times pinj).
-                v = _interp_at(coil.current.time, coil.current.data, :linear)
+                v = _nn_interp_at(coil.current.time, coil.current.data, time, :linear)
                 v === nothing && continue
                 _set!(ch_name, v)
             end
         end
         fuse29_coil_convention_check(nn, coil_source, aux)
 
-        # gasa..gase_cal — gas_injection valves (IMAS Pa·m³/s -> Torr·L/s), when the loader provides them
-        if !isempty(dd.gas_injection.valve)
-            for valve in dd.gas_injection.valve
-                m = match(r"^GAS([A-E])", uppercase(strip(valve.name)))
-                m === nothing && continue
-                if !ismissing(valve.flow_rate, :data) && !isempty(valve.flow_rate.data)
-                    v = _window_mean(valve.flow_rate.time, valve.flow_rate.data)
-                    v === nothing && continue
-                    _set!("gas$(lowercase(m.captures[1]))_cal", v / PA_M3_PER_TORR_L)
-                end
-            end
-        end
-
     elseif source == :zmq
-        let v = _aux_value_at(:zmq_Pnbi); v === nothing || _set!("pinj", v / 1e6); end
-        let v = _aux_value_at(:zmq_Pech); v === nothing || _set!("ech_total", v / 1e6); end
-        for (k, name) in zip(
-                (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
-                ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))
-            v = _aux_value_at(k)
-            v === nothing || _set!(name, v)
-        end
-        let v = _aux_value_at(:zmq_I_coil)
+        let v = _nn_aux_value_at(aux, :zmq_I_coil, time)
             if v !== nothing
                 length(v) >= 1 && _set!("ecoila", v[1])
                 length(v) >= 4 && _set!("ecoilb", v[4])
@@ -706,64 +817,6 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
                     _set!(name, v[6+k])
                 end
             end
-        end
-
-    else
-        error("build_fuse29_actuators: source must be :zmq or :dd, got $(repr(source))")
-    end
-
-    # tinj — in :zmq mode prefer the measured injected torque streamed by
-    # GSLite (dd._aux[:zmq_tinj_per_beam], summed over beams); otherwise fall
-    # back to the model torque from core_sources (NBI identifier index = 2).
-    # The beam actor itself is never rescaled: its energy/particles/current/
-    # momentum outputs stay mutually consistent, and only this NN input is
-    # pinned to the measurement.
-    tinj_set = false
-    if source == :zmq
-        let v = _aux_value_at(:zmq_tinj_per_beam)
-            if v !== nothing
-                _set!("tinj", sum(v))
-                tinj_set = true
-            end
-        end
-    end
-    # Model torque only when core_sources were computed within one tick of `time`:
-    # on an experimental dd straight from init! they exist at simulation_start only,
-    # and holding that value for the whole shot (0.11 N m on 200000 with 3.5 MW of
-    # beams) is worse than the beam-geometry estimate below.
-    tinj = 0.0
-    found_tinj = false
-    for src in dd.core_sources.source
-        if src.identifier.index == 2 && !isempty(src.global_quantities)
-            gq_times = [gq.time for gq in src.global_quantities]
-            k = argmin(abs.(gq_times .- time))
-            abs(gq_times[k] - time) <= period + 1e-9 || continue
-            gq = src.global_quantities[k]
-            if !ismissing(gq, :torque_tor)
-                tinj += gq.torque_tor
-                found_tinj = true
-            end
-        end
-    end
-    if !tinj_set && found_tinj
-        _set!("tinj", tinj)
-    elseif !tinj_set
-        # Σ_units P R_tang / v_beam × direction, full-energy component (window mean of
-        # the launched power, like pinj). Good to ~10 % against the model torque.
-        v = _nbi_torque_estimate(dd, _window_mean, _interp_at)
-        v === nothing || _set!("tinj", v)
-    end
-
-    # bt — signed vacuum toroidal field at `time` for both paths
-    # (b0's time coordinate is dd.equilibrium.time, resolved by get_time_array)
-    let vtf = dd.equilibrium.vacuum_toroidal_field
-        if !ismissing(vtf, :b0) && !isempty(vtf.b0)
-            v = try
-                IMAS.get_time_array(vtf, :b0, time, :constant)
-            catch
-                time <= dd.equilibrium.time[1] ? vtf.b0[1] : vtf.b0[end]
-            end
-            _set!("bt", v)
         end
     end
 
@@ -784,6 +837,10 @@ time is rewound. `par.nn_warmup_time` replays the actuators from that time on
 the first call so a mid-shot start does not begin from a cold state (the model
 needs ~1 s to settle from zeros).
 
+The H-mode gate defaults to enter > 0.7, leave < 0.3 (`nn_hmode_enter` /
+`nn_hmode_exit` override it). Every tick is also recorded in
+`dd._aux[:pedestal_nn_history]` (see [`pedestal_nn_history`](@ref)).
+
 `nn_prediction` fields: `ne` (1e19 m⁻³), `te_ped`, `ti_ped` (keV), `t_rot_ped`
 (krad/s) — profile values at `rho_ref` = 0.85, valid in every regime;
 `neped_prmtan`, `teped_prmtan`, `rho_sym`, `ne_top_loc` — tanh-fit pedestal
@@ -794,11 +851,11 @@ function fuse29_predict!(actor::ActorPedestal)
     dd = actor.dd
     par = actor.par
 
-    if actor.nn_predictor === nothing
+    if !(actor.nn_predictor isa Fuse29NN)
         actor.nn_predictor = load_pedestal_nn()
         @info "ActorPedestal: loaded fuse29 pedestal predictor $(actor.nn_predictor)"
     end
-    nn = actor.nn_predictor
+    nn = actor.nn_predictor::Fuse29NN
     aux = getfield(dd, :_aux)
     # experimental dd kept aside by init!, still holding the PTDATA coil currents
     replay_dd = ismissing(actor.act.ActorReplay, :replay_dd) ? nothing : actor.act.ActorReplay.replay_dd
@@ -821,6 +878,7 @@ function fuse29_predict!(actor::ActorPedestal)
     end
     handoff = get(aux, :fuse29_handoff, t_now)
 
+    last_u = fill(NaN32, FUSE29_N_ACTUATORS)
     function actuators_at(t::Float64)
         # Warm-up (replay) steps read FUSE's own stored experimental traces even when
         # the live path is :zmq. GSLite pushes current values only, so `dd._aux` holds
@@ -842,12 +900,15 @@ function fuse29_predict!(actor::ActorPedestal)
         end
         exc = fuse29_in_distribution(nn, u)
         isempty(exc) || @debug "ActorPedestal: fuse29 actuators outside training p1..p99 at t=$t s" excursions = exc
+        last_u .= u
         return u
     end
 
-    pred, is_h, n = fuse29_advance!(tr, nn, t_now, actuators_at;
-                                    hmode_enter=Float64(par.nn_hmode_enter), hmode_exit=Float64(par.nn_hmode_exit))
+    enter = ismissing(par, :nn_hmode_enter) ? FUSE29_HMODE_ENTER : Float64(par.nn_hmode_enter)
+    exit = ismissing(par, :nn_hmode_exit) ? min(FUSE29_HMODE_EXIT, enter) : Float64(par.nn_hmode_exit)
+    pred, is_h, n = fuse29_advance!(tr, nn, t_now, actuators_at; hmode_enter=enter, hmode_exit=exit)
     actor.nn_prediction = fuse29_prediction(nn, pred, is_h; time=t_now, n_ticks=n)
+    pedestal_nn_record!(aux, :fuse29, nn.actuator_names, String[], nn.head_names, t_now, last_u, Float32[], pred, is_h, n)
     return actor
 end
 
@@ -855,7 +916,7 @@ end
     pedestal_nn_apply!(actor::ActorPedestal)
 
 When `par.ne_from == :nn_predictor` and `par.nn_ped_quantities == :all`, blend
-the fuse29-predicted edge temperatures and rotation into `cp1d` on top of
+the predicted (fuse29 or fuse_efit) edge temperatures and rotation into `cp1d` on top of
 whatever the underlying pedestal actor produced, so downstream consumers (and
 `_finalize`'s `dd.summary.local.pedestal` writes) reflect them.
 
