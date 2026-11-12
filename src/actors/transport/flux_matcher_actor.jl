@@ -1793,6 +1793,21 @@ function ad_flux_match_errors!(
             neoc_flux_solutions = map(ir -> NeoclassicalTransport.hirshmansigmar(ir, eqt_ad, cp1d_ad, plasma_profiles, eq_geom; rho_s, rmin), cp_gridpoints)
         elseif neoc_par.model == :changhinton
             neoc_flux_solutions = [NeoclassicalTransport.changhinton(eqt_ad, cp1d_ad, rho, 1) for rho in par.rho_transport]
+        elseif neoc_par.model == :yancc
+            # Reuse the flux surfaces (no profile dependence) and the caches of the primal actor: a cache holds
+            # the primal solution at its surface and the derivative solves of earlier chunks at the same profiles
+            geometry = actor_neoc.yancc_geometry
+            if ismissing(geometry) || geometry.gridpoints != cp_gridpoints
+                error("jacobian_method=:forward_ad with neoclassical model :yancc needs a primal evaluation first")
+            end
+            rho_s = GACODE.rho_s(cp1d_ad, eqt_ad)
+            rmin = GACODE.r_min_core_profiles(eqt_ad.profiles_1d, cp1d_ad.grid.rho_tor_norm)
+            neoc_flux_solutions = Vector{GACODE.FluxSolution{T}}(undef, length(cp_gridpoints))
+            Threads.@threads for k in eachindex(cp_gridpoints)
+                neoc_flux_solutions[k] = NeoclassicalTransport.yancc(cp_gridpoints[k], eqt_ad, cp1d_ad, geometry.fields[k];
+                    geometry.a, nx=neoc_par.yancc_nx, nalpha=neoc_par.yancc_nalpha, rtol=neoc_par.yancc_rtol,
+                    cache=actor_neoc.yancc_caches[k], rho_s, rmin)
+            end
         else
             error("jacobian_method=:forward_ad does not support neoclassical model :$(neoc_par.model)")
         end
