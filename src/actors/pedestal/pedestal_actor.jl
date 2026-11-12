@@ -490,26 +490,85 @@ function fuse29_coil_convention_check(nn::Fuse29NN, coils, aux)
     return msg
 end
 
-# injected torque from the beam geometry: Σ_units 2 P(t) R_tang / v_beam × direction. A beam of power P
-# carries momentum at the rate 2 P / v (P = Ṅ m v² / 2, force = Ṅ m v), as in ActorSimpleNB. All the power is
-# taken at the full energy, which leaves the estimate about 10 % low: on DIII-D 193190 it gives 2.13 N·m
-# where the measured injected torque (PTDATA bmstinj) is 2.34 N·m.
-function _nbi_torque_estimate(dd::IMAS.DD, window_mean::Function, interp_at::Function)
+# Momentum carried per watt by a beam unit, relative to all its power being at the full energy: Σ_k f_k √k
+# over the energy components k = 1, 2, 3 (energy E / k, speed v / √k). `fP` holds the unit's power fractions
+# and `fI` its current fractions, as (component, time) arrays or `nothing`, read at samples `jP` and `jI`.
+# The power fractions are used when that sample has them, else those implied by the current fractions
+# (P_k ∝ f_k / k), else 1.
+function _nbi_momentum_weight(fP, jP::Int, fI, jI::Int)
+    for (F, j, by_current) in ((fP, jP, false), (fI, jI, true))
+        (F === nothing || !(1 <= j <= size(F, 2))) && continue
+        total = 0.0
+        weighted = 0.0
+        usable = true
+        for k in axes(F, 1)
+            f = F[k, j]
+            if !(isfinite(f) && f >= 0.0)
+                usable = false
+                break
+            end
+            power = by_current ? f / k : f
+            total += power
+            weighted += power * sqrt(k)
+        end
+        usable && total > 0.0 && return weighted / total
+    end
+    return 1.0
+end
+
+# injected torque from the beam geometry, as a mean over the tick interval (time - period, time] of
+# Σ_units Σ_k 2 P_k R_tang / v_k × direction, over the energy components k. A beam of power P carries
+# momentum at the rate 2 P / v (P = Ṅ m v² / 2, force = Ṅ m v), as in ActorSimpleNB.
+#
+# This is what DIII-D's injected-torque signal (PTDATA bmstinj, the trained input) measures: in flat-top it
+# reads 2.07 N·m on 193190 and 6.38 N·m on 199055, and this estimate gives 2.09 N·m and 5.85 N·m (the
+# launched power in `dd` is 7 % above and 6 % below PTDATA's on those shots). With all the power at the full
+# energy it would be 1.86 N·m and 5.18 N·m.
+#
+# Energy and fractions are read sample by sample, not at `time`: DIII-D beams are chopped, and the stored
+# energy and fractions of a beam are zero while it is off, so one sample taken in an off phase would drop a
+# beam that delivered power during the interval.
+function _nbi_torque_estimate(dd::IMAS.DD, time::Float64, period::Float64)
     tinj = 0.0
     found = false
+    fraction_data(field) = (ismissing(field, :data) || isempty(field.data)) ? nothing : field.data
     for unit in dd.nbi.unit
         (ismissing(unit.power_launched, :data) || isempty(unit.power_launched.data)) && continue
         (ismissing(unit.energy, :data) || isempty(unit.energy.data)) && continue
         isempty(unit.beamlets_group) && continue
         bg = unit.beamlets_group[1]
         ismissing(bg, :tangency_radius) && continue
-        P = window_mean(unit.power_launched.time, unit.power_launched.data)
-        E = interp_at(unit.energy.time, unit.energy.data, :constant)
-        (P === nothing || E === nothing || E <= 0.0) && continue
+        tP, P = unit.power_launched.time, unit.power_launched.data
+        tE, E = unit.energy.time, unit.energy.data
+        (isempty(tP) || length(tP) != length(P) || length(tE) != length(E)) && continue
+        E_peak = maximum(E)
+        E_peak > 0.0 || continue
         A = ismissing(unit.species, :a) ? 2.0 : unit.species.a
-        vb = sqrt(2.0 * E * IMAS.mks.e / (A * IMAS.mks.m_u)) # energy in eV
         dir = ismissing(bg, :direction) ? 1 : (bg.direction == 0 ? 1 : sign(bg.direction))
-        tinj += 2.0 * P / vb * bg.tangency_radius * dir
+        fP = fraction_data(unit.beam_power_fraction)
+        fI = fraction_data(unit.beam_current_fraction)
+        nP = fP === nothing ? 0 : size(fP, 2)
+        nI = fI === nothing ? 0 : size(fI, 2)
+        tfP = (nP == 0 || ismissing(unit.beam_power_fraction, :time)) ? Float64[] : unit.beam_power_fraction.time
+        tfI = (nI == 0 || ismissing(unit.beam_current_fraction, :time)) ? Float64[] : unit.beam_current_fraction.time
+        # sample of another trace (n samples at times tx) that goes with power sample i
+        at(tx, n, i) = n == length(tP) ? i : (length(tx) == n ? clamp(searchsortedlast(tx, tP[i]), 1, n) : clamp(i, 1, n))
+
+        i1 = searchsortedlast(tP, time - period) + 1
+        i2 = searchsortedlast(tP, time)
+        if i2 < i1   # no sample in the interval: the latest one at or before `time` (the first one before the record starts)
+            i1 = i2 = clamp(i2, 1, length(tP))
+        end
+        acc = 0.0
+        for i in i1:i2
+            P[i] > 0.0 || continue
+            Ei = E[at(tE, length(E), i)]
+            Ei > 0.0 || (Ei = E_peak)
+            vb = sqrt(2.0 * Ei * IMAS.mks.e / (A * IMAS.mks.m_u)) # energy in eV
+            weight = _nbi_momentum_weight(fP, nP == 0 ? 0 : at(tfP, nP, i), fI, nI == 0 ? 0 : at(tfI, nI, i))
+            acc += 2.0 * P[i] / vb * bg.tangency_radius * dir * weight
+        end
+        tinj += acc / (i2 - i1 + 1)
         found = true
     end
     return found ? tinj : nothing
@@ -569,7 +628,7 @@ source appear in the result:
 | key | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6, window mean |
-| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]`; fallbacks as `:dd` | Σ NBI `core_sources` `torque_tor` within one tick of `time`; else Σ `dd.nbi.unit[]` 2 P R_tang / v_beam × direction |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]`; else Σ NBI `core_sources` `torque_tor` within one tick of `time`; else the beam geometry as `:dd` | injected torque from the beam geometry, Σ `dd.nbi.unit[]` Σ_k 2 P_k R_tang / v_k × direction over the energy components (window mean of the launched power); without beam data, Σ NBI `core_sources` `torque_tor` within one tick of `time` |
 | `ech` | MW | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6, window mean |
 | `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | `dd.gas_injection.valve[]` named `GASA..GASE`, `flow_rate` (Pa·m³/s → Torr·L/s, window mean) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
@@ -585,7 +644,6 @@ function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float6
         return
     end
     _window_mean(t, y) = _nn_window_mean(t, y, time, period)
-    _interp_at(t, y, scheme) = _nn_interp_at(t, y, time, scheme)
 
     if source == :dd
         # pinj — total NBI power from pulse_schedule (W -> MW)
@@ -645,12 +703,15 @@ function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float6
         error("pedestal NN inputs: source must be :zmq or :dd, got $(repr(source))")
     end
 
-    # tinj — in :zmq mode prefer the measured injected torque streamed by
-    # GSLite (dd._aux[:zmq_tinj_per_beam], summed over beams); otherwise fall
-    # back to the model torque from core_sources (NBI identifier index = 2).
-    # The beam actor itself is never rescaled: its energy/particles/current/
-    # momentum outputs stay mutually consistent, and only this NN input is
-    # pinned to the measurement.
+    # tinj — the *injected* torque, which is what the models were trained on (PTDATA bmstinj). In :zmq mode
+    # that is the measured value streamed by GSLite (dd._aux[:zmq_tinj_per_beam], summed over beams), with
+    # the model torque in core_sources (NBI identifier index = 2) and then the beam geometry as fallbacks,
+    # as before. In :dd mode it is the beam-geometry estimate from the launched power first, which follows
+    # the measurement to +1 % (193190) and -8 % (199055), and the model torque only without beam data: that
+    # is the torque the beam actor deposits, and on 199055 it was 16 % to 22 % above bmstinj, enough to
+    # raise the predicted pedestal rotation by 2 to 4 krad/s in both models.
+    # The beam actor itself is never rescaled: its energy/particles/current/momentum outputs stay mutually
+    # consistent, and only this NN input is pinned to the injected torque.
     tinj_set = false
     if source == :zmq
         let v = _nn_aux_value_at(aux, :zmq_tinj_per_beam, time)
@@ -660,10 +721,17 @@ function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float6
             end
         end
     end
+    if !tinj_set && source == :dd
+        v = _nbi_torque_estimate(dd, time, period)
+        if v !== nothing
+            _set!("tinj", v)
+            tinj_set = true
+        end
+    end
     # Model torque only when core_sources were computed within one tick of `time`:
     # on an experimental dd straight from init! they exist at simulation_start only,
     # and holding that value for the whole shot (0.11 N m on 200000 with 3.5 MW of
-    # beams) is worse than the beam-geometry estimate below.
+    # beams) would be far off.
     tinj = 0.0
     found_tinj = false
     for src in dd.core_sources.source
@@ -681,9 +749,7 @@ function _pedestal_nn_common_actuators(dd::IMAS.DD; source::Symbol, time::Float6
     if !tinj_set && found_tinj
         _set!("tinj", tinj)
     elseif !tinj_set
-        # Σ_units 2 P R_tang / v_beam × direction, all power at the full energy (window mean of
-        # the launched power, like pinj).
-        v = _nbi_torque_estimate(dd, _window_mean, _interp_at)
+        v = _nbi_torque_estimate(dd, time, period)
         v === nothing || _set!("tinj", v)
     end
 
@@ -719,7 +785,7 @@ standard IMAS fields (no ZMQ required).
 | channel | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
-| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick); else Σ `dd.nbi.unit[]` 2 P R_tang / v_beam × direction (window mean) |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallbacks: model `torque_tor`, then the beam geometry) | injected torque from the beam geometry, Σ `dd.nbi.unit[]` Σ_k 2 P_k R_tang / v_k × direction over the energy components (window mean of the launched power); without beam data, Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities` `torque_tor` at `time` (within one tick) |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
 | `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored (the IMAS per-turn current is the PTDATA signal; see the convention note) |
 | `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB`, as stored |

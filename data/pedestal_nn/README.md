@@ -139,7 +139,7 @@ Things to know (from the model's own documentation):
 cd FUSE
 julia --project test/test_pedestal_nn_predictor.jl   # contract, reference-shot replay, tracker semantics
 julia --project test/smoke_pedestal_nn_shot.jl       # synthetic shot through the ZMQ actuator path
-julia --project test/test_pedestal_nn_dd_actuators.jl  # :dd actuators, coil convention, torque fallback
+julia --project test/test_pedestal_nn_dd_actuators.jl  # :dd actuators, coil convention, injected torque
 julia --project test/test_pedestal_nn_efit.jl          # fuse_efit: contract, reference-shot replay, masking, tracker
 julia --project test/test_pedestal_nn_efit_inputs.jl   # fuse_efit: boundary-shape inputs on analytic equilibria, input builder
 ```
@@ -217,9 +217,41 @@ standard deviation):
 | `bt` | 0.03 σ | 2.5 % smaller than PTDATA `bt` (the equilibrium's vacuum field) |
 | `rvsout` | 0.07 σ | 9 mm outboard of EFIT's |
 | `vloop` | 0.08 σ | dψ_boundary/dt against the measured loop voltage, correlation 0.83 |
-| `tinj` | 0.08 σ | beam-geometry estimate, 9 % low |
+| `pinj` | 7 % high | the launched power in the data FUSE loads against PTDATA `bmspinj` (the training spread of `pinj` is set by outliers, so no σ is given) |
+| `tinj` | 0.12 σ | beam-geometry estimate, 10 % high: the torque per watt is within 3 %, the rest is the power |
 | `zeta_ou`, `zeta_ol` | 0.28 σ, 0.15 σ | the resolution bias of the discrete-vertex squareness (0.016): FUSE's traced boundary has 150-180 points, EFIT01's about 90 |
 | `gasa_cal` … `gase_cal` | not available | the DIII-D data export has no gas-valve flows |
+
+**Beam torque.** `tinj` is the *injected* torque (PTDATA `bmstinj`). With
+`fpe_source = :dd` FUSE computes it from the beam geometry and the launched
+power, Σ 2 P R_tang / v over the beams and their three energy components,
+averaged over the 50 ms tick; the torque the beam actor deposits in
+`core_sources` is used only when the `dd` has no beam data. Against PTDATA the
+estimate is 5 % high on 193190 and 5 % low on 199055 over a run, which is the
+difference in launched power on those shots (+6 % and −7 %). The beam actor's
+torque is the deposited one, not the injected one, and was 12 % high on 199055
+(16 % after 2.5 s). With the estimate in its place the rotation predicted after
+2.5 s on 199055 went from 17.6 to 15.4 krad/s for fuse29 (measured 15.3) and
+from 31.4 to 27.8 krad/s for fuse_efit on the replayed state.
+
+**Upper strike points of a lower-single-null plasma.** When the upper X-point is
+the secondary one, FUSE reports its two strike points whenever its separatrix is
+within 0.4 m of the boundary at the midplane. EFIT01 does not. Over 89 DIII-D
+shots (8,182 slices with a secondary upper X-point) it reports them on nearly
+all slices when the separatrices are within 1 cm of each other, on about 80 % at
+1 cm to 3 cm, on 60 % at 3 cm to 5 cm and almost never beyond 6 cm, and no
+geometric quantity tried (separation, X-point height, distance to the wall)
+predicts which slices on better than 81 %: EFIT follows the second separatrix
+from the midplane, and whether its contour tracer gets past the X-point decides
+the outcome. EFIT01 also loses the upper X-point itself on some slices when it
+is within a few centimetres of the wall, and then stores a saturated `drsep`.
+Where EFIT01 does find it, FUSE's X-point and `drsep` agree with it to 1 mm.
+On DIII-D 199055 (`drsep` between −0.04 m and −0.07 m) FUSE had
+`rvsou_present = 1` on 72 of 74 ticks and EFIT01 on 13; with EFIT01's flags and
+`drsep` the rotation predicted after 2.5 s is 7 krad/s lower (20.7 krad/s,
+measured 15.3).
+The lower strike points of an upper-single-null plasma are not affected: EFIT01
+reports them on every slice.
 
 **Gas valves.** With `fpe_source = :dd` the experimental `dd` carries no gas
 flows (the OMAS DIII-D mapping covers the valve hardware only), so fuse_efit is
@@ -230,17 +262,17 @@ median. With `fpe_source = :zmq` they arrive from GSLite.
 of FUSE's own equilibrium. When the equilibrium solver does not converge on a
 step, FUSE keeps the previous equilibrium and the shape inputs lag by that
 step; the plasma current does not (it comes from the current-diffusion
-solution). On DIII-D 199055 this held the shape for 18 consecutive ticks of the
-current ramp (0.44 s to 1.28 s).
+solution). On DIII-D 199055 this held the shape for 13 consecutive ticks of the
+current ramp (0.44 s to 1.03 s).
 
 **Simulated or measured state.** With `:simulation` the Shafranov shift and the
 loop voltage are those of the simulated plasma, so they carry the simulation's
 own pressure and resistivity, and the predicted pedestal feeds back on its own
 inputs. On DIII-D 193190 the simulated flat-top Shafranov shift was 0.07 m
 where EFIT01 has 0.06 m (0.036 m after 3.5 s), and the simulated loop voltage
-0.22 V to 0.33 V where the replayed one is 0.30 V to 0.47 V. That was enough to
-change the prediction: the `:simulation` run had an RMSE of 0.170 keV on
-`te_ped` and 0.239 keV on `ti_ped`, the `:replay` run 0.069 keV and 0.119 keV.
+0.22 V to 0.37 V where the replayed one is 0.34 V to 0.43 V. That was enough to
+change the prediction: the `:simulation` run had an RMSE of 0.172 keV on
+`te_ped` and 0.247 keV on `ti_ped`, the `:replay` run 0.070 keV and 0.123 keV.
 Feeding the model the recorded `:simulation` inputs offline with only these two
 channels replaced by the replayed values gave the same predictions as the full
 set of `:replay` inputs; the
