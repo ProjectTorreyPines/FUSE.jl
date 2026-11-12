@@ -230,7 +230,22 @@ median. With `fpe_source = :zmq` they arrive from GSLite.
 of FUSE's own equilibrium. When the equilibrium solver does not converge on a
 step, FUSE keeps the previous equilibrium and the shape inputs lag by that
 step; the plasma current does not (it comes from the current-diffusion
-solution).
+solution). On DIII-D 199055 this held the shape for 18 consecutive ticks of the
+current ramp (0.44 s to 1.28 s).
+
+**Simulated or measured state.** With `:simulation` the Shafranov shift and the
+loop voltage are those of the simulated plasma, so they carry the simulation's
+own pressure and resistivity, and the predicted pedestal feeds back on its own
+inputs. On DIII-D 193190 the simulated flat-top Shafranov shift was 0.07 m
+where EFIT01 has 0.06 m (0.036 m after 3.5 s), and the simulated loop voltage
+0.22 V to 0.33 V where the replayed one is 0.30 V to 0.47 V. That was enough to
+change the prediction: the `:simulation` run had an RMSE of 0.170 keV on
+`te_ped` and 0.239 keV on `ti_ped`, the `:replay` run 0.069 keV and 0.119 keV.
+Feeding the model the recorded `:simulation` inputs offline with only these two
+channels replaced by the replayed values gave the same predictions as the full
+set of `:replay` inputs; the
+other shape channels, `ip` and `tinj` made no difference. Use
+`nn_state_source = :replay` to judge the model apart from the simulation.
 
 ### Artefacts
 
@@ -270,6 +285,8 @@ FUSE.plot_pedestal_nn_comparison("runs/D3D_199055__…__fuse29", "runs/D3D_19905
 `compare_pedestal_nn_runs` prints the RMSE of each head against the experiment
 on the ticks both runs share; `plot_pedestal_nn_comparison` draws the same heads
 against the experimental points, with each model's H-mode probability and gate.
+For two runs of the same model, name them with `labels`, e.g.
+`labels=("simulation", "replay")` for two `nn_state_source` settings.
 
 The model tag is appended to each run's folder name. The same record is
 available in memory as `FUSE.pedestal_nn_history(dd)` after any run.

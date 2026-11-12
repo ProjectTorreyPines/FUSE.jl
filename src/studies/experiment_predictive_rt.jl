@@ -462,7 +462,7 @@ function pedestal_nn_validation(dd::IMAS.DD, dd_exp::IMAS.DD; rho::Float64=0.85,
 end
 
 """
-    compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; verbose=true)
+    compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; labels=nothing, verbose=true)
 
 Side-by-side comparison of two `StudyPredictiveRT` runs of the same shot made
 with different pedestal predictors (typically `nn_model = :fuse29` and
@@ -473,8 +473,12 @@ Returns a dictionary with, per run, the model name and the RMSE of `ne`,
 run's own ticks (`rmse`) and on the ticks the two runs share (`rmse_common`) —
 plus `hmode_agreement`, the fraction of shared ticks on which the two models'
 H-mode gates agree, and `n_common`.
+
+`labels` names the two runs in the printed table (default: each run's model
+name); give it when both runs use the same model, e.g.
+`labels=("simulation", "replay")` for two `nn_state_source` settings.
 """
-function compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; verbose::Bool=true)
+function compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; labels=nothing, verbose::Bool=true)
     function load(dir)
         path = isdir(dir) ? joinpath(dir, "pedestal_nn.json") : dir
         isfile(path) || error("compare_pedestal_nn_runs: $path not found (was the run made with ne_from=:nn_predictor?)")
@@ -513,7 +517,8 @@ function compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; 
         fmt(v) = v === nothing ? "      n/a" : @sprintf("%9.4f", v)
         units = Dict("ne" => "1e19 m^-3", "te_ped" => "keV", "ti_ped" => "keV", "t_rot_ped" => "krad/s")
         println("RMSE against the experiment at rho = $(a["rho"]) on the $(length(pairs)) ticks both runs share")
-        @printf("%-10s %-10s %12s %12s\n", "head", "units", result["a"]["model"], result["b"]["model"])
+        names = _pedestal_nn_run_labels(a, b, labels)
+        @printf("%-10s %-10s %12s %12s\n", "head", "units", names[1], names[2])
         for h in heads
             println(@sprintf("%-10s %-10s", h, units[h]), "    ", fmt(result["a"]["rmse_common"][h]), "    ", fmt(result["b"]["rmse_common"][h]))
         end
@@ -522,8 +527,19 @@ function compare_pedestal_nn_runs(dir_a::AbstractString, dir_b::AbstractString; 
     return result
 end
 
+# Names of two runs in tables and legends: `labels` when given, otherwise the model names (told apart when equal).
+function _pedestal_nn_run_labels(a, b, labels)
+    if labels !== nothing
+        length(labels) == 2 || error("labels must name the two runs, got $(length(labels)) entries")
+        return [string(labels[1]), string(labels[2])]
+    end
+    names = [string(a["model"]), string(b["model"])]
+    names[1] == names[2] && (names = ["run 1", "run 2"])
+    return names
+end
+
 """
-    plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString; savefig=nothing, title="")
+    plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString; labels=nothing, savefig=nothing, title="")
 
 Figure for two `StudyPredictiveRT` runs of the same shot made with different
 pedestal predictors, from the `pedestal_nn.json` each run saved: one panel per
@@ -532,10 +548,14 @@ head that has an experimental counterpart (`ne`, `te_ped`, `ti_ped`,
 RMSE in the panel title), the H-mode probability of each model, and the state of
 each model's H-mode gate.
 
+`labels` names the two runs in the legend and the panel titles (default: each
+run's model name); give it when both runs use the same model, e.g.
+`labels=("simulation", "replay")` for two `nn_state_source` settings.
+
 `savefig` is a file name (`.png`, `.pdf`, ...) to write the figure to. Returns
 the plot.
 """
-function plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString;
+function plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractString; labels=nothing,
                                      savefig::Union{Nothing,AbstractString}=nothing, title::AbstractString="")
     function load(dir)
         path = isdir(dir) ? joinpath(dir, "pedestal_nn.json") : dir
@@ -552,8 +572,7 @@ function plot_pedestal_nn_comparison(dir_a::AbstractString, dir_b::AbstractStrin
     num(v) = v === nothing ? NaN : Float64(v)
     reference = runs[argmax([length(run["time"]) for run in runs])]
     rho = reference["rho"]
-    names = [run["model"] for run in runs]
-    names[1] == names[2] && (names = ["$(names[1]) (first run)", "$(names[2]) (second run)"])
+    names = _pedestal_nn_run_labels(runs[1], runs[2], labels)
 
     common = (; xlabel="time [s]", gridalpha=0.15, legend=false, titlefontsize=9, guidefontsize=9, tickfontsize=8, titlelocation=:left)
 
