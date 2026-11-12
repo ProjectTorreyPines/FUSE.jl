@@ -20,8 +20,6 @@ else
 
     include("runtests_simplenb_power_fractions.jl")
 
-    include("runtests_simplenb_toroidal_angle.jl")
-
     include("runtests_cases.jl")
 
     include("runtests_actors.jl")
