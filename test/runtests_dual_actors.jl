@@ -193,9 +193,26 @@ end
     end
 end
 
-@testset "TEQUILA refuses duals" begin
+@testset "TEQUILA equilibrium with duals" begin
     a = deepcopy(act)
     a.ActorEquilibrium.model = :TEQUILA
+    a.ActorTEQUILA.solver = :veq
+    a.ActorTEQUILA.tolerance = 1e-10 # converged values keep the finite differences below their noise
+    run!(dd) = (FUSE.ActorEquilibrium(dd, a; ip_from=:core_profiles); dd)
+    out(dd) = (g = dd.equilibrium.time_slice[].global_quantities; [g.beta_normal, g.beta_pol, g.magnetic_axis.r])
+    dd = seeded(dd0)
+    run!(dd)
+    y = out(dd)
+    @test all(v -> all(isfinite, partials(v)), y)
+    @test value.(y) ≈ out(run!(deepcopy(dd0))) rtol = 1e-6
+    h = 0.01
+    for k in 1:2
+        fd = (out(run!(perturbed(dd0, k, +h))) .- out(run!(perturbed(dd0, k, -h)))) ./ (2h)
+        @test partials.(y, k) ≈ fd rtol = 0.02
+    end
+
+    # the Picard solver does not propagate derivatives
+    a.ActorTEQUILA.solver = :picard
     @test_throws ArgumentError FUSE.ActorEquilibrium(seeded(dd0), a; ip_from=:core_profiles)
 end
 
