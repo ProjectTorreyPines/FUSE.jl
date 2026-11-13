@@ -22,16 +22,32 @@ end
         cp1d.ion[1].density = 1.5 .* n
         cp1d.ion[1].density_fast = zero(n)
         cp1d.ion[2].density_thermal = 0.1 .* n
+        for ion in cp1d.ion
+            ion.temperature = 1E3 .* (1.0 .- 0.5 .* rho)
+            # stored rotation is kept, a stored pressure is turned back into an expression
+            ion.rotation_frequency_tor = 1E4 .* (1.0 .- rho)
+            ion.pressure_thermal = fill(1.0, length(rho))
+        end
     end
     dd.core_profiles.time = [0.1, 0.2]
     dd.global_time = 0.2
     FUSE.restore_init_expressions!(dd; verbose=false)
+    # every ion of every time slice is treated the same way
     for cp1d in dd.core_profiles.profiles_1d
         @test IMAS.hasdata(cp1d.ion[1], :density_thermal)
+        @test !IMAS.hasdata(cp1d.ion[1], :density)
         @test cp1d.ion[1].density_thermal ≈ 1.5 .* n
         @test cp1d.ion[1].density ≈ 1.5 .* n
         @test cp1d.ion[2].density_thermal ≈ 0.1 .* n
+        for ion in cp1d.ion
+            @test IMAS.hasdata(ion, :rotation_frequency_tor)
+            @test ion.rotation_frequency_tor ≈ 1E4 .* (1.0 .- rho)
+            @test !IMAS.hasdata(ion, :pressure_thermal)
+        end
     end
-    # the first ion of the first slice is where the stored density used to be discarded
-    @test !IMAS.hasdata(dd.core_profiles.profiles_1d[1].ion[1], :density)
+    # without exceptions the stored rotation is turned back into an expression as well
+    FUSE.restore_init_expressions!(dd; verbose=false, keep=String[])
+    for cp1d in dd.core_profiles.profiles_1d, ion in cp1d.ion
+        @test !IMAS.hasdata(ion, :rotation_frequency_tor)
+    end
 end

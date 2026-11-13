@@ -37,14 +37,23 @@ function load_init_expressions()
 end
 
 """
-    restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
+    init_expressions_keep
 
-Turn into expressions Make fields that FUSE expects to be expressions after init
+Fields that `restore_init_expressions!` leaves as they are even though FUSE has expressions for them:
+an ion rotation stored in the input is data to be replayed, not recomputed from densities and pressures
+that change during a simulation.
+"""
+const init_expressions_keep = ["core_profiles.profiles_1d[:].ion[:].rotation_frequency_tor"]
+
+"""
+    restore_init_expressions!(dd::IMAS.DD; verbose::Bool, keep=init_expressions_keep)
+
+Turn into expressions the fields that FUSE expects to be expressions after init, except those listed in `keep`
 
 A species whose total `density` is stored while its `density_thermal` is derived from it gets `density_thermal`
 stored first, so that turning `density` back into an expression does not discard the only stored density.
 """
-function restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
+function restore_init_expressions!(dd::IMAS.DD; verbose::Bool, keep=init_expressions_keep)
     for cp1d in dd.core_profiles.profiles_1d
         for species in (cp1d.electrons, cp1d.ion...)
             if IMAS.hasdata(species, :density) && !IMAS.hasdata(species, :density_thermal)
@@ -54,7 +63,8 @@ function restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
     end
     restored_expressions = Set()
     for ulocation in load_init_expressions()
-        restored = IMAS.selective_delete!(dd, IMAS.i2p(ulocation))
+        ulocation in keep && continue
+        restored =IMAS.selective_delete!(dd, IMAS.i2p(ulocation))
         if restored
             push!(restored_expressions, ulocation)
         end
