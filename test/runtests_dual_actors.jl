@@ -193,6 +193,12 @@ end
     end
 end
 
+@testset "TEQUILA refuses duals" begin
+    a = deepcopy(act)
+    a.ActorEquilibrium.model = :TEQUILA
+    @test_throws ArgumentError FUSE.ActorEquilibrium(seeded(dd0), a; ip_from=:core_profiles)
+end
+
 @testset "ActorStationaryPlasma with duals" begin
     a = deepcopy(act)
     a.ActorPedestal.model = :none

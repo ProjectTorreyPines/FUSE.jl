@@ -78,6 +78,9 @@ end
 
 function ActorTEQUILA(dd::IMAS.DD{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
+    if D <: ForwardDiff.Dual
+        throw(ArgumentError("ActorTEQUILA does not support a Dual-typed dd: TEQUILA solves in Float64 with FFTW. Use ActorEquilibrium.model = :FRESCO to propagate derivatives through the equilibrium."))
+    end
     par = OverrideParameters(par; kw...)
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
