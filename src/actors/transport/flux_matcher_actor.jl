@@ -139,6 +139,7 @@ Evolution options per channel:
 Available nonlinear solver `algorithm` options:
 `:default`, `:basic_polyalg`, `:polyalg`, `:broyden`, `:anderson`, `:simple_trust`,
 `:simple_dfsane`, `:trust`, `:simple`, `:old_anderson`, `:newton` (Levenberg–Marquardt with the exact Jacobian of the full residual), `:custom`, `:none`.
+`:default` is `:simple_dfsane` for every transport model.
 On solver exception, the actor automatically falls back to `:simple_dfsane`.
 
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
@@ -315,23 +316,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN, :QLNN)
-            # combines speed and robustness, but needs smooth derivatives
-            # (:QLNN -> NN regressors + smooth TJLF saturation rule, no Fortran call)
-            :basic_polyalg
-        else
-            if jacobian_method === :forward_ad
-                # Use gradient-based method with exact Jacobian
-                :basic_polyalg
-            else
-                # derivative-free method
-                :simple_dfsane
-            end
-        end
-    else
-        par.algorithm
-    end
+    # derivative-free method: sufficient for every transport model, and much cheaper than chaining solvers
+    algorithm = par.algorithm === :default ? :simple_dfsane : par.algorithm
 
     autodiff = if jacobian_method === :forward_ad
         if par.ad_chunksize > 0

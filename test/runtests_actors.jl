@@ -16,6 +16,8 @@ using Test
     act.ActorFluxMatcher.algorithm = :anderson
     act.ActorTGLF.model = :TGLFNN
     FUSE.ActorFluxMatcher(dd, act)
+    act.ActorFluxMatcher.algorithm = :default
+    FUSE.ActorFluxMatcher(dd, act)
 end
 
 @testset "Mars Actor CHEASE run" begin
