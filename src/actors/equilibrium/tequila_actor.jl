@@ -79,6 +79,9 @@ end
 function ActorTEQUILA(dd::IMAS.DD{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = OverrideParameters(par; kw...)
+    if D <: ForwardDiff.Dual && par.solver !== :veq
+        throw(ArgumentError("ActorTEQUILA with a Dual-typed dd requires ActorTEQUILA.solver = :veq (the Picard solver does not propagate derivatives)"))
+    end
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
 
@@ -104,6 +107,8 @@ KDEMO CI failure — so the check samples the interpolated ψ map itself, the
 same field tracing sees.
 """
 function assert_tequila_shot_valid(shot::TEQUILA.Shot)
+    # the checks only look at values (dual point evaluations are much more expensive)
+    eltype(shot.surfaces) <: ForwardDiff.Dual && return assert_tequila_shot_valid(TEQUILA.value_shot(shot))
     ψnodal = @views shot.C[2:2:end, 1] # nodal ψ on the shot radial grid (as read by _finalize)
     all(isfinite, ψnodal) || error("TEQUILA solve returned non-finite ψ")
     ψa, ψb = ψnodal[1], ψnodal[end]
@@ -159,6 +164,22 @@ function assert_tequila_shot_valid(shot::TEQUILA.Shot)
 end
 
 """
+    _tequila_fe(rho, y)
+
+TEQUILA finite-element profile of `y` sampled at `rho`. With duals the element
+grid is the value of `rho` and the motion of the sample points is folded into
+the partials of the samples, y(ρᵥ) = y − y′·(ρ − ρᵥ) to first order, so the
+profile seen by TEQUILA is the same function of ρ.
+"""
+_tequila_fe(rho::AbstractVector{<:Real}, y::AbstractVector{<:Real}) = TEQUILA.FE(rho, y)
+function _tequila_fe(rho::AbstractVector{<:ForwardDiff.Dual}, y::AbstractVector{<:Real})
+    ρv = dual_values(rho)
+    fe = TEQUILA.FE(ρv, y)
+    dy = [TEQUILA.D(fe, x) for x in ρv]
+    return TEQUILA.FE(ρv, y .- dy .* (rho .- ρv))
+end
+
+"""
     _step(actor::ActorTEQUILA)
 
 Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
@@ -176,19 +197,16 @@ function _step(actor::ActorTEQUILA)
 
     Ip_target = eqt.global_quantities.ip
     if par.fixed_grid === :poloidal
-        rho = sqrt.(eqt1d.psi_norm)
+        rho = IMAS.sqrt0.(eqt1d.psi_norm)
         rho[1] = D(0.0)
-        P = (TEQUILA.FE(rho, eqt1d.pressure), :poloidal)
-        # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eqt1d.j_tor]), :poloidal)
-        Pbnd = eqt1d.pressure[end]
     elseif par.fixed_grid === :toroidal
         rho = eqt1d.rho_tor_norm
-        P = (TEQUILA.FE(rho, eqt1d.pressure), :toroidal)
-        # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eqt1d.j_tor]), :toroidal)
-        Pbnd = eqt1d.pressure[end]
     end
+    # don't allow current to change sign
+    jt = D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eqt1d.j_tor]
+    P = (_tequila_fe(rho, eqt1d.pressure), par.fixed_grid)
+    Jt = (_tequila_fe(rho, jt), par.fixed_grid)
+    Pbnd = eqt1d.pressure[end]
 
     Fbnd = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
 
@@ -205,8 +223,12 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     function fresh_boundary_shot()
-        pr = eqt.boundary.outline.r
-        pz = eqt.boundary.outline.z
+        # the MXH fit is a Float64 least-squares fit: the boundary shape carries no derivatives
+        if D <: ForwardDiff.Dual && any(x -> !iszero(ForwardDiff.partials(x)), [eqt.boundary.outline.r; eqt.boundary.outline.z])
+            @warn "ActorTEQUILA: the plasma boundary carries derivatives, which TEQUILA drops (fixed boundary shape)" maxlog = 1
+        end
+        pr = dual_values(eqt.boundary.outline.r)
+        pz = dual_values(eqt.boundary.outline.z)
         ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
         pr, pz = limit_curvature(pr, pz, ab / 20.0)
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
@@ -247,6 +269,8 @@ function _step(actor::ActorTEQUILA)
                 assert_tequila_shot_valid(actor.shot)
             catch e
                 isa(e, InterruptException) && rethrow(e)
+                # the Picard fallback cannot carry derivatives
+                rethrow_if_dual(D, e)
                 veq_error = e
             end
             if veq_error !== nothing
@@ -263,10 +287,12 @@ function _step(actor::ActorTEQUILA)
             assert_tequila_shot_valid(actor.shot)
         end
     catch e
-        plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:circle, aspect_ratio=:equal)
-        display(plot!(IMAS.MXH(actor.shot.surfaces[:, end])))
-        display(plot(rho, eqt1d.pressure; marker=:circle, xlabel="ρ", title="Pressure [Pa]"))
-        display(plot(rho, eqt1d.j_tor; marker=:circle, xlabel="ρ", title="Jtor [A]"))
+        if !(D <: ForwardDiff.Dual) # diagnostics plots are not meant for dual numbers
+            plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:circle, aspect_ratio=:equal)
+            display(plot!(IMAS.MXH(actor.shot.surfaces[:, end])))
+            display(plot(rho, eqt1d.pressure; marker=:circle, xlabel="ρ", title="Pressure [Pa]"))
+            display(plot(rho, eqt1d.j_tor; marker=:circle, xlabel="ρ", title="Jtor [A]"))
+        end
         rethrow(e)
     end
 
@@ -381,7 +407,9 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
 
         VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)
 
-        pf_current_limits(dd.pf_active, dd.build)
+        # coil current limits are engineering data with no dependence on the differentiated inputs;
+        # the material models are Float64-only, so a Dual dd skips them (as the FRESCO path does)
+        D <: ForwardDiff.Dual || pf_current_limits(dd.pf_active, dd.build)
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain

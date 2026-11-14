@@ -187,6 +187,7 @@ function _finalize(actor::ActorEquilibrium)
                 display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             end
             isa(e, InterruptException) && rethrow(e)
+            rethrow_if_dual(eltype(dd), e)
             # a converged solve can still write a psi map whose contour walk
             # runs off the grid (observed: BoundsError [66,65]/[0,65] in
             # contour_from_midplane! on GSLite-coupled shots); with the
@@ -283,7 +284,7 @@ function prepare(actor::ActorEquilibrium)
         @assert !ismissing(eqt1d, :psi) "ActorEquilibrium: j_p_from=:equilibrium but the last equilibrium time slice has no profiles (vacuum-only slice?)"
         psi0 = eqt1d.psi
         rho_tor_norm0 = eqt1d.rho_tor_norm
-        rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
+        rho_pol_norm_sqrt0 = IMAS.sqrt0.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
         if !issorted(rho_pol_norm_sqrt0)
@@ -376,8 +377,8 @@ function prepare(actor::ActorEquilibrium)
     eqt1d = dd.equilibrium.time_slice[].profiles_1d
     eqt1d.psi = psi0
     eqt1d.rho_tor_norm = rho_tor_norm0
-    eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
-    eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
+    eqt1d.j_tor = j_itp.(IMAS.sqrt0.(eqt1d.psi_norm))
+    eqt1d.pressure = p_itp.(IMAS.sqrt0.(eqt1d.psi_norm))
 
     # calculate pressure and j_tor using geometry from previous iteration
     # this is for equilibrium codes that cannot solve directly from pressure and current

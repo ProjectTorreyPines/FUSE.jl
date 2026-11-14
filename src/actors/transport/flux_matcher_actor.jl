@@ -29,12 +29,13 @@ import NonlinearSolve, FixedPointAcceleration
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Rotation `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=false)
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
+    consistent_fast_pressure::Entry{Bool} = Entry{Bool}("-", "Refresh the total pressure after the sources (and with them the fast-ion pressure) are updated within each evaluation of the flux-matching residual. When false the transport model sees the fast-ion pressure of the previous evaluation, so the residual depends on the order in which it is evaluated"; default=false)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=0)
     xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
         Switch{Symbol}(
-            [:default, :basic_polyalg, :polyalg, :broyden, :anderson, :simple_trust, :simple_dfsane, :trust, :simple, :old_anderson, :custom, :none],
+            [:default, :basic_polyalg, :polyalg, :broyden, :anderson, :simple_trust, :simple_dfsane, :trust, :simple, :old_anderson, :newton, :custom, :none],
             "-",
             "Optimizing algorithm used for the flux matching";
             default=:default
@@ -111,6 +112,9 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     error::D
     err_history::Vector{Vector{D}}
     soft_failures::Dict{Symbol,Int}   # counts of the soft-fail paths below, so a completed run cannot hide them
+    ad_info::Dict{Symbol,Float64}     # diagnostics of the implicit derivative of the solution (only filled for Dual element types)
+    z_solution::Vector{Float64}       # scaled unknowns of the last solution
+    reuse_solution::Bool              # skip the solver and take `z_solution` as the solution (used to iterate derivative parts at a fixed solution)
 end
 
 """
@@ -134,7 +138,8 @@ Evolution options per channel:
 
 Available nonlinear solver `algorithm` options:
 `:default`, `:basic_polyalg`, `:polyalg`, `:broyden`, `:anderson`, `:simple_trust`,
-`:simple_dfsane`, `:trust`, `:simple`, `:old_anderson`, `:custom`, `:none`.
+`:simple_dfsane`, `:trust`, `:simple`, `:old_anderson`, `:newton` (Levenberg–Marquardt with the exact Jacobian of the full residual), `:custom`, `:none`.
+`:default` is `:simple_dfsane` for every transport model.
 On solver exception, the actor automatically falls back to `:simple_dfsane`.
 
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
@@ -164,7 +169,7 @@ function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}())
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}(), Dict{Symbol,Float64}(), Float64[], false)
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -222,6 +227,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.intrinsic_sources!(dd; modify_electron_density)
     catch e
         isa(e, InterruptException) && rethrow(e)
+        rethrow_if_dual_type_error(D, e)
         # cold/low-power coupled regimes: thermalization_time blows up and the
         # fast-ion bookkeeping can transiently produce density-scale negatives
         # inside fast_particles_profiles! (critical_energy x^y DomainError).
@@ -284,9 +290,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
+    # the nonlinear solver always iterates on plain floats: with a Dual element type the residual is
+    # evaluated on the Dual dd and only its value part is handed to the solver, so the iterates are
+    # those of a Float64 run. The derivatives of the solution are added afterwards (flux_match_implicit)
     if ismissing(par, :scale_turbulence_law)
-        opt_parameters = z_init_scaled
+        opt_parameters = dual_values(z_init_scaled)
     else
+        @assert !(D <: ForwardDiff.Dual) "scale_turbulence_law is not supported with a Dual-typed dd"
         opt_parameters = [1.0; z_init_scaled]
     end
 
@@ -306,25 +316,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN, :QLNN)
-            # combines speed and robustness, but needs smooth derivatives
-            # (:QLNN -> NN regressors + smooth TJLF saturation rule, no Fortran call)
-            :basic_polyalg
-        else
-            if jacobian_method === :forward_ad
-                # Use gradient-based method with exact Jacobian
-                :basic_polyalg
-            else
-                # derivative-free method
-                :simple_dfsane
-            end
-        end
-    else
-        par.algorithm
-    end
+    # derivative-free method: sufficient for every transport model, and much cheaper than chaining solvers
+    algorithm = par.algorithm === :default ? :simple_dfsane : par.algorithm
 
-    autodiff = if (D <: ForwardDiff.Dual) || jacobian_method === :forward_ad
+    autodiff = if jacobian_method === :forward_ad
         if par.ad_chunksize > 0
             NonlinearSolve.ADTypes.AutoForwardDiff(; chunksize=par.ad_chunksize)
         else
@@ -343,9 +338,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         max_iterations = 500
     end
 
+    # unknowns of the most recent residual evaluation made by the solver (used with a Dual element type)
+    last_evaluated = Ref{Vector{Float64}}(Float64[])
+
+    reuse_solution = actor.reuse_solution && length(actor.z_solution) == length(opt_parameters)
+
     res = try
-        if algorithm == :none
+        if reuse_solution
+            res = (zero=copy(actor.z_solution),)
+
+        elseif algorithm == :none
             res = (zero=opt_parameters,)
+
+        elseif algorithm == :newton
+            res = flux_match_newton(actor, Vector{Float64}(opt_parameters), initial_cp1d, z_scaled_history, err_history, max_iterations, par.xtol, prog)
 
         elseif algorithm == :simple
             ftol = Inf # always use xtol condition as in NonlinearSolve.jl
@@ -353,27 +359,37 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         else
             # 1. In-place residual
-            function f!(F, u, initial_cp1d)
+            function f!(F, u, _)
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
                         # AD Jacobian evaluation — skip history (same residual as primal call)
                         ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
-                        result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
-                        F .= result.errors
+                        if D <: ForwardDiff.Dual
+                            last_evaluated[] = Vector{Float64}(u)
+                        end
+                        # the solver only uses value parts: implicit derivatives of inner searches are not needed here
+                        result = Base.ScopedValues.with(IMAS.IMPLICIT_DERIVATIVES => !(D <: ForwardDiff.Dual)) do
+                            flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
+                        end
+                        F .= dual_values(result.errors)
                     end
                 catch e
                     if isa(e, InterruptException)
                         rethrow(e)
                     end
+                    rethrow_if_dual_type_error(D, e)
                     @warn "FluxMatcher f! error ($(eltype(u) <: ForwardDiff.Dual ? "AD" : "primal") path): $(sprint(showerror, e))" maxlog = 3
                     F .= Inf
                 end
             end
 
             # 2. Problem definition
-            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, initial_cp1d)
+            # (the residual uses `initial_cp1d` from the enclosing scope. With a Dual element type it is not
+            #  handed to the solver as its parameter object, which would make the solver promote the unknowns
+            #  to the dual numbers it finds inside)
+            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, D <: ForwardDiff.Dual ? nothing : initial_cp1d)
 
             # 3. Algorithm selection
             alg = if algorithm == :old_anderson
@@ -445,6 +461,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 if e isa InterruptException
                     rethrow(e)
                 end
+                rethrow_if_dual_type_error(D, e)
                 @warn "$(typeof(e)) in $(algorithm), falling back to SimpleDFSane"
                 NonlinearSolve.solve(
                     problem, NonlinearSolve.SimpleDFSane();
@@ -479,7 +496,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # model throws for ANY z when a broken equilibrium poisons its inputs —
     # observed: TGLFNN "P_PRIME_LOC is Missing" after FRESCO non-convergence).
     # Restore entry profiles and soft-fail instead of killing the coupled run.
-    if algorithm != :none && isempty(err_history)
+    if algorithm != :none && !reuse_solution && isempty(err_history)
         actor.soft_failures[:all_optimizations_failed] = get(actor.soft_failures, :all_optimizations_failed, 0) + 1
         @warn "ActorFluxMatcher: all optimization calls failed — restoring entry profiles for this step" maxlog = 10
         cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
@@ -494,12 +511,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         return actor
     end
 
+    actor.z_solution = Vector{Float64}(dual_values(collect(res.zero)))
+
+    # with a Dual element type, attach to the solution its derivatives with respect to the inputs
+    if D <: ForwardDiff.Dual
+        res = (zero=flux_match_implicit(actor, Vector{Float64}(dual_values(collect(res.zero))), initial_cp1d; z_last=last_evaluated[]),)
+    end
+
     # evaluate profiles at the best-matching gradients; same soft-fail if the
     # final evaluation throws (it re-runs the full transport pipeline)
     out = try
         flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
     catch e
         isa(e, InterruptException) && rethrow(e)
+        rethrow_if_dual_type_error(D, e)
         actor.soft_failures[:final_evaluation_failed] = get(actor.soft_failures, :final_evaluation_failed, 0) + 1
         @warn "ActorFluxMatcher: final flux_match_errors failed ($(sprint(showerror, e))) — restoring entry profiles for this step" maxlog = 10
         cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
@@ -665,6 +690,261 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+"""
+    flux_match_implicit(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d; z_last::Vector{Float64}=Float64[]) where {D<:ForwardDiff.Dual,P<:Real}
+
+Derivatives of the flux-matched solution with respect to the inputs carried by the Dual element type.
+
+The solver has converged the residual `F(z, θ)` on value parts at `z = z_scaled`. Around that point the
+solution responds to the inputs θ as
+
+    dz/dθ = -(∂F/∂z)⁺ ∂F/∂θ
+
+  - `∂F/∂θ` are the partials of the full residual evaluated on the Dual dd at fixed `z`
+    (sources, time-derivative terms, pedestal and transport fluxes all included);
+  - `∂F/∂z` is the Jacobian of the same residual, obtained by seeding `z` on a copy of the dd whose
+    partials are zero, `N` columns per evaluation where `N` is the number of partials of `D`;
+  - the pseudo-inverse reduces to the inverse for a regular Jacobian. Unknowns that sit on the
+    `z_max` clamp have a zero column: they do not respond to the inputs and are left out.
+
+The residual carries memory of previous evaluations (see `settled_flux_match_errors`). Every derivative
+is therefore taken from a settled evaluation, which is the residual of the self-consistent state.
+Afterwards the last evaluation of the solver (`z_last`) is repeated, so that the state left in the dd,
+and with it the values of everything computed next, is the one a Float64 run has at this point.
+
+When the solver stopped at a finite residual the result is the response of the nearby solution of
+`F(z, θ) = F(z_scaled, θ₀)`. The residual norm, the Jacobian condition number and the number of
+clamped unknowns are stored in `actor.ad_info`.
+
+Returns the scaled unknowns as Dual numbers.
+"""
+function flux_match_implicit(
+    actor::ActorFluxMatcher{D,P},
+    z_scaled::Vector{Float64},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    z_last::Vector{Float64}=Float64[]) where {D<:ForwardDiff.Dual,P<:Real}
+
+    n = length(z_scaled)
+    N = IMAS.npartials(actor.dd)
+
+    # ∂F/∂θ at fixed unknowns
+    F = settled_flux_match_errors(actor, D.(z_scaled), initial_cp1d)
+    Fθ = partials_matrix(F)
+    Fval = dual_values(F)
+    actor.ad_info[:residual_norm] = norm(Fval)
+    if !all(isfinite, Fθ)
+        error("ActorFluxMatcher: non-finite derivatives of the flux-matching residual with respect to the inputs ($(count(!isfinite, Fθ)) of $(length(Fθ)) entries)")
+    end
+
+    # ∂F/∂z on a copy of the dd that carries no input derivatives
+    J, FJ = flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref=Fval, full_copy=get(actor.ad_info, :jacobian_full_copy, 0.0) == 1.0)
+    mismatch = maximum(abs, FJ .- Fval) / max(maximum(abs, Fval), eps())
+    actor.ad_info[:jacobian_copy_mismatch] = mismatch
+    if mismatch > 1E-8
+        error("ActorFluxMatcher: the residual on the zero-derivative copy of the dd differs from the residual on the dd (relative difference $mismatch)")
+    end
+
+    # unknowns on the z_max clamp do not move
+    active = [col for col in 1:n if any(!iszero, @view J[:, col])]
+    actor.ad_info[:clamped_unknowns] = n - length(active)
+    dz = zeros(n, N)
+    if !isempty(active)
+        Ja = J[:, active]
+        sv = LinearAlgebra.svdvals(Ja)
+        actor.ad_info[:jacobian_cond] = sv[1] / max(sv[end], floatmin())
+        dz[active, :] .= -(LinearAlgebra.pinv(Ja; rtol=1E-10) * Fθ)
+    end
+
+    # leave the dd in the state that follows the last evaluation of the solver
+    if length(z_last) == n
+        flux_match_errors(actor, with_partials(D, z_last, dz), initial_cp1d)
+    end
+
+    return with_partials(D, z_scaled, dz)
+end
+
+"""
+    settled_flux_match_errors(actor::ActorFluxMatcher, z::Vector{<:Real}, initial_cp1d; max_evaluations::Int=8, rtol::Float64=1E-10)
+
+Flux-matching residual of the self-consistent state at the unknowns `z`.
+
+`flux_match_errors` carries memory of previous evaluations: the total pressure seen by the transport
+model includes the fast-ion pressure of the previous evaluation (fast ions are refreshed with the sources
+after the profiles are updated), and a pedestal evolved inside the residual reads quantities that the
+previous evaluation left in the dd. Repeating the evaluation at the same unknowns converges to the state
+that is consistent with them; this function repeats it until neither the values nor the derivative parts
+of the residual change.
+"""
+function settled_flux_match_errors(
+    actor::ActorFluxMatcher,
+    z::Vector{<:Real},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    max_evaluations::Int=8,
+    rtol::Float64=1E-10)
+
+    F = flux_match_errors(actor, copy(z), initial_cp1d).errors
+    last_change = Inf
+    evaluations = 1
+    for evaluation in 2:max_evaluations
+        evaluations = evaluation
+        Fnew = flux_match_errors(actor, copy(z), initial_cp1d).errors
+        change = maximum(abs, dual_values(Fnew) .- dual_values(F))
+        scale = max(maximum(abs, dual_values(Fnew)), floatmin())
+        if eltype(Fnew) <: ForwardDiff.Dual
+            dF = partials_matrix(Fnew)
+            change = max(change / scale, maximum(abs, dF .- partials_matrix(F)) / max(maximum(abs, dF), floatmin()))
+        else
+            change = change / scale
+        end
+        F = Fnew
+        last_change = change
+        if change <= rtol
+            break
+        end
+    end
+    # worst case over the calls made for this actor: a residual that does not settle has no well-defined derivative
+    actor.ad_info[:settle_evaluations] = max(get(actor.ad_info, :settle_evaluations, 0.0), evaluations)
+    actor.ad_info[:settle_change] = max(get(actor.ad_info, :settle_change, 0.0), last_change)
+    return F
+end
+
+"""
+    flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d) where {D<:Real,P<:Real}
+
+Jacobian `∂F/∂z` of the flux-matching residual `flux_match_errors` by forward-mode differentiation of
+the complete residual (sources, time-derivative terms, pedestal, transport fluxes).
+
+The residual is evaluated on a Dual-typed copy of the dd with the unknowns seeded, `N` columns per
+evaluation: `N` is the number of partials of `D` when the dd is already Dual-typed (the copy then has
+its input derivatives set to zero), and `par.ad_chunksize` for a Float64 dd.
+Each column block is taken from a settled evaluation (see `settled_flux_match_errors`).
+
+Returns the Jacobian and the residual values of the copy.
+"""
+function flux_match_jacobian(
+    actor::ActorFluxMatcher{D,P},
+    z_scaled::Vector{Float64},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    Fref::Union{Nothing,Vector{Float64}}=nothing,
+    full_copy::Bool=false) where {D<:Real,P<:Real}
+
+    par = actor.par
+    n = length(z_scaled)
+    DJ = D <: ForwardDiff.Dual ? D : IMAS.InputsDual{par.ad_chunksize > 0 ? par.ad_chunksize : 12}
+    N = IMAS._npartials(DJ)
+
+    # Copy of the dd without input derivatives. A dd with many time slices is expensive to copy, and the
+    # residual only reads the current one: the copy holds the current time slice (and the whole pulse
+    # schedule). `Fref`, the residual on the dd itself, is the check that this copy is equivalent; if it
+    # is not, the whole dd is copied instead.
+    if !full_copy
+        dd_slice = try
+            IMAS.get_timeslice(actor.dd, actor.dd.global_time)
+        catch e
+            isa(e, InterruptException) && rethrow(e)
+            nothing # e.g. some time-dependent data does not cover the current time
+        end
+        if dd_slice === nothing
+            full_copy = true
+            actor.ad_info[:jacobian_full_copy] = 1.0
+        else
+            getfield(dd_slice, :_aux)[:fuse_actor_logging] = false
+            dd_J = IMAS.retype(DJ, IMAS.value_dd(dd_slice))
+        end
+    end
+    if full_copy
+        dd_J = IMAS.retype(DJ, IMAS.value_dd(actor.dd))
+    end
+    overrides = Dict{Symbol,Any}(field => getproperty(par, field) for field in getfield(par, :_overwritten))
+    actor_J = ActorFluxMatcher(dd_J, getfield(par, :_original), actor.act; overrides...)
+    actor_J.norms = DJ.(dual_values(actor.norms))
+    # the neoclassical actor keeps the equilibrium geometry of the time slice it first saw: the copy
+    # must evaluate the same residual as the actor, so it gets the same geometry
+    neoc = actor.actor_ct.actor_neoc
+    if neoc isa ActorNeoclassical && !ismissing(neoc.equilibrium_geometry)
+        actor_J.actor_ct.actor_neoc.equilibrium_geometry = retype_struct(DJ, neoc.equilibrium_geometry)
+    end
+    initial_cp1d_J = IMAS.retype(DJ, IMAS.value_dd(initial_cp1d))
+    old_logging = actor_logging(dd_J, false)
+
+    J = Matrix{Float64}(undef, n, n)
+    FJ = Vector{Float64}(undef, n)
+    for cols in Iterators.partition(1:n, N)
+        seeds = zeros(n, N)
+        for (slot, col) in enumerate(cols)
+            seeds[col, slot] = 1.0
+        end
+        Fc = settled_flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
+        FJ .= dual_values(Fc)
+        if !full_copy && Fref !== nothing && maximum(abs, FJ .- Fref) > 1E-8 * max(maximum(abs, Fref), eps())
+            actor.ad_info[:jacobian_full_copy] = 1.0
+            return flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref, full_copy=true)
+        end
+        Jc = partials_matrix(Fc)
+        for (slot, col) in enumerate(cols)
+            J[:, col] .= @view Jc[:, slot]
+        end
+    end
+    actor_logging(dd_J, old_logging)
+
+    if !all(isfinite, J)
+        error("ActorFluxMatcher: non-finite entries in the Jacobian of the flux-matching residual")
+    end
+    return J, FJ
+end
+
+"""
+    flux_match_newton(actor::ActorFluxMatcher{D,P}, opt_parameters::Vector{Float64}, initial_cp1d, z_scaled_history, err_history, max_iterations::Int, xtol::Float64, prog) where {D<:Real,P<:Real}
+
+Levenberg–Marquardt iteration on the flux-matching residual with the exact Jacobian of `flux_match_jacobian`.
+
+Converges to a root when there is one, and otherwise to the point where the residual norm is stationary,
+which makes the result reproducible to rounding also when some radius cannot be flux matched exactly.
+"""
+function flux_match_newton(
+    actor::ActorFluxMatcher{D,P},
+    opt_parameters::Vector{Float64},
+    initial_cp1d::IMAS.core_profiles__profiles_1d,
+    z_scaled_history::Vector,
+    err_history::Vector{Vector{D}},
+    max_iterations::Int,
+    xtol::Float64,
+    prog::Any) where {D<:Real,P<:Real}
+
+    residual(z) = Vector{Float64}(dual_values(flux_match_errors(actor, D.(z), initial_cp1d; z_scaled_history, err_history, prog).errors))
+
+    z = copy(opt_parameters)
+    F = residual(z)
+    λ = 1E-3
+    for iteration in 1:max_iterations
+        J, _ = flux_match_jacobian(actor, z, initial_cp1d)
+        JtJ = J' * J
+        g = J' * F
+        scale = LinearAlgebra.Diagonal(max.(LinearAlgebra.diag(JtJ), 1E-12 * maximum(LinearAlgebra.diag(JtJ))))
+        accepted = false
+        dz = zero(z)
+        while λ < 1E10
+            dz = -((JtJ + λ * scale) \ g)
+            Fnew = residual(z .+ dz)
+            if all(isfinite, Fnew) && norm(Fnew) < norm(F)
+                z .+= dz
+                F = Fnew
+                λ = max(λ / 10.0, 1E-12)
+                accepted = true
+                break
+            else
+                λ *= 10.0
+            end
+        end
+        if !accepted || norm(dz) <= xtol * (norm(z) + xtol)
+            break
+        end
+    end
+    # leave the dd at the accepted unknowns
+    residual(z)
+    return (zero=z,)
+end
+
 function profiles_title(cp1d, profiles_path)
     if profiles_path[1] == :electrons
         if profiles_path[2] == :temperature
@@ -755,6 +1035,9 @@ function flux_match_errors(
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
     par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, modify_electron_density)
+    if par.consistent_fast_pressure
+        refreeze_pressures!(cp1d)
+    end
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -795,7 +1078,8 @@ function flux_match_errors(
         if isnan(norm0)
             # this sets the norm to be the based on the average of the fluxes and targets
             # actor.norm is only used if the targets are zero
-            actor.norms[inorm] = norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
+            # the norm is a fixed scaling of the residual, not a function of the inputs
+            actor.norms[inorm] = norm0 = strip_partials((norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0)
         end
         errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 .* surface0
     end
@@ -1025,7 +1309,7 @@ function progress_ActorFluxMatcher(dd::IMAS.DD, error::Real)
     push!(out, ("         error", IMAS.force_float64(error)))
     pfus = IMAS.fusion_power(cp1d)
     if pfus > 1E3
-        push!(out, ("  Pfusion [MW]", pfus / 1E6))
+        push!(out, ("  Pfusion [MW]", IMAS.force_float64(pfus / 1E6)))
     end
     push!(out, ("     Ti0 [keV]", IMAS.force_float64(cp1d.t_i_average[1] / 1E3)))
     push!(out, ("     Te0 [keV]", IMAS.force_float64(cp1d.electrons.temperature[1] / 1E3)))
@@ -1274,6 +1558,12 @@ function unpack_z_profiles(
     end
 
     # re-freeze pressures expressions
+    refreeze_pressures!(cp1d)
+
+    return cp1d
+end
+
+function refreeze_pressures!(cp1d::IMAS.core_profiles__profiles_1d)
     zero_value = zero(cp1d.grid.rho_tor_norm)
     IMAS.refreeze!(cp1d.electrons, :pressure_thermal, zero_value)
     IMAS.refreeze!(cp1d.electrons, :pressure, zero_value)
@@ -1284,7 +1574,6 @@ function unpack_z_profiles(
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
         IMAS.refreeze!(cp1d, field, zero_value)
     end
-
     return cp1d
 end
 
