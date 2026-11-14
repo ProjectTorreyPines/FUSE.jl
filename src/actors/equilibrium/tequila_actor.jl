@@ -55,8 +55,8 @@ Solver workflow:
 4. **Grid mapping**: Converts spectral solution to rectangular R-Z grids for analysis
 
 Solver options:
-- **:picard** (default): TEQUILA's Picard iteration on the Ψ finite-element/Fourier representation
-- **:veq**: VEQ direct solve (arXiv:2606.11821)
+- **:veq** (default): VEQ direct solve (arXiv:2606.11821); the only solver that propagates derivatives of a Dual-typed `dd`
+- **:picard**: TEQUILA's Picard iteration on the Ψ finite-element/Fourier representation
 
 Grid options:
 - **Profile grids**: :poloidal (√ψ_norm) or :toroidal (ρ_tor_norm) flux coordinate systems
