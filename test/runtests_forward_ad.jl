@@ -72,7 +72,9 @@ using Test
         dd_gk = deepcopy(dd)
         act_gk = deepcopy(act)
         act_gk.ActorTGLF.model = :GKNN
-        act_gk.ActorTGLF.sat_rule = :sat3  # GKNN requires a sat3 model (sat1_em_iter is not supported)
+        # the ITER case selects sat1_em_iter, which GKNN does not support
+        act_gk.ActorTGLF.sat_rule = :sat3
+        act_gk.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1"
         act_gk.ActorFluxMatcher.jacobian_method = :forward_ad
         act_gk.ActorFluxMatcher.algorithm = :basic_polyalg
         act_gk.ActorFluxMatcher.max_iterations = 3
