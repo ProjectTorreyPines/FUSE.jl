@@ -9,6 +9,28 @@ using Test
     end
 end
 
+@testset "xpoints_from_pulse_schedule" begin
+    dd = FUSE.IMAS.dd()
+    pc = dd.pulse_schedule.position_control
+    @test FUSE.xpoints_from_pulse_schedule(pc, 0.0) == :none
+    pc.time = [0.0, 1.0]
+    resize!(pc.x_point, 2)
+    pc.x_point[1].r.reference = [1.5, 1.5]
+    pc.x_point[1].z.reference = [2.0, 2.1]
+    pc.x_point[2].r.reference = [1.5, 1.5]
+    pc.x_point[2].z.reference = [-2.0, -2.1]
+    @test FUSE.xpoints_from_pulse_schedule(pc, 0.0) == :double
+    @test FUSE.xpoints_from_pulse_schedule(pc, 3.0) == :lower
+    @test FUSE.xpoints_from_pulse_schedule(pc, -3.0) == :upper
+    # an x-point that is not active at the current time
+    pc.x_point[1].z.reference = [NaN, 2.1]
+    @test FUSE.xpoints_from_pulse_schedule(pc, 0.0) == :lower
+    resize!(pc.x_point, 1)
+    pc.x_point[1].r.reference = [1.5, 1.5]
+    pc.x_point[1].z.reference = [2.0, 2.1]
+    @test FUSE.xpoints_from_pulse_schedule(pc, 0.0) == :upper
+end
+
 @testset "GC" begin
     act = FUSE.ParametersActors()
     @test parent(act.ActorNeoclassical) === act
