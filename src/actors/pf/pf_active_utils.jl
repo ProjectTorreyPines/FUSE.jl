@@ -218,7 +218,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     koptim += 1
                     koh += 1
                     coil_distance = (z_oh[koh] - minimum(rail.outline.z)) / (maximum(rail.outline.z) - minimum(rail.outline.z)) * 2 - 1
-                    optim_coils[koptim].z = r_interp(coil_distance)
+                    optim_coils[koptim].r = r_interp(coil_distance)
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
