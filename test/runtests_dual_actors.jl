@@ -96,6 +96,55 @@ end
     @test ad_vs_fd(dd0, run2!, out2) < 1e-3
 end
 
+@testset "EC and NB sources with duals" begin
+    # heating of electrons and ions, particle source, driven current and torque of all the sources of one kind
+    function source_profiles(dd, name)
+        T = eltype(dd)
+        index = IMAS.name_2_index(dd.core_sources.source)[name]
+        sources = [s.profiles_1d[] for s in dd.core_sources.source if s.identifier.index == index]
+        n = length(sources[1].grid.rho_tor_norm)
+        fields = ((:electrons, :energy), (nothing, :total_ion_energy), (:electrons, :particles), (nothing, :j_parallel), (nothing, :momentum_tor))
+        out = [zeros(T, n) for _ in fields]
+        for s1d in sources, (k, (sub, field)) in enumerate(fields)
+            ids = sub === nothing ? s1d : getproperty(s1d, sub)
+            IMAS.hasdata(ids, field) && (out[k] .+= getproperty(ids, field))
+        end
+        return reduce(vcat, out)
+    end
+    run_ec!(dd) = (FUSE.ActorSimpleEC(dd, act); dd)
+    run_nb!(dd) = (FUSE.ActorSimpleNB(dd, act); dd)
+    out_ec(dd) = source_profiles(dd, :ec)
+    out_nb(dd) = source_profiles(dd, :nbi)
+
+    # with respect to the temperature and the densities
+    @test any(!iszero, out_ec(run_ec!(deepcopy(dd0))))
+    @test any(!iszero, out_nb(run_nb!(deepcopy(dd0))))
+    @test ad_vs_fd(dd0, run_ec!, out_ec; blocks=5) < 1e-3
+    @test ad_vs_fd(dd0, run_nb!, out_nb; blocks=5) < 1e-3
+
+    # with respect to the launched power (partial 1: beams, partial 2: EC): the sources are linear in the power,
+    # so the derivative with respect to the logarithm of the power is the source itself
+    dd = IMAS.retype(D2, dd0)
+    for unit in dd.pulse_schedule.nbi.unit
+        unit.power.reference = unit.power.reference .* IMAS.seed(D2, 1)
+    end
+    for beam in dd.pulse_schedule.ec.beam
+        beam.power_launched.reference = beam.power_launched.reference .* IMAS.seed(D2, 2)
+    end
+    y_ec = out_ec(run_ec!(dd))
+    y_nb = out_nb(run_nb!(dd))
+    @test partials.(y_ec, 2) ≈ value.(y_ec) rtol = 1e-10
+    @test all(iszero, partials.(y_ec, 1))
+    @test partials.(y_nb, 1) ≈ value.(y_nb) rtol = 1e-10
+    @test all(iszero, partials.(y_nb, 2))
+end
+
+@testset "external source codes refuse duals" begin
+    dd = seeded(dd0)
+    @test_throws ArgumentError FUSE.ActorTORBEAM(dd, act)
+    @test_throws ArgumentError FUSE.ActorRABBIT(dd, act)
+end
+
 @testset "pedestal with duals" begin
     tb, ts = IMAS.pedestal_search_tolerance.brent[], IMAS.pedestal_search_tolerance.simplex[]
     IMAS.pedestal_search_tolerance.brent[] = 1e-12
