@@ -143,6 +143,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         actor.converged = (status == 0)
     catch e
         isa(e, InterruptException) && rethrow(e)
+        rethrow_if_dual(D, e)
         @warn "ActorFRESCO: solve threw — treating as non-converged, keeping previous equilibrium for this step" exception = e maxlog = 20
         actor.converged = false
     end

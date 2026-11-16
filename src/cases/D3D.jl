@@ -307,6 +307,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
         # freeze ion rotation so it's stored as data, not recomputed via dynamic expression
         # (sonic2ωtor uses density/pressure which change during simulation, breaking replay)
+        # `init_expressions_keep` makes `restore_init_expressions!` leave this stored rotation alone
         for ion in cp1d.ion
             IMAS.freeze!(ion, :rotation_frequency_tor)
         end

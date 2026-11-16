@@ -165,7 +165,7 @@ Initialize `dd.pellet_launcher` starting from `ini` and `act` parameters
 """
 function init_pl!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.pellets.launcher, length(ini.pellet_launcher); wipe=false)
-    @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
+    @assert length(dd.pellets.launcher) == length(ini.pellet_launcher) == length(dd.pulse_schedule.pellet.launcher)
 
     # time-dependent pellet state consumed by ActorPAM (dd.pellets.time_slice[].pellet)
     populate_time_slice = !isempty(ini.pellet_launcher) && !isempty(dd.equilibrium.time_slice)

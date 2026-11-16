@@ -32,6 +32,9 @@ else
     end
 
     include("runtests_study_database.jl")
+
+    # forward-mode AD: whole actors on a dual-typed dd, every derivative against finite differences
+    include("runtests_dual_actors.jl")
     
     println(FUSE.timer)
 end
