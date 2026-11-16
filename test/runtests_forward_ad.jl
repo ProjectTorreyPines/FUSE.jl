@@ -99,3 +99,33 @@ end
     actor = FUSE.ActorFluxMatcher(dd, act)
     @test actor.error < act.ActorFluxMatcher.xtol
 end
+
+@testset "forward_ad Jacobian with a finite time step" begin
+    # With a finite Δt the residual has the source of the change the flux matcher makes to the profiles over Δt,
+    # whose derivative grows as 1/Δt. Without it in the forward-mode Jacobian the solvers did not converge for short
+    # time steps (on this case, at Δt = 5 ms, TrustRegion ended at an error of 0.5 after 52 evaluations)
+    Δt = 0.005
+    dd = IMAS.json2imas(joinpath(pkgdir(FUSE), "sample", "D3D_standard_Lmode.json"); show_warnings=false)
+    t0 = dd.core_profiles.time[end]
+    dd.global_time = t0 + Δt
+    for ids in (dd.equilibrium, dd.core_sources, dd.core_profiles)
+        IMAS.new_timeslice!(ids, t0 + Δt)
+    end
+    cp1d = dd.core_profiles.profiles_1d[]
+    cp1d.electrons.temperature = cp1d.electrons.temperature .* 1.05
+    cp1d.electrons.density_thermal = cp1d.electrons.density_thermal .* 1.03
+    for ion in cp1d.ion
+        if !ismissing(ion, :density_thermal)
+            ion.density_thermal = ion.density_thermal .* 1.03
+        end
+    end
+    act = FUSE.ParametersActors()
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+    act.ActorFluxMatcher.algorithm = :trust
+    act.ActorFluxMatcher.jacobian_method = :forward_ad
+    act.ActorFluxMatcher.Δt = Δt
+    act.ActorFluxMatcher.relax = 1.0
+    actor = FUSE.ActorFluxMatcher(dd, act)
+    @test actor.error < act.ActorFluxMatcher.xtol
+    @test length(actor.err_history) < 20
+end

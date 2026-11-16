@@ -392,8 +392,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # With jacobian_method = :forward_ad the Jacobian is handed to the solver as `jac`, so that every
             # residual value the solver sees comes from the primal path of f!. When the solver differentiated f!
             # itself, NonlinearSolve's Jacobian cache stored the value of the forward-mode evaluation as the
-            # solver's residual; `ad_flux_match_errors!` leaves out the external sources, the time-derivative
-            # sources and the pedestal, so Broyden, TrustRegion and the polyalgorithms stepped from a wrong residual.
+            # solver's residual; `ad_flux_match_errors!` leaves out the external sources, the `∂/∂t` source of
+            # earlier changes and the pedestal, so Broyden, TrustRegion and the polyalgorithms stepped from a wrong residual.
             nonlinear_function = if jacobian_method === :forward_ad
                 function jac!(J, u, _)
                     g! = (F, x) -> ad_flux_match_errors!(F, x, actor, initial_cp1d; prog)
@@ -1992,7 +1992,11 @@ factors (ne, Te), intrinsic sources (radiation, collisional exchange, fusion, oh
 neoclassical transport (thermodynamic driving forces), and secondary TJLF inputs
 (BETAE, XNUE, TAUS, AS).
 
-Frozen at primal: equilibrium geometry, pedestal evolution, time-derivative sources.
+Frozen at primal: equilibrium geometry, pedestal evolution.
+
+Left out, as they do not depend on the unknowns: the external sources and the `∂/∂t` source of the changes
+made outside of the flux matcher. The value of this residual therefore differs from `flux_match_errors`
+by a constant; its Jacobian is the same when the pedestal is not evolved.
 """
 function ad_flux_match_errors!(
     F::AbstractVector,
@@ -2028,6 +2032,12 @@ function ad_flux_match_errors!(
         evolve_densities = evolve_densities_dictionary(cp1d_ad, par)
         modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
         IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density)
+    end
+
+    # Source from the change the flux matcher makes to the profiles over Δt, as in flux_match_errors:
+    # its derivative grows as 1/Δt and dominates the Jacobian for short time steps
+    if par.Δt < Inf
+        IMAS.time_derivative_source!(dd_ad, initial_cp1d, par.Δt; name="∂/∂t implicit")
     end
 
     # Build InputTGLF from dd_ad (Dual-typed)
