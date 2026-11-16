@@ -1060,10 +1060,13 @@ function flux_match_errors(
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
     end
 
-    # handle fixed widths in TJLF
-    if actor.actor_ct.par.turbulence_model == :TGLF && actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths && !isempty(err_history)
-        for input_tglf in actor.actor_ct.actor_turb.input_tglfs
-            input_tglf.FIND_WIDTH = false
+    # handle fixed widths in TJLF: found at the first evaluation of this flux-matching solve, then held
+    if actor.actor_ct.par.turbulence_model == :TGLF && actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths
+        input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        for k in eachindex(input_tglfs)
+            if isassigned(input_tglfs, k)
+                input_tglfs[k].FIND_WIDTH = isempty(err_history)
+            end
         end
     end
 
