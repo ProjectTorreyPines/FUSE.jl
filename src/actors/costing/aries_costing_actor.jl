@@ -178,10 +178,10 @@ function _step(actor::ActorCostingARIES)
     for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
         sub = resize!(sys.subsystem, "name" => replace(string(item), "_" => " "))
         if item == :land
-            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_net, da)
         elseif item == :buildings
-            sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
-                par.land_space, power_electric_generated,
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space,
+                par.building_volume, power_electric_generated,
                 power_thermal, power_electric_net, da)
         elseif item == :hot_cell
             sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
