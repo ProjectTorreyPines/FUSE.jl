@@ -535,15 +535,15 @@ end
     cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
 
 Yearly cost for blanket replacement [\$M/year]
-
-`cost_blanket` is the direct capital cost of the blanket, already in the dollars of the construction start year (`nothing` without a blanket)
 """
-function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust{T})::T where {T<:Real}
+function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
     if cost_blanket === nothing
-        return zero(T)
+        cost = 0.0
     else
-        return cost_blanket / blanket_lifetime
+        da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
+        cost = cost_blanket / blanket_lifetime
     end
+    return future_dollars(cost, da)
 end
 
 #= =================== =#
