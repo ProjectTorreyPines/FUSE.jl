@@ -62,10 +62,8 @@ end
     @test cost("land") ≈ value(FUSE.cost_direct_capital_ARIES(Val(:land), par.land_space, 8.0e8, da))
     @test cost("buildings") ≈ value(FUSE.cost_direct_capital_ARIES(Val(:buildings), par.land_space, par.building_volume, 1.0e9, 2.5e9, 8.0e8, da))
 
-    # yearly cost of blanket replacement: the cost of the blanket (in dollars of the current year) over its lifetime
-    da.year_assessed = FUSE.Dates.year(FUSE.Dates.now())
-    expected = value(FUSE.future_dollars(350.0 / 7.0, da))
-    @test value(FUSE.cost_operations_ARIES(Val(:blanket_replacement), 350.0, 7.0, da)) ≈ expected
+    # yearly cost of blanket replacement: the capital cost of the blanket over its lifetime
+    @test value(FUSE.cost_operations_ARIES(Val(:blanket_replacement), 350.0, 7.0, da)) == 50.0
     @test value(FUSE.cost_operations_ARIES(Val(:blanket_replacement), nothing, 7.0, da)) == 0.0
 end
 
