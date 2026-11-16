@@ -121,6 +121,10 @@ function _finalize(actor::ActorPAM)
         electrons_particles
     )
 
+    # the pellet also fuels its ions: PAM's source is electrons (atoms × Z), split it onto the ion species
+    species = isempty(dd.pellets.launcher) ? "DT" : dd.pellets.launcher[1].species[1].label
+    pellet_ion_sources!(source.profiles_1d[], cp1d, species)
+
     return actor
 end
 
