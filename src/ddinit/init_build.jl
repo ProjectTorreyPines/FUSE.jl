@@ -5,6 +5,27 @@ import OrderedCollections
 #  init build  #
 #= ========== =#
 """
+    xpoints_from_pulse_schedule(pc::IMAS.pulse_schedule__position_control, z_axis::Real)
+
+Returns `:none`, `:upper`, `:lower`, or `:double` from the x-points that the pulse schedule has above and below `z_axis` at the current time
+
+NOTE: as in ActorEquilibrium, an x-point is there if its `r` is positive and neither `r` nor `z` is NaN
+"""
+function xpoints_from_pulse_schedule(pc::IMAS.pulse_schedule__position_control, z_axis::Real)
+    upper = false
+    lower = false
+    for x_point in pc.x_point
+        rx = IMAS.get_time_array(x_point.r, :reference, :constant)
+        zx = IMAS.get_time_array(x_point.z, :reference, :constant)
+        if rx > 0.0 && !isnan(rx) && !isnan(zx)
+            upper = upper || zx > z_axis
+            lower = lower || zx < z_axis
+        end
+    end
+    return xpoints_int_2_symbol(xpoints_bool_2_int(upper, lower))
+end
+
+"""
     init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.build` starting from `ini` and `act` parameters
@@ -45,17 +66,7 @@ function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllAct
         if ini.build.divertors == :from_x_points
             if ismissing(ini.equilibrium, :xpoints)
                 # if number of x-points is not set explicitly, get it from the pulse_schedule
-                upper = any(x_point.z .> eqt.boundary.geometric_axis.z for x_point in dd.pulse_schedule.position_control.x_point)
-                lower = any(x_point.z .< eqt.boundary.geometric_axis.z for x_point in dd.pulse_schedule.position_control.x_point)
-                if !upper && !lower
-                    ini.equilibrium.xpoints = :none
-                elseif upper && !lower
-                    ini.equilibrium.xpoints = :upper
-                elseif lower && upper
-                    ini.equilibrium.xpoints = :lower
-                else
-                    ini.equilibrium.xpoints = :double
-                end
+                ini.equilibrium.xpoints = xpoints_from_pulse_schedule(dd.pulse_schedule.position_control, eqt.boundary.geometric_axis.z)
             end
             ini.build.divertors = ini.equilibrium.xpoints
         end

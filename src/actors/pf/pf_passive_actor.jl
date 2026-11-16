@@ -157,11 +157,14 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
         if isempty(inner_crossings) || isempty(outer_crossings)
             continue
         end
-        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in inner_crossings]
+        # the k-th ray radiates from vertex k+1
+        Rk = IMAS.getindex_circular(R1, k + 1)
+        Zk = IMAS.getindex_circular(Z1, k + 1)
+        d = [sqrt((c[1] - Rk)^2 + (c[2] - Zk)^2) for c in inner_crossings]
         i = argmin(d)
         push!(qR1, inner_crossings[i][1])
         push!(qZ1, inner_crossings[i][2])
-        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in outer_crossings]
+        d = [sqrt((c[1] - Rk)^2 + (c[2] - Zk)^2) for c in outer_crossings]
         i = argmin(d)
         push!(qR2, outer_crossings[i][1])
         push!(qZ2, outer_crossings[i][2])
