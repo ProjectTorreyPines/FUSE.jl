@@ -1315,8 +1315,12 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-        txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+        # :zeff rescales the thermal ion densities and leaves every fast species as it is: a fast species
+        # (fast electrons, or one registered as :fixed above) does not have to be :zeff
+        thermal_ions = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)]
+        txt = "When flux_matching densities, either none or all thermal ion species must be :zeff (fast species can be :zeff or :fixed)"
+        @assert all(evolve_densities[specie] == :zeff for specie in thermal_ions) txt
+        @assert all(evolve in (:zeff, :fixed) for (specie, evolve) in evolve_densities if specie != :electrons && specie ∉ thermal_ions) txt
     elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
         txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
