@@ -28,8 +28,15 @@ profiles(dd) = (cp1d = dd.core_profiles.profiles_1d[]; vcat(cp1d.electrons.tempe
 """
 AD against central finite differences for `run!(dd)` followed by `out(dd)`: returns the largest difference
 over the outputs, relative to the largest derivative of each input
+
+With `blocks > 0` the outputs are split into that many quantities of equal length, and the difference is
+taken relative to the largest derivative or value of each quantity, whichever is larger. The inputs are
+scale factors, so a derivative has the units of its output and the output itself is the scale of a
+derivative of order one. This is for outputs of a search that is only converged to ~1e-7: finite differences
+of such outputs carry a noise ~1e-7/h of the output, which would otherwise be compared with a derivative
+that can be orders of magnitude smaller than the output (e.g. densities with respect to the temperature).
 """
-function ad_vs_fd(dd0, run!, out; h=1e-4)
+function ad_vs_fd(dd0, run!, out; h=1e-4, blocks::Int=0)
     dd = seeded(dd0)
     run!(dd)
     y = out(dd)
@@ -41,7 +48,14 @@ function ad_vs_fd(dd0, run!, out; h=1e-4)
     for k in 1:2
         fd = (out(run!(perturbed(dd0, k, +h))) .- out(run!(perturbed(dd0, k, -h)))) ./ (2h)
         ad = partials.(y, k)
-        worst = max(worst, maximum(abs, ad .- fd) / max(maximum(abs, fd), floatmin()))
+        if blocks > 0
+            for r in Iterators.partition(eachindex(y), length(y) ÷ blocks)
+                scale = max(maximum(abs, fd[r]), maximum(abs ∘ value, y[r]), floatmin())
+                worst = max(worst, maximum(abs, ad[r] .- fd[r]) / scale)
+            end
+        else
+            worst = max(worst, maximum(abs, ad .- fd) / max(maximum(abs, fd), floatmin()))
+        end
     end
     return worst
 end
@@ -91,7 +105,8 @@ end
             a = deepcopy(act)
             a.ActorPedestal.model = model
             run!(dd) = (FUSE.ActorPedestal(dd, a; ip_from=:core_profiles, βn_from=:core_profiles, ne_from=:core_profiles, zeff_from=:core_profiles, rho_nml=0.775, rho_ped=0.8); dd)
-            @test ad_vs_fd(dd0, run!, profiles) < 2e-2
+            # Te, Ti and ne are compared each on its own scale (see `ad_vs_fd`)
+            @test ad_vs_fd(dd0, run!, profiles; blocks=3) < 5e-3
         end
     finally
         IMAS.pedestal_search_tolerance.brent[] = tb
