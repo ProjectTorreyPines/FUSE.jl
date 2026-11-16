@@ -86,3 +86,16 @@ using Test
         @test !all(cp1d_after.electrons.temperature .== cp1d_before.electrons.temperature)
     end
 end
+
+@testset "forward_ad Jacobian does not replace the solver's residual" begin
+    # NonlinearSolve's TrustRegion with jacobian_method=:forward_ad. The residual of the forward-mode evaluation
+    # (ad_flux_match_errors!) leaves out the external sources, so if the solver took its residual from the Jacobian
+    # evaluation it would step from a wrong residual: on this sample it stalled at the starting error (1.2)
+    dd = IMAS.json2imas(joinpath(pkgdir(FUSE), "sample", "D3D_standard_Lmode.json"); show_warnings=false)
+    act = FUSE.ParametersActors()
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+    act.ActorFluxMatcher.algorithm = :trust
+    act.ActorFluxMatcher.jacobian_method = :forward_ad
+    actor = FUSE.ActorFluxMatcher(dd, act)
+    @test actor.error < act.ActorFluxMatcher.xtol
+end

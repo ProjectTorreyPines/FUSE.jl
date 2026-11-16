@@ -362,7 +362,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             function f!(F, u, _)
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
-                        # AD Jacobian evaluation — skip history (same residual as primal call)
+                        # a solver differentiating f! itself (the Jacobian is normally `jac!` below) — skip history
                         ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
@@ -389,7 +389,24 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # (the residual uses `initial_cp1d` from the enclosing scope. With a Dual element type it is not
             #  handed to the solver as its parameter object, which would make the solver promote the unknowns
             #  to the dual numbers it finds inside)
-            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, D <: ForwardDiff.Dual ? nothing : initial_cp1d)
+            # With jacobian_method = :forward_ad the Jacobian is handed to the solver as `jac`, so that every
+            # residual value the solver sees comes from the primal path of f!. When the solver differentiated f!
+            # itself, NonlinearSolve's Jacobian cache stored the value of the forward-mode evaluation as the
+            # solver's residual; `ad_flux_match_errors!` leaves out the external sources, the time-derivative
+            # sources and the pedestal, so Broyden, TrustRegion and the polyalgorithms stepped from a wrong residual.
+            nonlinear_function = if jacobian_method === :forward_ad
+                function jac!(J, u, _)
+                    g! = (F, x) -> ad_flux_match_errors!(F, x, actor, initial_cp1d; prog)
+                    chunk = par.ad_chunksize > 0 ? ForwardDiff.Chunk{par.ad_chunksize}() : ForwardDiff.Chunk(u)
+                    F = similar(u)
+                    ForwardDiff.jacobian!(J, g!, F, u, ForwardDiff.JacobianConfig(g!, F, u, chunk))
+                    return J
+                end
+                NonlinearSolve.NonlinearFunction(f!; jac=jac!)
+            else
+                f!
+            end
+            problem = NonlinearSolve.NonlinearProblem(nonlinear_function, opt_parameters, D <: ForwardDiff.Dual ? nothing : initial_cp1d)
 
             # 3. Algorithm selection
             alg = if algorithm == :old_anderson
