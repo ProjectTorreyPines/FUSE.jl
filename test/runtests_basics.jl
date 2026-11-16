@@ -74,6 +74,50 @@ end
     @test_throws AssertionError FUSE.check_evolve_densities(cp1d, evolve_densities)
 end
 
+@testset "costing" begin
+    value = FUSE.IMAS.Measurements.value
+
+    # CPI table: every month is read (the last year may be incomplete)
+    CPI = FUSE.load_inflation_rate()
+    months = [:Jan, :Feb, :Mar, :Apr, :May, :Jun, :Jul, :Aug, :Sep, :Oct, :Nov, :Dec]
+    @test all(!any(ismissing, CPI[1:end-1, month]) for month in months)
+    # annual averages published by the U.S. Bureau of Labor Statistics
+    @test CPI[findfirst(==(2023), CPI.Year), "Year Avg"] ≈ 304.702 atol = 1e-3
+    @test CPI[findfirst(==(2024), CPI.Year), "Year Avg"] ≈ 313.689 atol = 1e-3
+
+    # ARIES: land and buildings of a plant that is given by its powers alone
+    dd = IMAS.dd()
+    bop = dd.balance_of_plant
+    bop.time = [0.0]
+    bop.power_plant.power_cycle_type = "rankine"
+    bop.power_plant.total_heat_supplied = [2.5e9]
+    bop.power_plant.power_electric_generated = [1.0e9]
+    bop.power_electric_net = [8.0e8]
+    act = FUSE.ParametersActors()
+    act.ActorCosting.model = :ARIES
+    FUSE.ActorCosting(dd, act)
+    systems = dd.costing.cost_direct_capital.system
+    facility = systems[findfirst(sys -> sys.name == "facility", systems)]
+    cost(name) = value(facility.subsystem[findfirst(sub -> sub.name == name, facility.subsystem)].cost)
+    par = act.ActorCostingARIES
+    da = FUSE.DollarAdjust{FUSE.IMAS.Measurements.Measurement{Float64}}(act.ActorCosting.future_inflation_rate, act.ActorCosting.construction_start_year, missing, missing)
+    @test cost("land") ≈ value(FUSE.cost_direct_capital_ARIES(Val(:land), par.land_space, 8.0e8, da))
+    @test cost("buildings") ≈ value(FUSE.cost_direct_capital_ARIES(Val(:buildings), par.land_space, par.building_volume, 1.0e9, 2.5e9, 8.0e8, da))
+
+    # yearly cost of blanket replacement: the capital cost of the blanket over its lifetime
+    @test value(FUSE.cost_operations_ARIES(Val(:blanket_replacement), 350.0, 7.0, da)) == 50.0
+    @test value(FUSE.cost_operations_ARIES(Val(:blanket_replacement), nothing, 7.0, da)) == 0.0
+end
+
+@testset "ActorPowerNeeds EU_DEMO" begin
+    dd = IMAS.dd()
+    act = FUSE.ParametersActors()
+    FUSE.ActorPowerNeeds(dd, act; model=:EU_DEMO)
+    needs = Dict(sys.name => sys.power for sys in dd.balance_of_plant.power_electric_plant_operation.system)
+    @test needs["cryostat"] == [30e6]
+    @test needs["tritium_handling"] == [15e6]
+end
+
 @testset "Checkpoint" begin
     a_old = a = [1]
     b_old = b = [2]
