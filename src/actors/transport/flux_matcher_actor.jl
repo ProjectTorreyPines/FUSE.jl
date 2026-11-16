@@ -1085,7 +1085,9 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     if par.evolve_rotation == :flux_match
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
         rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
+        if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
+            # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
+            # mixed-sign or identically zero profiles use the rotation-shear path below
             z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
             append!(z_profiles, z_rot)
         else
@@ -1211,8 +1213,12 @@ function unpack_z_profiles(
     if par.evolve_rotation == :flux_match
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
         rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
-            cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
+            # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
+            # mixed-sign or identically zero profiles use the rotation-shear path below
+            # the 1 rad/s offset guards log(0) when the edge rotation is exactly zero and is removed again so that it does not accumulate across iterations
+            rot_sign = all(x -> x <= 0, rot_check) ? -1.0 : 1.0
+            cp1d.rotation_frequency_tor_sonic = rot_sign .* (IMAS.profile_from_z_transport(rot_sign .* cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N]) .- 1)
         else
             # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
             w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
@@ -1309,8 +1315,12 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-        txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+        # :zeff rescales the thermal ion densities and leaves every fast species as it is: a fast species
+        # (fast electrons, or one registered as :fixed above) does not have to be :zeff
+        thermal_ions = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)]
+        txt = "When flux_matching densities, either none or all thermal ion species must be :zeff (fast species can be :zeff or :fixed)"
+        @assert all(evolve_densities[specie] == :zeff for specie in thermal_ions) txt
+        @assert all(evolve in (:zeff, :fixed) for (specie, evolve) in evolve_densities if specie != :electrons && specie ∉ thermal_ions) txt
     elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
         txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
@@ -1787,6 +1797,21 @@ function ad_flux_match_errors!(
             neoc_flux_solutions = map(ir -> NeoclassicalTransport.hirshmansigmar(ir, eqt_ad, cp1d_ad, plasma_profiles, eq_geom; rho_s, rmin), cp_gridpoints)
         elseif neoc_par.model == :changhinton
             neoc_flux_solutions = [NeoclassicalTransport.changhinton(eqt_ad, cp1d_ad, rho, 1) for rho in par.rho_transport]
+        elseif neoc_par.model == :yancc
+            # Reuse the flux surfaces (no profile dependence) and the caches of the primal actor: a cache holds
+            # the primal solution at its surface and the derivative solves of earlier chunks at the same profiles
+            geometry = actor_neoc.yancc_geometry
+            if ismissing(geometry) || geometry.gridpoints != cp_gridpoints
+                error("jacobian_method=:forward_ad with neoclassical model :yancc needs a primal evaluation first")
+            end
+            rho_s = GACODE.rho_s(cp1d_ad, eqt_ad)
+            rmin = GACODE.r_min_core_profiles(eqt_ad.profiles_1d, cp1d_ad.grid.rho_tor_norm)
+            neoc_flux_solutions = Vector{GACODE.FluxSolution{T}}(undef, length(cp_gridpoints))
+            Threads.@threads for k in eachindex(cp_gridpoints)
+                neoc_flux_solutions[k] = NeoclassicalTransport.yancc(cp_gridpoints[k], eqt_ad, cp1d_ad, geometry.fields[k];
+                    geometry.a, nx=neoc_par.yancc_nx, nalpha=neoc_par.yancc_nalpha, rtol=neoc_par.yancc_rtol,
+                    cache=actor_neoc.yancc_caches[k], rho_s, rmin)
+            end
         else
             error("jacobian_method=:forward_ad does not support neoclassical model :$(neoc_par.model)")
         end
