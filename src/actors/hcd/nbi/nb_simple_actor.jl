@@ -75,12 +75,13 @@ function _step(actor::ActorSimpleNB)
     phi = eqt2d.phi
     R0 = eqt.global_quantities.vacuum_toroidal_field.r0
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    rho2d = sqrt.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end]
+    rho2d = IMAS.sqrt0.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end] # the toroidal flux is zero outside of the plasma on some grids
 
     r = eqt2d.grid.dim1
     z = eqt2d.grid.dim2
-    r = range(r[1], r[end], length(r))
-    z = range(z[1], z[end], length(z))
+    # the grid of the interpolant is plain floats, also when the dd carries derivatives
+    r = range(IMAS.force_float64(r[1]), IMAS.force_float64(r[end]), length(r))
+    z = range(IMAS.force_float64(z[1]), IMAS.force_float64(z[end]), length(z))
     rho2d_interp = Interpolations.cubic_spline_interpolation((r, z), rho2d; extrapolation_bc=2.0)
 
     nenergies = 3
@@ -99,12 +100,13 @@ function _step(actor::ActorSimpleNB)
     ngrid = 25
 
     nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
-    qbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    sbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    mombeam = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeame = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeami = zeros(nmaxgroups, nenergies, ncp1d)
-    curbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    D = eltype(dd)
+    qbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    sbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    mombeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeame = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeami = zeros(D, nmaxgroups, nenergies, ncp1d)
+    curbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
 
     gaus = similar(rho_cp)
     qbeamtmp = similar(rho_cp)
@@ -207,7 +209,7 @@ function _step(actor::ActorSimpleNB)
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
 
-                cs = zeros(ngrid)
+                cs = zeros(D, ngrid)
                 for i in 1:ngrid
                     cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
                     cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
@@ -238,7 +240,7 @@ function _step(actor::ActorSimpleNB)
                 # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
                 curbi = @views 0.1 * IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* IMAS.sqrt0.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
                 curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
             end
         end

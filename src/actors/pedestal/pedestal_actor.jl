@@ -969,11 +969,12 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
         # save original ne_from so we can restore it (not hardcode :pulse_schedule)
         original_ne_from = par.ne_from
 
-        # run pedestal model on scaled density
-        par.ne_from = :core_profiles
-        pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor, nn_prediction=actor.nn_prediction)
-
         try
+            # run pedestal model on scaled density
+            # (inside the `try`, so that `ne_from` is restored also when the density pedestal throws)
+            par.ne_from = :core_profiles
+            pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor, nn_prediction=actor.nn_prediction)
+
             # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
             # we can do this because EPED and WPED only operate on temperature profiles
             nel_wanted = IMAS.ne_line(dd.pulse_schedule) * density_factor
