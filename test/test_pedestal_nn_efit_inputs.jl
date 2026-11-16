@@ -130,6 +130,16 @@ const WALL_Z = [-1.5, -1.5, 1.5, 1.5, -1.5]
     @test rounded.kappa ≈ s.kappa atol = 1e-6
     @test rounded.zsurf ≈ s.zsurf atol = 1e-6
     @test abs(rounded.tritop) < 1e-3 && abs(rounded.tribot) < 1e-3
+
+    # ZMQ-coupled slice: ActorZMQ.receive! refreshes the 2-D psi and global_quantities.psi_boundary but
+    # leaves profiles_1d.psi from the previous FRESCO step; the boundary flux must come from the former
+    eqt2, _, _ = synthetic_eqt(0.0)
+    eqt2.profiles_1d.psi = eqt2.profiles_1d.psi .+ 0.2 * (an.psi_b - an.psi_axis)
+    stale = FUSE.fuse_efit_shape(eqt2, WALL_R, WALL_Z)
+    @test stale.x_lower !== nothing && stale.x_upper !== nothing
+    @test stale.kappa ≈ s.kappa atol = 1e-6
+    @test stale.drsep ≈ s.drsep atol = 1e-6
+    @test stale.rvsout ≈ s.rvsout atol = 1e-6
 end
 
 @testset "fuse_efit_shape: squareness is IMAS's Luce squareness (0 for an ellipse)" begin

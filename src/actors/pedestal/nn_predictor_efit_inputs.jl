@@ -252,7 +252,11 @@ function fuse_efit_shape(eqt::IMAS.equilibrium__time_slice, wall_r::AbstractVect
     if eqt2d !== nothing && !ismissing(eqt2d, :psi)
         r, z, PSI = IMAS.ψ_interpolant(eqt2d)
         psi_axis = Float64(PSI(RA, ZA))
-        psi_bnd = Float64(eqt.profiles_1d.psi[end])
+        # Boundary flux from global_quantities, the same map as psi_axis: with ActorZMQ on, receive!
+        # refreshes the 2-D psi, the axis and global_quantities.psi_boundary every step but leaves
+        # profiles_1d.psi to FRESCO, so profiles_1d.psi[end] lags GSLite's map
+        psi_bnd = ismissing(eqt.global_quantities, :psi_boundary) ?
+                  Float64(eqt.profiles_1d.psi[end]) : Float64(eqt.global_quantities.psi_boundary)
         if psi_bnd != psi_axis
             psin_of(x, y) = (PSI(x, y) - psi_axis) / (psi_bnd - psi_axis)
             if has_wall
