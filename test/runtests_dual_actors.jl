@@ -238,6 +238,23 @@ end
     @test value.(profiles(dd)) ≈ profiles(ddf) rtol = 1e-6
     @test all(v -> all(isfinite, partials(v)), profiles(dd))
     @test actor.ad_info[:jacobian_copy_mismatch] < 1e-8
+
+    # the copy of the dd is compared with the dd on an absolute scale at a solution, where the residual vanishes
+    @test FUSE.residual_copy_mismatch([1e-9, 0.0], [0.0, 1e-12]) ≈ 1e-9
+    @test FUSE.residual_copy_mismatch([10.0, 0.0], [10.1, 0.0]) ≈ 0.1 / 10.1
+
+    # a solver that takes the forward-mode Jacobian, on a dd of dual numbers
+    a.ActorFluxMatcher.algorithm = :simple_trust
+    a.ActorFluxMatcher.jacobian_method = :forward_ad
+    a.ActorFluxMatcher.max_iterations = 10
+    dd = seeded(dd0)
+    FUSE.ActorFluxMatcher(dd, a)
+    ddf = deepcopy(dd0)
+    FUSE.ActorFluxMatcher(ddf, a)
+    # (the Jacobian of the Float64 run is that of the lightweight residual, the one of the dual run that of
+    #  the full residual on a copy of the dd: the iterates differ, the solution they approach is the same)
+    @test value.(profiles(dd)) ≈ profiles(ddf) rtol = 1e-3
+    @test all(v -> all(isfinite, partials(v)), profiles(dd))
 end
 
 @testset "equilibrium with duals" begin

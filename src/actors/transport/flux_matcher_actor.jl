@@ -396,6 +396,11 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # polyalgorithms could step from a residual that is not the solver's.
             nonlinear_function = if jacobian_method === :forward_ad
                 function jac!(J, u, _)
+                    if D <: ForwardDiff.Dual
+                        # on a dd of dual numbers the Jacobian is taken on its zero-derivative copy
+                        J .= flux_match_jacobian(actor, Vector{Float64}(u), initial_cp1d)[1]
+                        return J
+                    end
                     g! = (F, x) -> ad_flux_match_errors!(F, x, actor, initial_cp1d; prog)
                     chunk = par.ad_chunksize > 0 ? ForwardDiff.Chunk{par.ad_chunksize}() : ForwardDiff.Chunk(u)
                     F = similar(u)
@@ -755,10 +760,10 @@ function flux_match_implicit(
 
     # ∂F/∂z on a copy of the dd that carries no input derivatives
     J, FJ = flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref=Fval, full_copy=get(actor.ad_info, :jacobian_full_copy, 0.0) == 1.0)
-    mismatch = maximum(abs, FJ .- Fval) / max(maximum(abs, Fval), eps())
+    mismatch = residual_copy_mismatch(FJ, Fval)
     actor.ad_info[:jacobian_copy_mismatch] = mismatch
-    if mismatch > 1E-8
-        error("ActorFluxMatcher: the residual on the zero-derivative copy of the dd differs from the residual on the dd (relative difference $mismatch)")
+    if mismatch > RESIDUAL_COPY_TOLERANCE
+        error("ActorFluxMatcher: the residual on the zero-derivative copy of the dd differs from the residual on the dd (difference $mismatch)")
     end
 
     # unknowns on the z_max clamp do not move
@@ -824,6 +829,19 @@ function settled_flux_match_errors(
     actor.ad_info[:settle_change] = max(get(actor.ad_info, :settle_change, 0.0), last_change)
     return F
 end
+
+"""
+    residual_copy_mismatch(F_copy, F)
+
+Difference between the flux-matching residual on a copy of the dd and on the dd itself. The residual is
+normalized (of order one away from a solution), so the difference is absolute below one and relative above:
+at a solution the residual vanishes and is no scale to measure against.
+"""
+residual_copy_mismatch(F_copy::AbstractVector{<:Real}, F::AbstractVector{<:Real}) = maximum(abs, F_copy .- F) / max(maximum(abs, F), 1.0)
+
+# Two evaluations of the residual agree to the tolerance of the iterative solves inside the transport models
+# (each starts from its own caches), not to rounding: the copy is equivalent to the dd below this difference.
+const RESIDUAL_COPY_TOLERANCE = 1E-6
 
 """
     flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d) where {D<:Real,P<:Real}
@@ -893,7 +911,7 @@ function flux_match_jacobian(
         end
         Fc = settled_flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
         FJ .= dual_values(Fc)
-        if !full_copy && Fref !== nothing && maximum(abs, FJ .- Fref) > 1E-8 * max(maximum(abs, Fref), eps())
+        if !full_copy && Fref !== nothing && residual_copy_mismatch(FJ, Fref) > RESIDUAL_COPY_TOLERANCE
             actor.ad_info[:jacobian_full_copy] = 1.0
             return flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref, full_copy=true)
         end
@@ -942,7 +960,14 @@ function flux_match_newton(
         dz = zero(z)
         while λ < 1E10
             dz = -((JtJ + λ * scale) \ g)
-            Fnew = residual(z .+ dz)
+            # a trial step may land where a transport model has no solution: it is rejected like an uphill step
+            Fnew = try
+                residual(z .+ dz)
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                rethrow_if_dual_type_error(D, e)
+                fill(Inf, length(F))
+            end
             if all(isfinite, Fnew) && norm(Fnew) < norm(F)
                 z .+= dz
                 F = Fnew
