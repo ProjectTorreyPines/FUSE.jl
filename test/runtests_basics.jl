@@ -32,6 +32,26 @@ end
     @test typeof(ini.build.symmetric) <: Bool
 end
 
+@testset "evolve_densities :zeff" begin
+    dd = IMAS.json2imas(joinpath(pkgdir(FUSE), "sample", "D3D_standard_Lmode.json"); show_warnings=false)
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # fast electrons are not among the ions that get :zeff: they are registered as :fixed
+    cp1d.electrons.density_fast = zero(cp1d.electrons.density_thermal)
+    evolve_densities = FUSE.setup_density_evolution_electron_flux_match_fixed_zeff(cp1d)
+    @test !haskey(evolve_densities, :electrons_fast)
+    @test FUSE.check_evolve_densities(cp1d, evolve_densities) === nothing
+    @test evolve_densities[:electrons_fast] == :fixed
+
+    # a fast ion can be :fixed too
+    evolve_densities[:D_fast] = :fixed
+    @test FUSE.check_evolve_densities(cp1d, evolve_densities) === nothing
+
+    # every thermal ion must be :zeff
+    evolve_densities[:C] = :fixed
+    @test_throws AssertionError FUSE.check_evolve_densities(cp1d, evolve_densities)
+end
+
 @testset "costing" begin
     value = FUSE.IMAS.Measurements.value
 
