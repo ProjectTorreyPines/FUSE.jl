@@ -85,12 +85,30 @@ using Test
         cp1d_after = dd_gk.core_profiles.profiles_1d[]
         @test !all(cp1d_after.electrons.temperature .== cp1d_before.electrons.temperature)
     end
+
+    @testset "forward-mode residual equals the solver's residual" begin
+        # the forward-mode evaluation builds its own dd: it must see the same sources (targets, fast-ion
+        # densities) as the primal residual. Without the external sources the two differed by 11 % here
+        dd_test = deepcopy(dd)
+        act_test = deepcopy(act)
+        act_test.ActorTGLF.model = :TGLFNN
+        act_test.ActorFluxMatcher.algorithm = :none
+        act_test.ActorFluxMatcher.consistent_fast_pressure = true
+        actor = FUSE.ActorFluxMatcher(dd_test, act_test)
+        cp1d = dd_test.core_profiles.profiles_1d[]
+        initial_cp1d = FUSE.cp1d_copy_primary_quantities(cp1d)
+        z = FUSE.scale_z_profiles(FUSE.pack_z_profiles(cp1d, actor.par)[1])
+        primal = FUSE.flux_match_errors(actor, z, initial_cp1d).errors
+        F = similar(primal)
+        FUSE.ad_flux_match_errors!(F, z, actor, initial_cp1d)
+        @test F ≈ primal rtol = 1e-2
+    end
 end
 
 @testset "forward_ad Jacobian does not replace the solver's residual" begin
     # NonlinearSolve's TrustRegion with jacobian_method=:forward_ad. The residual of the forward-mode evaluation
-    # (ad_flux_match_errors!) leaves out the external sources, so if the solver took its residual from the Jacobian
-    # evaluation it would step from a wrong residual: on this sample it stalled at the starting error (1.2)
+    # (ad_flux_match_errors!) used to leave out the external sources, so when the solver took its residual from the
+    # Jacobian evaluation it stepped from a wrong residual: on this sample it stalled at the starting error (1.2)
     dd = IMAS.json2imas(joinpath(pkgdir(FUSE), "sample", "D3D_standard_Lmode.json"); show_warnings=false)
     act = FUSE.ParametersActors()
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"

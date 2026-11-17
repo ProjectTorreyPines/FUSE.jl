@@ -392,10 +392,15 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # With jacobian_method = :forward_ad the Jacobian is handed to the solver as `jac`, so that every
             # residual value the solver sees comes from the primal path of f!. When the solver differentiated f!
             # itself, NonlinearSolve's Jacobian cache stored the value of the forward-mode evaluation as the
-            # solver's residual; `ad_flux_match_errors!` leaves out the external sources, the `∂/∂t` source of
-            # earlier changes and the pedestal, so Broyden, TrustRegion and the polyalgorithms stepped from a wrong residual.
+            # solver's residual; `ad_flux_match_errors!` freezes the pedestal, so Broyden, TrustRegion and the
+            # polyalgorithms could step from a residual that is not the solver's.
             nonlinear_function = if jacobian_method === :forward_ad
                 function jac!(J, u, _)
+                    if D <: ForwardDiff.Dual
+                        # on a dd of dual numbers the Jacobian is taken on its zero-derivative copy
+                        J .= flux_match_jacobian(actor, Vector{Float64}(u), initial_cp1d)[1]
+                        return J
+                    end
                     g! = (F, x) -> ad_flux_match_errors!(F, x, actor, initial_cp1d; prog)
                     chunk = par.ad_chunksize > 0 ? ForwardDiff.Chunk{par.ad_chunksize}() : ForwardDiff.Chunk(u)
                     F = similar(u)
@@ -755,10 +760,10 @@ function flux_match_implicit(
 
     # ∂F/∂z on a copy of the dd that carries no input derivatives
     J, FJ = flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref=Fval, full_copy=get(actor.ad_info, :jacobian_full_copy, 0.0) == 1.0)
-    mismatch = maximum(abs, FJ .- Fval) / max(maximum(abs, Fval), eps())
+    mismatch = residual_copy_mismatch(FJ, Fval)
     actor.ad_info[:jacobian_copy_mismatch] = mismatch
-    if mismatch > 1E-8
-        error("ActorFluxMatcher: the residual on the zero-derivative copy of the dd differs from the residual on the dd (relative difference $mismatch)")
+    if mismatch > RESIDUAL_COPY_TOLERANCE
+        error("ActorFluxMatcher: the residual on the zero-derivative copy of the dd differs from the residual on the dd (difference $mismatch)")
     end
 
     # unknowns on the z_max clamp do not move
@@ -824,6 +829,19 @@ function settled_flux_match_errors(
     actor.ad_info[:settle_change] = max(get(actor.ad_info, :settle_change, 0.0), last_change)
     return F
 end
+
+"""
+    residual_copy_mismatch(F_copy, F)
+
+Difference between the flux-matching residual on a copy of the dd and on the dd itself. The residual is
+normalized (of order one away from a solution), so the difference is absolute below one and relative above:
+at a solution the residual vanishes and is no scale to measure against.
+"""
+residual_copy_mismatch(F_copy::AbstractVector{<:Real}, F::AbstractVector{<:Real}) = maximum(abs, F_copy .- F) / max(maximum(abs, F), 1.0)
+
+# Two evaluations of the residual agree to the tolerance of the iterative solves inside the transport models
+# (each starts from its own caches), not to rounding: the copy is equivalent to the dd below this difference.
+const RESIDUAL_COPY_TOLERANCE = 1E-6
 
 """
     flux_match_jacobian(actor::ActorFluxMatcher{D,P}, z_scaled::Vector{Float64}, initial_cp1d) where {D<:Real,P<:Real}
@@ -893,7 +911,7 @@ function flux_match_jacobian(
         end
         Fc = settled_flux_match_errors(actor_J, with_partials(DJ, z_scaled, seeds), initial_cp1d_J)
         FJ .= dual_values(Fc)
-        if !full_copy && Fref !== nothing && maximum(abs, FJ .- Fref) > 1E-8 * max(maximum(abs, Fref), eps())
+        if !full_copy && Fref !== nothing && residual_copy_mismatch(FJ, Fref) > RESIDUAL_COPY_TOLERANCE
             actor.ad_info[:jacobian_full_copy] = 1.0
             return flux_match_jacobian(actor, z_scaled, initial_cp1d; Fref, full_copy=true)
         end
@@ -942,7 +960,14 @@ function flux_match_newton(
         dz = zero(z)
         while λ < 1E10
             dz = -((JtJ + λ * scale) \ g)
-            Fnew = residual(z .+ dz)
+            # a trial step may land where a transport model has no solution: it is rejected like an uphill step
+            Fnew = try
+                residual(z .+ dz)
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                rethrow_if_dual_type_error(D, e)
+                fill(Inf, length(F))
+            end
             if all(isfinite, Fnew) && norm(Fnew) < norm(F)
                 z .+= dz
                 F = Fnew
@@ -1060,10 +1085,13 @@ function flux_match_errors(
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
     end
 
-    # handle fixed widths in TJLF
-    if actor.actor_ct.par.turbulence_model == :TGLF && actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths && !isempty(err_history)
-        for input_tglf in actor.actor_ct.actor_turb.input_tglfs
-            input_tglf.FIND_WIDTH = false
+    # handle fixed widths in TJLF: found at the first evaluation of this flux-matching solve, then held
+    if actor.actor_ct.par.turbulence_model == :TGLF && actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths
+        input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        for k in eachindex(input_tglfs)
+            if isassigned(input_tglfs, k)
+                input_tglfs[k].FIND_WIDTH = isempty(err_history)
+            end
         end
     end
 
@@ -1942,7 +1970,8 @@ end
 Create a lightweight `dd{T}` populated with only the data needed for flux matching:
 - `equilibrium.time_slice[1]` — full geometry (promoted to T with zero partials)
 - `core_profiles.profiles_1d[1]` — restored from `initial_cp1d` (promoted to T)
-- `core_sources` and `core_transport` — left empty (filled by the pipeline)
+- `core_sources` — the sources at the current time (promoted to T); the intrinsic ones are recomputed by the pipeline
+- `core_transport` — left empty (filled by the pipeline)
 
 This avoids copying the entire dd while providing all data needed by
 `intrinsic_sources!`, `InputTGLF`, `flux_gacode_to_imas`, `total_fluxes!`, and `total_sources!`.
@@ -1974,6 +2003,18 @@ function prepare_dd_for_ad(dd_float::IMAS.DD{D}, initial_cp1d::IMAS.core_profile
     # Ensure profiles_1d.time matches core_profiles.time
     cp1d_ad.time = dd_float.global_time
 
+    # Copy the sources at the current time (promoted to T): the external sources are part of the
+    # flux-matching targets and of the fast-ion densities, the intrinsic ones are recomputed by the pipeline
+    dd_ad.core_sources.time = [dd_float.global_time]
+    resize!(dd_ad.core_sources.source, length(dd_float.core_sources.source))
+    for (source_ad, source) in zip(dd_ad.core_sources.source, dd_float.core_sources.source)
+        copy_ids_data!(source_ad.identifier, source.identifier)
+        isempty(source.profiles_1d) && continue
+        resize!(source_ad.profiles_1d, 1)
+        copy_ids_data!(source_ad.profiles_1d[1], source.profiles_1d[])
+        source_ad.profiles_1d[1].time = dd_float.global_time
+    end
+
     return dd_ad
 end
 
@@ -1998,9 +2039,10 @@ neoclassical transport (thermodynamic driving forces), and secondary TJLF inputs
 
 Frozen at primal: equilibrium geometry, pedestal evolution.
 
-Left out, as they do not depend on the unknowns: the external sources and the `∂/∂t` source of the changes
-made outside of the flux matcher. The value of this residual therefore differs from `flux_match_errors`
-by a constant; its Jacobian is the same when the pedestal is not evolved.
+The external sources and the `∂/∂t` source of the changes made outside of the flux matcher are copied from
+the primal dd: they do not depend on the unknowns, but they are part of the targets and the fast-ion
+densities rebuilt from them enter the transport model. When the pedestal is not evolved, the value and the
+Jacobian of this residual are those of `flux_match_errors`.
 """
 function ad_flux_match_errors!(
     F::AbstractVector,
