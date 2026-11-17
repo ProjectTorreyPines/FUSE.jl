@@ -178,10 +178,10 @@ function _step(actor::ActorCostingARIES)
     for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
         sub = resize!(sys.subsystem, "name" => replace(string(item), "_" => " "))
         if item == :land
-            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_net, da)
         elseif item == :buildings
-            sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
-                par.land_space, power_electric_generated,
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space,
+                par.building_volume, power_electric_generated,
                 power_thermal, power_electric_net, da)
         elseif item == :hot_cell
             sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
@@ -207,7 +207,8 @@ function _step(actor::ActorCostingARIES)
     for item in (:blanket_replacement,)
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
-            blanket_cost = findfirst(item -> item.name == "blanket", tokamak.subsystem)
+            index = findfirst(item -> item.name == "blanket", tokamak.subsystem)
+            blanket_cost = index === nothing ? nothing : tokamak.subsystem[index].cost
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
         else
             sub.yearly_cost = cost_operations_ARIES(item, da)
@@ -531,18 +532,18 @@ function cost_operations_ARIES(::Val{:tritium_handling}, da::DollarAdjust)
 end
 
 """
-    cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
 
 Yearly cost for blanket replacement [\$M/year]
+
+`cost_blanket` is the direct capital cost of the blanket, already in the dollars of the construction start year (`nothing` without a blanket)
 """
-function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust{T})::T where {T<:Real}
     if cost_blanket === nothing
-        cost = 0.0
+        return zero(T)
     else
-        da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
-        cost = cost_blanket / blanket_lifetime
+        return cost_blanket / blanket_lifetime
     end
-    return future_dollars(cost, da)
 end
 
 #= =================== =#
