@@ -1452,6 +1452,13 @@ element start points projected onto (R,Z), keeping the two most distant; toroida
 same row (same projection within 1 mm) are kept once. Falls back to `par.coils_RZ`.
 """
 function coil_endpoints(dd::IMAS.DD, par)
+    if isempty(dd.coils_non_axisymmetric.coil)
+        c = par.coils_RZ
+        (isempty(c) || length(c) % 4 != 0) &&
+            error("coil_surface=true but dd.coils_non_axisymmetric has no coils and coils_RZ has $(length(c)) values " *
+                  "(need [R1, Z1, R2, Z2] per coil row)")
+        return permutedims(reshape(collect(float.(c)), 4, :))
+    end
     rows = Vector{Vector{Float64}}()
     for coil in dd.coils_non_axisymmetric.coil, cond in coil.conductor
         pts = cond.elements.start_points
@@ -1465,13 +1472,7 @@ function coil_endpoints(dd::IMAS.DD, par)
         row = z[i] >= z[j] ? [r[i], z[i], r[j], z[j]] : [r[j], z[j], r[i], z[i]]
         any(maximum(abs.(row .- q)) < 1e-3 for q in rows) || push!(rows, row)
     end
-    if isempty(rows)
-        c = par.coils_RZ
-        (isempty(c) || length(c) % 4 != 0) &&
-            error("coil_surface=true but dd.coils_non_axisymmetric has no coils and coils_RZ has $(length(c)) values " *
-                  "(need [R1, Z1, R2, Z2] per coil row)")
-        return permutedims(reshape(collect(float.(c)), 4, :))
-    end
+    isempty(rows) && error("dd.coils_non_axisymmetric has coils but no conductor start_points (r, z)")
     return permutedims(reduce(hcat, rows))
 end
 
