@@ -3,7 +3,8 @@ import CHEASE
 using MARS: MARSnamelist, MarsOverrides, MarsModeStructure, MarsOutputs,
     apply_overrides!, write_MARS_namelist, write_profile_IN,
     read_MARS_eigenfunction, fix_axis_regularity!, read_MARS_geometry, mars_flux_surface_RZ,
-    parse_MARS_results, check_MARS_convergence, check_MARS_finished, julia_grep
+    parse_MARS_results, check_MARS_convergence, check_MARS_finished, julia_grep,
+    read_OUTVMAR, read_OUTRMAR_header, coil_feed_params, fit_coil_surface
 
 const μ_0 = 4pi * 1E-7
 
@@ -33,6 +34,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :resistive_wall], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    coil_surface::Entry{Bool} = Entry{Bool}("-",
+        "Fit a surface through the external (RMP/feedback) coils, add it to EXPEQ as an extra, never resistive " *
+        "vacuum surface (CHEASE then meshes a surface through the coils), and set MARS FEEDBACK NCOIL/IFEED/" *
+        "FCCHI/FWCHI on it. Coils come from dd.coils_non_axisymmetric, else from coils_RZ"; default=false)
+    coils_RZ::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m",
+        "Poloidal coil segments [R1, Z1, R2, Z2, R1, Z1, ...], four numbers per coil row, used for coil_surface " *
+        "when dd.coils_non_axisymmetric holds no coils"; default=Float64[])
     growth_rate_guess::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Initial guess [Re, Im] for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. A single element is taken as a real guess. Set this to something large and preferably real to end up with something tractable."; default=[0.1, 0.0])
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
@@ -64,7 +72,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "Cannot be combined with chease_overrides.CFBAL."; default=1.0)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MARS-Q MHD code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
-    mars_coord::Switch{Symbol} = Switch{Symbol}([:normal, :transfer], "-", "Whether to run on the CHEASE coords or transfer to a geometric poloidal angle based coord. system"; default=:transfer)
+    mars_coord::Switch{Symbol} = Switch{Symbol}([:normal, :transfer], "-", "Whether to run on the CHEASE coords or transfer to a geometric poloidal angle based coord. system"; default=:normal)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)
     save_dir::Entry{String} =
@@ -104,15 +112,10 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Apply user overrides
         # -------------------------
-        if :CFBAL ∈ keys(chease_overrides)
-            error("CFBAL cannot be set via chease_overrides — use the beta_fac actor parameter instead " *
-                  "(par.beta_fac is transmitted to CHEASE's CFBAL; having both would silently pick one).")
-        end
-        for k in (:NCSCAL, :CURRT)
+        for k in (:NCSCAL, :CURRT, :CFBAL)
             if k ∈ keys(chease_overrides)
-                error("$k cannot be set via chease_overrides — use the current_scaling actor parameter " *
-                      "instead (:fixed_ip / :fixed_q / :none set NCSCAL, and :fixed_ip derives CURRT " *
-                      "from dd's Ip; having both would silently pick one).")
+                error("$k cannot be set via chease_overrides because there is an actor parameter " *
+                      "corresponding to it.")
             end
         end
         for (k, v) in pairs(chease_overrides)
@@ -136,6 +139,12 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
             if :TALPHA1 ∈ keys(getfield(mars_overrides, block))
                 error("TALPHA1 cannot be set via mars_overrides (found in the $block block) — use the " *
                       "growth_rate_guess actor parameter instead.")
+            end
+        end
+        if par.coil_surface
+            for k in (:NCOIL, :IFEED, :FCCHI, :FWCHI)
+                k ∈ keys(mars_overrides.FEEDBACK) &&
+                    error("$k cannot be set via mars_overrides when coil_surface=true — the coil geometry sets it.")
             end
         end
         mars_nl = mars_inputs === nothing ? MARSnamelist() : mars_inputs
@@ -664,7 +673,8 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
     # Valid NVEXP per chease.f: 0,1,2,3,4,5,6,8,10,20,50,60,80,800 — anything else STOPs.
     # Avoid 4: it Newton-iterates for the mesh ratio and can die with `STOP 'NO_CONV'` or
     # `STOP 'NVEXP=4 REXT'`. 1,2,3,5,6 are safe here.
-    if par.num_surfaces == 1 && chease_namelist.NVEXP == 8
+    # A coil surface counts here: it is a bounding surface for CHEASE, though never a wall for MARS.
+    if par.num_surfaces + par.coil_surface == 1 && chease_namelist.NVEXP == 8
         @info "num_surfaces=1 leaves no wall for NVEXP=8 to anchor on (CHEASE would abort) — overriding NVEXP=1"
         NVEXP = 1
         setfield!(chease_namelist, :NVEXP, NVEXP)
@@ -814,9 +824,10 @@ be left at struct defaults that do not correspond to the equilibrium actually be
 
 - otherwise `IWALL` is re-derived from the CHEASE-reported wall index `NW` in `log_chease`
   (e.g. `NW=20` ↔ s=1.2308, matching CHEASE's own reported `RW`), and `TAUW` is taken from
-  `par.wall_time_constants`.
+  `par.wall_time_constants`. With a coil surface (`ifeed`, its mesh index), that surface is
+  excluded, so it is never a resistive wall.
 """
-function configure_wall!(mars_namelist, par)
+function configure_wall!(mars_namelist, par; ifeed=nothing)
     basic = mars_namelist.BASIC
 
     if par.wall_type == :no_wall
@@ -836,7 +847,16 @@ function configure_wall!(mars_namelist, par)
 
     # Wall position: CHEASE reports the wall grid index as `NW` in log_chease.
     iwall = copy(basic.IWALL)
-    if isfile("log_chease")
+    if ifeed !== nothing && isfile("log_chease") && isfile("OUTVMAR")
+        # With a coil surface, log_chease's first NW may be the coil surface's. Take the mesh index of
+        # every intermediate surface from CHEASE's radii RW(J) (the vacuum s of OUTVMAR equals them
+        # exactly) and drop the coil surface, IFEED.
+        RW = unique(parse(Float64, m[1]) for m in eachmatch(r"RW\(J\)=\s*(\S+)", read("log_chease", String)))
+        s = read_OUTVMAR("OUTVMAR")[1]
+        NW = setdiff([argmin(abs.(s .- rw)) for rw in RW if 1 < rw < maximum(RW)], ifeed)
+        isempty(NW) || @info "Setting IWALL from CHEASE wall index NW = $(NW[1]) (log_chease RW, coil surface IFEED=$ifeed excluded)"
+        isempty(NW) || (isempty(iwall) ? push!(iwall, NW[1]) : (iwall[1] = NW[1]))
+    elseif isfile("log_chease")
         NW_dict = julia_grep(["NW"], "log_chease"; extract_values=true)
         if haskey(NW_dict, "NW")
             NW = NW_dict["NW"]
@@ -882,11 +902,58 @@ function configure_wall!(mars_namelist, par)
 end
 
 
+"""
+    configure_coils!(mars_namelist, dd, par) -> IFEED or nothing
+
+With `par.coil_surface`, set MARS FEEDBACK `NCOIL`, `IFEED`, `FCCHI`, `FWCHI` from the coils
+([`coil_endpoints`](@ref)) and CHEASE's vacuum mesh (OUTVMAR/OUTRMAR in the run directory): all
+coils on the mesh surface nearest to them, which is the coil surface CHEASE meshed, with their
+angles in the coordinate `par.mars_coord` selects. No MARS run is needed.
+"""
+function configure_coils!(mars_namelist, dd::IMAS.DD, par)
+    par.coil_surface || return nothing
+    coils = coil_endpoints(dd, par)
+    s, R, Z = read_OUTVMAR("OUTVMAR")
+    R0EXP, R00, Z00 = read_OUTRMAR_header("OUTRMAR")
+    surfaces = 2:min(mars_namelist.BASIC.NV, length(s))
+    IFEED, FCCHI, FWCHI, dist = coil_feed_params(R, Z, R0EXP, coils;
+        nconvcs=mars_nconvcs(par.mars_coord), origin=(R00, Z00), surfaces)
+
+    fb = mars_namelist.FEEDBACK
+    length(fb.FEEDI) == size(coils, 1) ||
+        error("$(size(coils, 1)) coil rows but FEEDI has $(length(fb.FEEDI)) entries; set one coil current per row " *
+              "via mars_overrides.FEEDBACK[:FEEDI]")
+    fb.NCOIL, fb.IFEED, fb.FCCHI, fb.FWCHI = size(coils, 1), IFEED, FCCHI, FWCHI
+    @info "Coils: NCOIL=$(fb.NCOIL), IFEED=$IFEED (s=$(round(s[IFEED]; digits=4))), FCCHI=$(round.(FCCHI; digits=5)), " *
+          "FWCHI=$(round.(FWCHI; digits=5)); coil ends lie within $(round(maximum(dist); sigdigits=3)) m of the surface"
+
+    # vacuum mesh as MARS sees it (surfaces 1:NV, every 8th χ line), with the coil surface IFEED and the coils
+    if par.do_plot
+        Rm, Zm = R[1:last(surfaces), :] .* R0EXP, Z[1:last(surfaces), :] .* R0EXP
+        p = FUSE.Plots.plot(Rm[:, [1:end; 1]]', Zm[:, [1:end; 1]]'; color=:gray, linewidth=0.3, label="",
+            aspect_ratio=:equal, xlabel="R [m]", ylabel="Z [m]", title="MARS vacuum mesh")
+        plot!(p, Rm[:, 1:8:end], Zm[:, 1:8:end]; color=:gray, linewidth=0.3, label="")
+        plot!(p, Rm[1, [1:end; 1]], Zm[1, [1:end; 1]]; color=:black, linewidth=2, label="plasma boundary")
+        plot!(p, Rm[IFEED, [1:end; 1]], Zm[IFEED, [1:end; 1]]; color=:red, linewidth=2, label="coil surface IFEED=$IFEED")
+        for (k, c) in enumerate(eachrow(coils))
+            plot!(p, c[[1, 3]], c[[2, 4]]; color=:blue, linewidth=4, label=k == 1 ? "coils" : "")
+        end
+        # zoom on the coil surface; the far-field mesh out to REXT would swamp it
+        rc, zc = extrema(Rm[IFEED, :]), extrema(Zm[IFEED, :])
+        pad = 0.25 * max(rc[2] - rc[1], zc[2] - zc[1])
+        display(plot!(p; xlims=(rc[1] - pad, rc[2] + pad), ylims=(zc[1] - pad, zc[2] + pad)))
+    end
+    return IFEED
+end
+
 function run_MARS(dd::IMAS.DD, par, mars_namelist)
+
+    # Coils first: the coil surface's mesh index (IFEED) must be known to keep it out of IWALL.
+    ifeed = configure_coils!(mars_namelist, dd, par)
 
     # Resistive-wall settings (NWALL/IWALL/TAUW) are derived from par.wall_type and the
     # CHEASE-computed wall position, never left at struct defaults.
-    configure_wall!(mars_namelist, par)
+    configure_wall!(mars_namelist, par; ifeed)
 
     # Coordinate system, owned by par.mars_coord. NCONVCS=1 makes MARS rebuild its mesh on
     # the geometric (polar) angle θ = atan2(Z-Z_axis, R-R_axis) right after reading OUT*MAR
@@ -1224,7 +1291,7 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
     NWBPS = par.num_surfaces
-    
+
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[]
     eqt1d = time_slice.profiles_1d
@@ -1311,10 +1378,9 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
         s,
         GS_RHS,
         pprime,
-        NWBPS,
         NDATA,
-        missing,
-        missing,
+        Vector{Float64}[],
+        Vector{Float64}[],
     )
 
     r_bound_norm = rb_new / R0
@@ -1344,21 +1410,70 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
 
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
 
-        chease_struct.r_limiter = r_lim
-        chease_struct.z_limiter = z_lim
-
-        r_lim_norm = r_lim / R0
-        z_lim_norm = z_lim / R0
+        push!(chease_struct.r_surfaces, r_lim)
+        push!(chease_struct.z_surfaces, z_lim)
 
         plt !== nothing && plot!(plt, r_lim, z_lim; subplot=1, linewidth=1.5, aspect_ratio=:equal, label="MARS resistive wall")
     end
-  
+
+    # Coil surface: one more bounding surface for CHEASE, through the coils. MARS never treats it as a
+    # wall (NWALL/IWALL count walls only, see configure_wall!); it only carries the coils (IFEED).
+    if par.coil_surface
+        coils = coil_endpoints(dd, par)
+        r_coil, z_coil, x = fit_coil_surface(rb_new, zb_new, coils)
+        @info "Coil surface: shift (ΔR, ΔZ) = $(round.(x[1:2]; digits=4)) m, stretch (R, Z) = $(round.(x[3:4]; digits=4))"
+        push!(chease_struct.r_surfaces, r_coil)
+        push!(chease_struct.z_surfaces, z_coil)
+        if plt !== nothing
+            plot!(plt, r_coil, z_coil; subplot=1, linewidth=1.5, linestyle=:dash, aspect_ratio=:equal, label="coil surface")
+            for c in eachrow(coils)
+                plot!(plt, c[[1, 3]], c[[2, 4]]; subplot=1, linewidth=3, color=:black, label="")
+            end
+        end
+    end
+
+    # CHEASE places the surfaces outward in the order given (RW from each surface's largest R)
+    p = sortperm(maximum.(chease_struct.r_surfaces))
+    chease_struct.r_surfaces = chease_struct.r_surfaces[p]
+    chease_struct.z_surfaces = chease_struct.z_surfaces[p]
+
     # write to EXPEQ file
     CHEASE.write_EXPEQ_file(chease_struct)   
     
     return B0, R0
 end
 
+
+"""
+    coil_endpoints(dd, par) -> Matrix (ncoil × 4)
+
+Poloidal coil rows `[R1 Z1 R2 Z2]` [m] for MARS. From `dd.coils_non_axisymmetric`: each conductor's
+element start points projected onto (R,Z), keeping the two most distant; toroidally repeated coils of the
+same row (same projection within 1 mm) are kept once. Falls back to `par.coils_RZ`.
+"""
+function coil_endpoints(dd::IMAS.DD, par)
+    rows = Vector{Vector{Float64}}()
+    for coil in dd.coils_non_axisymmetric.coil, cond in coil.conductor
+        pts = cond.elements.start_points
+        ismissing(pts, :r) && continue
+        r, z = pts.r, pts.z
+        d, i, j = -1.0, 1, 1
+        for a in eachindex(r), b in a+1:lastindex(r)
+            dab = hypot(r[a] - r[b], z[a] - z[b])
+            dab > d && ((d, i, j) = (dab, a, b))
+        end
+        row = z[i] >= z[j] ? [r[i], z[i], r[j], z[j]] : [r[j], z[j], r[i], z[i]]
+        any(maximum(abs.(row .- q)) < 1e-3 for q in rows) || push!(rows, row)
+    end
+    if isempty(rows)
+        c = par.coils_RZ
+        (isempty(c) || length(c) % 4 != 0) &&
+            error("coil_surface=true but dd.coils_non_axisymmetric has no coils and coils_RZ has $(length(c)) values " *
+                  "(need [R1, Z1, R2, Z2] per coil row)")
+        return permutedims(reshape(collect(float.(c)), 4, :))
+    end
+    return permutedims(reduce(hcat, rows))
+end
 
 function offset_boundary(xs, ys, d)
     ds = sqrt.(diff(xs).^2 .+ diff(ys).^2)
