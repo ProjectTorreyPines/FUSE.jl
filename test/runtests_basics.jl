@@ -118,6 +118,15 @@ end
     @test needs["tritium_handling"] == [15e6]
 end
 
+@testset "equalize_symmetric_areas!" begin
+    # coils 2 and 3 mirror each other; coil 1 sits next to coil 2, within a coil size of the mirror image of coil 3
+    # coil 4 has no mirror; coils 5 and 6 mirror each other
+    r = [5.1, 5.0, 5.0, 8.0, 1.0, 1.0]
+    z = [1.0, 1.0, -1.0, 0.5, 2.0, -2.0]
+    areas = [1.0, 2.0, 3.0, 0.5, 4.0, 6.0]
+    @test FUSE.equalize_symmetric_areas!(areas, r, z) == [1.0, 3.0, 3.0, 0.5, 6.0, 6.0]
+end
+
 @testset "Checkpoint" begin
     a_old = a = [1]
     b_old = b = [2]
