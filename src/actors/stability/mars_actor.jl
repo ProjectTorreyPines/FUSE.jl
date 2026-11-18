@@ -1551,7 +1551,8 @@ radial index while `IFEED`/`IWALL` are vacuum-relative).
 
 Pick the surface exactly one way:
   - `s_target` : nearest row in `s = sqrt(ψ_norm)`, plasma (`s<1`) or vacuum
-  - `ifeed`    : vacuum cell `k`, the IFEED convention (MARS uses `II = NR + k`)
+  - `ifeed`    : MARS FEEDBACK `IFEED`, i.e. an OUTVMAR row (row 1 = the plasma boundary at
+                 s=1, so `IFEED` as returned by `configure_coils!` lands on the coil surface)
 
 With `n_tor` given, `q` is interpolated from `dd.equilibrium` at that `s` and the resonant
 harmonic `m = n·q` is reported along with the nearest stored harmonic's amplitude.
@@ -1583,8 +1584,12 @@ function ef_at_surface(dd::IMAS.DD; s_target=nothing, ifeed=nothing, n_tor=nothi
             "vacuum perturbed field is not in dd: either MARS wrote no BPLASMA.OUT vacuum rows, " *
             "or MARS NV != CHEASE NV so store_mode_structure! skipped them (see its @warn). " *
             "Use s_target in the plasma, or rerun with MARS NV == CHEASE NV.")
-        1 <= ifeed <= length(vac.s) || error("ifeed=$ifeed outside the stored vacuum grid (1..$(length(vac.s)))")
-        blk, row, region = vac, ifeed, "vacuum cell $ifeed"
+        # IFEED counts OUTVMAR rows, whose row 1 is the plasma boundary (s=1, = RMZM row Ns1);
+        # dd's vacuum block starts one row further out, so IFEED k is vacuum row k-1.
+        2 <= ifeed <= length(vac.s) + 1 ||
+            error("ifeed=$ifeed outside the stored vacuum grid (2..$(length(vac.s) + 1); " *
+                  "1 is the plasma boundary, which lives in mode.plasma)")
+        blk, row, region = vac, ifeed - 1, "vacuum, IFEED=$ifeed"
     else
         use_vac = vac !== nothing && (pl === nothing || s_target > maximum(pl.s))
         blk = use_vac ? vac : pl
