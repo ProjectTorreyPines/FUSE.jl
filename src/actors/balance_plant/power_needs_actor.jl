@@ -85,7 +85,7 @@ function _step(actor::ActorPowerNeeds)
         for system in bop_systems
             idx = IMAS.name_2_index(bop_electric.system)[system]
             sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
-            sys.power = electricity(system)
+            @ddtime(sys.power = electricity(system))
         end
     end
     return actor
