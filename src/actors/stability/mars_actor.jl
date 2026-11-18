@@ -1352,6 +1352,75 @@ end
 
 #= ======== =#
 #  plotting  #
+"""
+    ef_at_surface(dd; s_target=nothing, ifeed=nothing, n_tor=nothing, mode_index=1)
+
+Perturbed radial field `b¹(m)` at ONE radial surface of a MARS run, read back out of
+`dd.mhd_linear` — the error field for an external-coil (INCFEED=4) run.
+
+`store_mode_structure!` already puts BPLASMA.OUT's full plasma+vacuum field into
+`mode.plasma`/`mode.vacuum`, so no file is re-read here, and the surface is chosen after the
+run (the `IBOUT`/`B123U.OUT` route would have to be chosen before it, and uses an absolute
+radial index while `IFEED`/`IWALL` are vacuum-relative).
+
+Pick the surface exactly one way:
+  - `s_target` : nearest row in `s = sqrt(ψ_norm)`, plasma (`s<1`) or vacuum
+  - `ifeed`    : vacuum cell `k`, the IFEED convention (MARS uses `II = NR + k`)
+
+With `n_tor` given, `q` is interpolated from `dd.equilibrium` at that `s` and the resonant
+harmonic `m = n·q` is reported along with the nearest stored harmonic's amplitude.
+
+Returns a NamedTuple `(; m, b1, s, region, q, m_resonant, b1_resonant, m_nearest)`; `q` and the
+resonant entries are `nothing` when `n_tor` is not given.
+
+NOTE `b1` is the CONTRAVARIANT radial component in CHEASE's coordinate system — equal-arc with
+the default `NER=1, NEGP=-1`, which `mode.*.grid_type` records. It is neither the physical
+normal field (in Tesla per unit area) nor a straight-field-line spectrum; resonant amplitudes
+are conventionally quoted in SFL (MARS manual §5.4).
+"""
+function ef_at_surface(dd::IMAS.DD; s_target=nothing, ifeed=nothing, n_tor=nothing, mode_index::Int=1)
+    count(!isnothing, (s_target, ifeed)) == 1 ||
+        error("give exactly one of s_target= or ifeed=")
+
+    isempty(dd.mhd_linear.time_slice) && error("dd.mhd_linear is empty — run ActorMars with run_MHD=true first")
+    mode = dd.mhd_linear.time_slice[].toroidal_mode[mode_index]
+
+    function harmonics(blk)
+        b = blk.b_field_perturbed.coordinate1
+        (isempty(b.real) || isempty(blk.grid.dim1)) && return nothing
+        return (s=blk.grid.dim1, m=blk.grid.dim2, b=complex.(b.real, b.imaginary))
+    end
+    pl, vac = harmonics(mode.plasma), harmonics(mode.vacuum)
+
+    if ifeed !== nothing
+        vac === nothing && error(
+            "vacuum perturbed field is not in dd: either MARS wrote no BPLASMA.OUT vacuum rows, " *
+            "or MARS NV != CHEASE NV so store_mode_structure! skipped them (see its @warn). " *
+            "Use s_target in the plasma, or rerun with MARS NV == CHEASE NV.")
+        1 <= ifeed <= length(vac.s) || error("ifeed=$ifeed outside the stored vacuum grid (1..$(length(vac.s)))")
+        blk, row, region = vac, ifeed, "vacuum cell $ifeed"
+    else
+        use_vac = vac !== nothing && (pl === nothing || s_target > maximum(pl.s))
+        blk = use_vac ? vac : pl
+        blk === nothing && error("no perturbed field stored in dd.mhd_linear")
+        row = argmin(abs.(blk.s .- s_target))
+        region = use_vac ? "vacuum cell $row" : "plasma"
+    end
+
+    s = blk.s[row]
+    b1 = blk.b[row, :]
+    q = m_res = b_res = m_near = nothing
+    if n_tor !== nothing
+        eqt1d = dd.equilibrium.time_slice[].profiles_1d
+        s_eq = sqrt.(IMAS.norm01(eqt1d.psi))                 # s = sqrt(ψ_norm)
+        q = IMAS.interp1d(s_eq, eqt1d.q).(min(s, maximum(s_eq)))
+        m_res = n_tor * q
+        k = argmin(abs.(blk.m .- m_res))
+        m_near, b_res = blk.m[k], b1[k]
+    end
+    return (; m=blk.m, b1, s, region, q, m_resonant=m_res, b1_resonant=b_res, m_nearest=m_near)
+end
+
 #= ======== =#
 
 """
