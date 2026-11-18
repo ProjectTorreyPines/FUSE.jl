@@ -3,7 +3,8 @@ import CHEASE
 using MARS: MARSnamelist, MarsOverrides, MarsModeStructure, MarsOutputs,
     apply_overrides!, write_MARS_namelist, write_profile_IN,
     read_MARS_eigenfunction, fix_axis_regularity!, read_MARS_geometry, mars_flux_surface_RZ,
-    parse_MARS_results, check_MARS_convergence, check_MARS_finished, julia_grep
+    parse_MARS_results, check_MARS_convergence, check_MARS_finished, julia_grep,
+    read_OUTVMAR, read_OUTRMAR_header, coil_feed_params, fit_coil_surface
 
 const μ_0 = 4pi * 1E-7
 
@@ -33,9 +34,21 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :resistive_wall], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    coil_surface::Entry{Bool} = Entry{Bool}("-",
+        "Fit a surface through the external (RMP/feedback) coils, add it to EXPEQ as an extra, never resistive " *
+        "vacuum surface (CHEASE then meshes a surface through the coils), and set MARS FEEDBACK NCOIL/IFEED/" *
+        "FCCHI/FWCHI on it. Coils come from dd.coils_non_axisymmetric, else from coils_RZ"; default=false)
+    coils_RZ::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m",
+        "Poloidal coil segments [R1, Z1, R2, Z2, R1, Z1, ...], four numbers per coil row, used for coil_surface " *
+        "when dd.coils_non_axisymmetric holds no coils"; default=Float64[])
+    coil_set::Entry{String} = Entry{String}("-",
+        "Name prefix of the dd.coils_non_axisymmetric coils used for coil_surface (MARS takes one coil surface, " *
+        "so one set at a time), e.g. \"I\" or \"C\" for the DIII-D I- or C-coils"; default="I")
+    growth_rate_guess::Entry{Vector{Float64}} =
+        Entry{Vector{Float64}}("-", "Initial guess [Re, Im] for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. A single element is taken as a real guess. Set this to something large and preferably real to end up with something tractable."; default=[0.1, 0.0])
+    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     wall_time_constants::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
-    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     current_scaling::Switch{Symbol} = Switch{Symbol}([:fixed_ip, :fixed_q, :none], "-",
         "How CHEASE rescales the equilibrium (owns the NCSCAL namelist parameter, and CURRT " *
@@ -53,7 +66,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "Could be useful for finding beta_N limits\"), so it rescales dP/dψ for the equilibrium THIS run " *
         "solves — no restart needed. That Fortran block is guarded by NBLOPT==0 (the default) and its " *
         "comment notes it \"works only if current I^* is given\", i.e. it is meant to be used with " *
-        "current_scaling=:fixed_ip (NCSCAL=2). Successive ActorMars calls on the SAME dd do NOT compound: " *
+        "current_scaling=:fixed_ip (NCSCAL=2) or :fixed_q(NCSCAL=1)." * 
+        "Successive ActorMars calls on the SAME dd do NOT compound: " *
         "update_equilibrium_from_chease! writes back only pressure and q, whereas EXPEQ is built from " *
         "dpressure_dpsi / f_df_dpsi / boundary.outline, which it leaves untouched (only pressure[end] " *
         "feeds back, a ~0.1% effect) — a same-dd scan was measured identical to a fresh-dd scan to 4 " *
@@ -101,15 +115,10 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Apply user overrides
         # -------------------------
-        if :CFBAL ∈ keys(chease_overrides)
-            error("CFBAL cannot be set via chease_overrides — use the beta_fac actor parameter instead " *
-                  "(par.beta_fac is transmitted to CHEASE's CFBAL; having both would silently pick one).")
-        end
-        for k in (:NCSCAL, :CURRT)
+        for k in (:NCSCAL, :CURRT, :CFBAL)
             if k ∈ keys(chease_overrides)
-                error("$k cannot be set via chease_overrides — use the current_scaling actor parameter " *
-                      "instead (:fixed_ip / :fixed_q / :none set NCSCAL, and :fixed_ip derives CURRT " *
-                      "from dd's Ip; having both would silently pick one).")
+                error("$k cannot be set via chease_overrides because there is an actor parameter " *
+                      "corresponding to it.")
             end
         end
         for (k, v) in pairs(chease_overrides)
@@ -128,8 +137,17 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         for block in fieldnames(MarsOverrides)
             if :NCONVCS ∈ keys(getfield(mars_overrides, block))
                 error("NCONVCS cannot be set via mars_overrides (found in the $block block) — use the " *
-                      "mars_coord actor parameter instead (:normal -> NCONVCS=0, :transfer -> NCONVCS=1; " *
-                      "having both would silently pick one).")
+                      "mars_coord actor parameter instead.")
+            end
+            if :TALPHA1 ∈ keys(getfield(mars_overrides, block))
+                error("TALPHA1 cannot be set via mars_overrides (found in the $block block) — use the " *
+                      "growth_rate_guess actor parameter instead.")
+            end
+        end
+        if par.coil_surface
+            for k in (:NCOIL, :IFEED, :FCCHI, :FWCHI)
+                k ∈ keys(mars_overrides.FEEDBACK) &&
+                    error("$k cannot be set via mars_overrides when coil_surface=true — the coil geometry sets it.")
             end
         end
         mars_nl = mars_inputs === nothing ? MARSnamelist() : mars_inputs
@@ -658,7 +676,8 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
     # Valid NVEXP per chease.f: 0,1,2,3,4,5,6,8,10,20,50,60,80,800 — anything else STOPs.
     # Avoid 4: it Newton-iterates for the mesh ratio and can die with `STOP 'NO_CONV'` or
     # `STOP 'NVEXP=4 REXT'`. 1,2,3,5,6 are safe here.
-    if par.num_surfaces == 1 && chease_namelist.NVEXP == 8
+    # A coil surface counts here: it is a bounding surface for CHEASE, though never a wall for MARS.
+    if par.num_surfaces + par.coil_surface == 1 && chease_namelist.NVEXP == 8
         @info "num_surfaces=1 leaves no wall for NVEXP=8 to anchor on (CHEASE would abort) — overriding NVEXP=1"
         NVEXP = 1
         setfield!(chease_namelist, :NVEXP, NVEXP)
@@ -680,15 +699,15 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
     @info "Executing CHEASE from $chease_exec"
     isfile(chease_exec) || error("CHEASE executable not found: $chease_exec")
 
-    cmd = pipeline(
-        `$(chease_exec)`,
-        stdin  = "datain",
-        stdout = "log_chease",
-        stderr = "log_chease"
-    )
-
-    ok = success(cmd)
+    # One shared handle for stdout and stderr: passing the same file NAME to both opens it twice
+    # with independent offsets, and stderr then overwrites the start of the stdout log.
+    ok = open("log_chease", "w") do log
+        success(pipeline(`$(chease_exec)`, stdin="datain", stdout=log, stderr=log))
+    end
     ok || error("CHEASE failed — see log_chease")
+    # Stale OUT*MAR were removed above and CHEASE opens them STATUS='NEW', so they exist only if
+    # this run got that far; a CHEASE that dies part-way still leaves most of log_chease behind.
+    isfile("OUTRMAR") && isfile("OUTVMAR") || error("CHEASE did not produce OUTRMAR/OUTVMAR — see log_chease")
 
     # basic checks on CHEASE output. Key names below match CHEASE's own log labels
     # (GEXP = Troyon normalized beta β_N, "Q AT 95% FLUX SURFACE" = q95, Q_ZERO/Q_EDGE
@@ -808,9 +827,10 @@ be left at struct defaults that do not correspond to the equilibrium actually be
 
 - otherwise `IWALL` is re-derived from the CHEASE-reported wall index `NW` in `log_chease`
   (e.g. `NW=20` ↔ s=1.2308, matching CHEASE's own reported `RW`), and `TAUW` is taken from
-  `par.wall_time_constants`.
+  `par.wall_time_constants`. With a coil surface (`ifeed`, its mesh index), that surface is
+  excluded, so it is never a resistive wall.
 """
-function configure_wall!(mars_namelist, par)
+function configure_wall!(mars_namelist, par; ifeed=nothing)
     basic = mars_namelist.BASIC
 
     if par.wall_type == :no_wall
@@ -830,7 +850,16 @@ function configure_wall!(mars_namelist, par)
 
     # Wall position: CHEASE reports the wall grid index as `NW` in log_chease.
     iwall = copy(basic.IWALL)
-    if isfile("log_chease")
+    if ifeed !== nothing && isfile("log_chease") && isfile("OUTVMAR")
+        # With a coil surface, log_chease's first NW may be the coil surface's. Take the mesh index of
+        # every intermediate surface from CHEASE's radii RW(J) (the vacuum s of OUTVMAR equals them
+        # exactly) and drop the coil surface, IFEED.
+        RW = unique(parse(Float64, m[1]) for m in eachmatch(r"RW\(J\)=\s*(\S+)", read("log_chease", String)))
+        s = read_OUTVMAR("OUTVMAR")[1]
+        NW = setdiff([argmin(abs.(s .- rw)) for rw in RW if 1 < rw < maximum(RW)], ifeed)
+        isempty(NW) || @info "Setting IWALL from CHEASE wall index NW = $(NW[1]) (log_chease RW, coil surface IFEED=$ifeed excluded)"
+        isempty(NW) || (isempty(iwall) ? push!(iwall, NW[1]) : (iwall[1] = NW[1]))
+    elseif isfile("log_chease")
         NW_dict = julia_grep(["NW"], "log_chease"; extract_values=true)
         if haskey(NW_dict, "NW")
             NW = NW_dict["NW"]
@@ -876,15 +905,58 @@ function configure_wall!(mars_namelist, par)
 end
 
 
+"""
+    configure_coils!(mars_namelist, dd, par) -> IFEED or nothing
+
+With `par.coil_surface`, set MARS FEEDBACK `NCOIL`, `IFEED`, `FCCHI`, `FWCHI` from the coils
+([`coil_endpoints`](@ref)) and CHEASE's vacuum mesh (OUTVMAR/OUTRMAR in the run directory): all
+coils on the mesh surface nearest to them, which is the coil surface CHEASE meshed, with their
+angles in the coordinate `par.mars_coord` selects. No MARS run is needed.
+"""
+function configure_coils!(mars_namelist, dd::IMAS.DD, par)
+    par.coil_surface || return nothing
+    coils = coil_endpoints(dd, par)
+    s, R, Z = read_OUTVMAR("OUTVMAR")
+    R0EXP, R00, Z00 = read_OUTRMAR_header("OUTRMAR")
+    surfaces = 2:min(mars_namelist.BASIC.NV, length(s))
+    IFEED, FCCHI, FWCHI, dist = coil_feed_params(R, Z, R0EXP, coils;
+        nconvcs=mars_nconvcs(par.mars_coord), origin=(R00, Z00), surfaces)
+
+    fb = mars_namelist.FEEDBACK
+    length(fb.FEEDI) == size(coils, 1) ||
+        error("$(size(coils, 1)) coil rows but FEEDI has $(length(fb.FEEDI)) entries; set one coil current per row " *
+              "via mars_overrides.FEEDBACK[:FEEDI]")
+    fb.NCOIL, fb.IFEED, fb.FCCHI, fb.FWCHI = size(coils, 1), IFEED, FCCHI, FWCHI
+    @info "Coils: NCOIL=$(fb.NCOIL), IFEED=$IFEED (s=$(round(s[IFEED]; digits=4))), FCCHI=$(round.(FCCHI; digits=5)), " *
+          "FWCHI=$(round.(FWCHI; digits=5)); coil ends lie within $(round(maximum(dist); sigdigits=3)) m of the surface"
+
+    # vacuum mesh as MARS sees it (surfaces 1:NV, every 8th χ line), with the coil surface IFEED and the coils
+    if par.do_plot
+        Rm, Zm = R[1:last(surfaces), :] .* R0EXP, Z[1:last(surfaces), :] .* R0EXP
+        p = FUSE.Plots.plot(Rm[:, [1:end; 1]]', Zm[:, [1:end; 1]]'; color=:gray, linewidth=0.3, label="",
+            aspect_ratio=:equal, xlabel="R [m]", ylabel="Z [m]", title="MARS vacuum mesh")
+        plot!(p, Rm[:, 1:8:end], Zm[:, 1:8:end]; color=:gray, linewidth=0.3, label="")
+        plot!(p, Rm[1, [1:end; 1]], Zm[1, [1:end; 1]]; color=:black, linewidth=2, label="plasma boundary")
+        plot!(p, Rm[IFEED, [1:end; 1]], Zm[IFEED, [1:end; 1]]; color=:red, linewidth=2, label="coil surface IFEED=$IFEED")
+        for (k, c) in enumerate(eachrow(coils))
+            plot!(p, c[[1, 3]], c[[2, 4]]; color=:blue, linewidth=4, label=k == 1 ? "coils" : "")
+        end
+        # zoom on the coil surface; the far-field mesh out to REXT would swamp it
+        rc, zc = extrema(Rm[IFEED, :]), extrema(Zm[IFEED, :])
+        pad = 0.25 * max(rc[2] - rc[1], zc[2] - zc[1])
+        display(plot!(p; xlims=(rc[1] - pad, rc[2] + pad), ylims=(zc[1] - pad, zc[2] + pad)))
+    end
+    return IFEED
+end
+
 function run_MARS(dd::IMAS.DD, par, mars_namelist)
+
+    # Coils first: the coil surface's mesh index (IFEED) must be known to keep it out of IWALL.
+    ifeed = configure_coils!(mars_namelist, dd, par)
 
     # Resistive-wall settings (NWALL/IWALL/TAUW) are derived from par.wall_type and the
     # CHEASE-computed wall position, never left at struct defaults.
-    configure_wall!(mars_namelist, par)
-
-    # NREORBIT is driven entirely by par.num_orbits, so it can't drift out of sync with
-    # the process count MARS is launched with below.
-    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
+    configure_wall!(mars_namelist, par; ifeed)
 
     # Coordinate system, owned by par.mars_coord. NCONVCS=1 makes MARS rebuild its mesh on
     # the geometric (polar) angle θ = atan2(Z-Z_axis, R-R_axis) right after reading OUT*MAR
@@ -899,6 +971,13 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
               "mars_coord=:transfer sets NCONVCS=1. Use mars_coord=:normal for NCONVB1=1 runs.")
     end
 
+    # Initial eigenvalue guess, owned by par.growth_rate_guess as [Re, Im] (a single element is a real guess)
+    mars_namelist.BASIC.TALPHA1 = complex(par.growth_rate_guess...)
+
+    # Run REORBIT: NREORBIT is driven entirely by par.num_orbits. It must be set BEFORE RUN.IN is
+    # written below: the file is what MARS reads, and nprocs (further down) is derived from the same par.
+    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
+
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
 
@@ -910,24 +989,29 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
 
-    # MARS itself is serial; REORBIT particle tracing (reorbit.f) is the only part that
-    # needs MPI, via a master rank plus one worker rank per orbit (see reorbit.f's
-    # RE_TRACING task farm — requesting more ranks than num_orbits+1 leaves the extras
-    # blocked forever, so nprocs must match exactly).
-    nprocs = par.num_orbits > 0 ? par.num_orbits + 1 : 1
+    # MARS itself is serial; REORBIT particle tracing (reorbit.f) is the only part that needs MPI.
+    # MARS enters MPI mode only for NREORBIT>1 (mpienv.f: ISMPIRUN=2), so num_orbits<=1 is a SERIAL
+    # run: launching ranks anyway makes every rank run the whole solve into the same directory.
+    # In MPI mode rank 0 is the master and the other ranks are workers it feeds orbits to
+    # dynamically (reorbit.f's RE_TRACING task farm), so any worker count >= 1 works and orbits
+    # simply queue; only MORE ranks than num_orbits+1 is a problem (the extras block forever).
+    # Locally the rank count is capped at the logical core count, so a large num_orbits queues
+    # instead of launching hundreds of ranks; in batch mode the allocation sets the limit.
+    nprocs = par.num_orbits > 1 ? par.num_orbits + 1 : 1
+    par.run_mode == :local && (nprocs = min(nprocs, Sys.CPU_THREADS))
 
     if par.run_mode == :batch
         @info "Submitting MARS job to batch system with command: $(par.batch_submit_cmd) and script: mars_job.sh"
         ok = run_batch_mars(mars_exec, par, nprocs)
     elseif par.run_mode == :local
-        run_cmd = nprocs > 1 ? `time $(par.mpirun_exec) -n $nprocs $(mars_exec)` : `time $(mars_exec)`
+        # Open MPI refuses more ranks than physical cores ("not enough slots") unless told to oversubscribe
+        mpi_flags = nprocs > 1 && occursin("Open MPI", read(`$(par.mpirun_exec) --version`, String)) ? ["--oversubscribe"] : String[]
+        run_cmd = nprocs > 1 ? `time $(par.mpirun_exec) $mpi_flags -n $nprocs $(mars_exec)` : `time $(mars_exec)`
         @info "Running MARS interactively with command: $run_cmd"
-        cmd = pipeline(
-        run_cmd,
-        stdout = "log_mars",
-        stderr = "log_mars"
-        )
-        ok = success(cmd)
+        # one shared handle for stdout and stderr (see run_CHEASE)
+        ok = open("log_mars", "w") do log
+            success(pipeline(run_cmd, stdout=log, stderr=log))
+        end
     else
         error("Unknown run mode: $(par.run_mode). Supported modes are :local and :batch.")
     end
@@ -938,6 +1022,8 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # MARS signals failure through its STOP line, not the exit status, and leaves the previous
     # run's *.OUT in place when it aborts — check before reading anything back.
     check_MARS_finished("log_mars")
+    # A namelist MARS cannot read is reported, then MARS still ends with STOP NORMAL (marsq.f:4157)
+    any(contains("ERROR AT NAMELIST READ"), eachline("log_mars")) && error("MARS could not read RUN.IN — see log_mars")
 
     # Display growth rate and iteration count. A linear response run (NCASE=2, e.g. the
     # INCFEED=4/8 coil runs) has no eigenvalue and writes an EMPTY RESULT.OUT; that is normal,
@@ -1043,9 +1129,58 @@ function get_wall_data(machine::String)
     file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
     file_path = joinpath(file_path, machine * "_mars_wall.json")
     dd_wall = IMAS.json2imas(file_path).wall.description_2d[].limiter.unit[1].outline
-    
+
     return dd_wall
-    
+
+end
+
+"""
+    clean_contour(r, z; tol=1e-6) -> (r, z)
+
+Drop repeated vertices (closer than `tol` [m] to the previous one) and close the contour
+exactly, so the result has no duplicates and `first == last`.
+
+REORBIT needs this: an open contour breaks its winding-number loss test, and a zero-length
+segment makes `RE_BEQ_VAC` divide by zero when it builds the segment normals (the raw D3D EFIT
+limiter has one). Orientation is left alone (the loss test uses `|sum of angles| < π`), and
+nothing is smoothed or resampled.
+"""
+function clean_contour(r::AbstractVector{<:Real}, z::AbstractVector{<:Real}; tol::Real=1e-6)
+    length(r) == length(z) || error("contour r and z must have the same length ($(length(r)) vs $(length(z)))")
+    rc, zc = Float64[], Float64[]
+    for (ri, zi) in zip(r, z)
+        if isempty(rc) || hypot(ri - rc[end], zi - zc[end]) > tol
+            push!(rc, ri)
+            push!(zc, zi)
+        end
+    end
+    # drop trailing points that repeat the start, then close exactly
+    while length(rc) > 1 && hypot(rc[end] - rc[1], zc[end] - zc[1]) <= tol
+        pop!(rc)
+        pop!(zc)
+    end
+    push!(rc, rc[1])
+    push!(zc, zc[1])
+    return rc, zc
+end
+
+"""
+    reorbit_limiter(dd::IMAS.DD) -> (r, z)
+
+Particle-loss contour for REORBIT (`KRE_VAC>0`): the official contiguous first-wall limiter
+from `IMAS.first_wall(dd.wall)` (default simplification, which only removes collinear points),
+passed through [`clean_contour`](@ref). This is the physical first wall, independent of the
+MARS resistive wall chosen by `par.wall_type`.
+"""
+function reorbit_limiter(dd::IMAS.DD)
+    fw = IMAS.first_wall(dd.wall)
+    isempty(fw.r) && error(
+        "REORBIT with KRE_VAC>0 needs a particle-loss limiter, but dd.wall has no official contiguous " *
+        "first-wall limiter contour (dd.wall.description_2d[].limiter with type.index == 0)"
+    )
+    r, z = clean_contour(fw.r, fw.z)
+    length(r) >= 4 || error("REORBIT limiter has only $(length(r) - 1) distinct vertices after cleaning; need at least 3")
+    return r, z
 end
 
 
@@ -1159,7 +1294,7 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
     NWBPS = par.num_surfaces
-    
+
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[]
     eqt1d = time_slice.profiles_1d
@@ -1246,10 +1381,9 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
         s,
         GS_RHS,
         pprime,
-        NWBPS,
         NDATA,
-        missing,
-        missing,
+        Vector{Float64}[],
+        Vector{Float64}[],
     )
 
     r_bound_norm = rb_new / R0
@@ -1279,21 +1413,73 @@ function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
 
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
 
-        chease_struct.r_limiter = r_lim
-        chease_struct.z_limiter = z_lim
-
-        r_lim_norm = r_lim / R0
-        z_lim_norm = z_lim / R0
+        push!(chease_struct.r_surfaces, r_lim)
+        push!(chease_struct.z_surfaces, z_lim)
 
         plt !== nothing && plot!(plt, r_lim, z_lim; subplot=1, linewidth=1.5, aspect_ratio=:equal, label="MARS resistive wall")
     end
-  
+
+    # Coil surface: one more bounding surface for CHEASE, through the coils. MARS never treats it as a
+    # wall (NWALL/IWALL count walls only, see configure_wall!); it only carries the coils (IFEED).
+    if par.coil_surface
+        coils = coil_endpoints(dd, par)
+        r_coil, z_coil, x = fit_coil_surface(rb_new, zb_new, coils)
+        @info "Coil surface: shift (ΔR, ΔZ) = $(round.(x[1:2]; digits=4)) m, stretch (R, Z) = $(round.(x[3:4]; digits=4))"
+        push!(chease_struct.r_surfaces, r_coil)
+        push!(chease_struct.z_surfaces, z_coil)
+        if plt !== nothing
+            plot!(plt, r_coil, z_coil; subplot=1, linewidth=1.5, linestyle=:dash, aspect_ratio=:equal, label="coil surface")
+            for c in eachrow(coils)
+                plot!(plt, c[[1, 3]], c[[2, 4]]; subplot=1, linewidth=3, color=:black, label="")
+            end
+        end
+    end
+
+    # CHEASE places the surfaces outward in the order given (RW from each surface's largest R)
+    p = sortperm(maximum.(chease_struct.r_surfaces))
+    chease_struct.r_surfaces = chease_struct.r_surfaces[p]
+    chease_struct.z_surfaces = chease_struct.z_surfaces[p]
+
     # write to EXPEQ file
     CHEASE.write_EXPEQ_file(chease_struct)   
     
     return B0, R0
 end
 
+
+"""
+    coil_endpoints(dd, par) -> Matrix (ncoil × 4)
+
+Poloidal coil rows `[R1 Z1 R2 Z2]` [m] for MARS. From the `dd.coils_non_axisymmetric` coils whose name
+starts with `par.coil_set`: each conductor's
+element start points projected onto (R,Z), keeping the two most distant; toroidally repeated coils of the
+same row (same projection within 1 mm) are kept once. Falls back to `par.coils_RZ`.
+"""
+function coil_endpoints(dd::IMAS.DD, par)
+    if isempty(dd.coils_non_axisymmetric.coil)
+        c = par.coils_RZ
+        (isempty(c) || length(c) % 4 != 0) &&
+            error("coil_surface=true but dd.coils_non_axisymmetric has no coils and coils_RZ has $(length(c)) values " *
+                  "(need [R1, Z1, R2, Z2] per coil row)")
+        return permutedims(reshape(collect(float.(c)), 4, :))
+    end
+    rows = Vector{Vector{Float64}}()
+    for coil in dd.coils_non_axisymmetric.coil, cond in coil.conductor
+        startswith(coil.name, par.coil_set) || continue
+        pts = cond.elements.start_points
+        ismissing(pts, :r) && continue
+        r, z = pts.r, pts.z
+        d, i, j = -1.0, 1, 1
+        for a in eachindex(r), b in a+1:lastindex(r)
+            dab = hypot(r[a] - r[b], z[a] - z[b])
+            dab > d && ((d, i, j) = (dab, a, b))
+        end
+        row = z[i] >= z[j] ? [r[i], z[i], r[j], z[j]] : [r[j], z[j], r[i], z[i]]
+        any(maximum(abs.(row .- q)) < 1e-3 for q in rows) || push!(rows, row)
+    end
+    isempty(rows) && error("no dd.coils_non_axisymmetric coil named \"$(par.coil_set)*\" has conductor start_points (r, z)")
+    return permutedims(reduce(hcat, rows))
+end
 
 function offset_boundary(xs, ys, d)
     ds = sqrt.(diff(xs).^2 .+ diff(ys).^2)
@@ -1466,8 +1652,11 @@ Keyword arguments:
                  Follows the Python pipeline's `m_max` convention rather than MATLAB's
                  fixed `m=1:5` list, so it adapts to runs with differing harmonic content.
 - `mode_index` : which `toroidal_mode` to plot (default 1)
+- `normalize`  : divide by the peak `|Q_m|` over the plotted harmonics, as RZplot does (default false)
+- `edge_freeze`: for `:xi`/`:vnormal`, overwrite rows with `s ≥ 0.999` by the last row inside, as
+                 RZplot/MacReadVPLASMA.m does to hide the LCFS-point noise (default false)
 """
-@recipe function plot_ActorMars(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1)
+@recipe function plot_ActorMars(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1, normalize=false, edge_freeze=false)
     par = actor.par
     dd = actor.dd
 
@@ -1484,16 +1673,26 @@ Keyword arguments:
     keep = findall(m -> m < mmax, m_pol)
     @assert !isempty(keep) "No harmonics with m < $mmax (available m: $(extrema(m_pol)))"
 
+    A = abs.(Q[:, keep])
+    if edge_freeze && quantity !== :bnormal
+        I = findlast(<(0.999), s)
+        A[I+1:end, :] .= A[I:I, :]
+    end
+    if normalize
+        A ./= maximum(A)
+        ylab = "$ylab / max"
+    end
+
     xguide --> "s = √ψ_norm"
     yguide --> ylab
     title --> "$(quantity) harmonics (m < $mmax), n=$(mode.n_tor)"
     legend --> :outerright
     grid --> true
 
-    for k in keep
+    for (j, k) in enumerate(keep)
         @series begin
             label := "m=$(Int(m_pol[k]))"
-            s, abs.(Q[:, k])
+            s, A[:, j]
         end
     end
 end

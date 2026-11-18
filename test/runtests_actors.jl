@@ -133,9 +133,10 @@ end
             @test (FUSE.plot(dd.mhd_linear); true)
 
             # Test 4 ran with run_equilibrium=false, i.e. MARS replayed an OUT*MAR this actor
-            # did not produce. The CHEASE namelist here need not describe it, so the poloidal
-            # angle convention is unknowable and grid_type must be left unset rather than
-            # asserting SFL vs equal-arc (see mars_grid_type).
+            # did not produce, so CHEASE's poloidal angle (NER/NEGP) is unknowable. With the
+            # default mars_coord=:normal (NCONVCS=0) MARS keeps that angle, so the grid_type is
+            # left unset. (Under mars_coord=:transfer MARS re-meshes on its own geometric polar
+            # angle and it would be 26 -- covered by the mars_grid_type unit tests below.)
             @test ismissing(mode.plasma.grid_type, :index)
         end
 
@@ -253,6 +254,28 @@ end
             end
         end
     end
+end
+
+@testset "REORBIT limiter contour" begin
+    # open square with a repeated vertex (zero-length segment)
+    r = [1.0, 2.0, 2.0, 2.0, 1.0]
+    z = [0.0, 0.0, 0.0, 1.0, 1.0]
+    rc, zc = FUSE.clean_contour(r, z)
+    @test (rc[1], zc[1]) == (rc[end], zc[end])              # closed exactly
+    @test length(rc) == 5                                   # 4 distinct vertices + closing one
+    @test all(hypot.(diff(rc), diff(zc)) .> 0)              # no zero-length segment
+
+    # EFIT-style: already closed, with the closing vertex repeated -> same result
+    @test FUSE.clean_contour([r; r[1]; r[1]], [z; z[1]; z[1]]) == (rc, zc)
+    # idempotent
+    @test FUSE.clean_contour(rc, zc) == (rc, zc)
+
+    # orientation is left alone
+    signed_area(r, z) = sum(r[i] * z[i+1] - r[i+1] * z[i] for i in 1:length(r)-1)
+    rr, zr = FUSE.clean_contour(reverse(r), reverse(z))
+    @test sign(signed_area(rc, zc)) == -sign(signed_area(rr, zr))
+
+    @test_throws ErrorException FUSE.clean_contour([1.0, 2.0], [1.0])
 end
 
 @testset "ActorTJLFEP" begin

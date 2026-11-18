@@ -138,8 +138,12 @@ jobs:
             (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
           }
 
+      # JULIA_PKG_PRECOMPILE_AUTO=0: skip Pkg's post-add auto-precompile, which on Julia 1.13.2 fails with
+      # "Unknown package: <indirect dep>" (JuliaLang/Pkg.jl#4866); julia-runtest precompiles anyway.
       - name: 'Install (without extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'false'
+        env:
+          JULIA_PKG_PRECOMPILE_AUTO: "0"
         run: |
           if [ "${{ github.ref }}" == "refs/heads/master" ]; then
             make install_ci_master NO_FUSE_EXTENSION=true
@@ -149,6 +153,8 @@ jobs:
 
       - name: 'Install (with extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'true'
+        env:
+          JULIA_PKG_PRECOMPILE_AUTO: "0"
         run: |
           if [ "${{ github.ref }}" == "refs/heads/master" ]; then
             make install_ci_master
