@@ -20,6 +20,37 @@ using Test
     FUSE.ActorFluxMatcher(dd, act)
 end
 
+@testset "fluxmatcher main ion rotation reference" begin
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    act.ActorFluxMatcher.max_iterations = 2
+    act.ActorFluxMatcher.evolve_densities = :fixed
+    act.ActorTGLF.model = :TGLFNN
+    act.ActorFluxMatcher.rotation_reference = :main_ion
+    cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[]
+    im = IMAS.main_ion_index(cp1d)
+
+    # :fixed holds the main ion rotation; the ExB rotation follows the evolved pressure by radial force balance
+    Ω_main = IMAS.sonic2ωtor(cp1d, cp1d.ion[im])
+    act.ActorFluxMatcher.evolve_rotation = :fixed
+    FUSE.ActorFluxMatcher(dd, act)
+    @test IMAS.hasdata(cp1d.ion[im], :rotation_frequency_tor)
+    @test cp1d.ion[im].rotation_frequency_tor ≈ Ω_main
+    @test cp1d.rotation_frequency_tor_sonic ≈ IMAS.ωtor2sonic(cp1d; ind=im)
+
+    # :flux_match evolves the main ion rotation, with species parallel flows and analytic poloidal flow
+    act.ActorFluxMatcher.evolve_rotation = :flux_match
+    act.ActorFluxMatcher.poloidal_flow = :analytic
+    act.ActorTGLF.parallel_flow = :species
+    FUSE.ActorFluxMatcher(dd, act)
+    @test cp1d.rotation_frequency_tor_sonic ≈ IMAS.ωtor2sonic(cp1d; ind=im, poloidal_flow=:analytic, eqt)
+    for ion in cp1d.ion
+        @test ion.rotation_frequency_tor ≈ IMAS.sonic2ωtor(cp1d, ion; poloidal_flow=:analytic, eqt)
+    end
+end
+
 @testset "Mars Actor CHEASE run" begin
     ini, act = FUSE.case_parameters(:D3D, :default)
     dd = IMAS.dd()

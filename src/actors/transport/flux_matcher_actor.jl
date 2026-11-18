@@ -27,6 +27,24 @@ import NonlinearSolve, FixedPointAcceleration
             default=:flux_match
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Rotation `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:fixed)
+    rotation_reference::Switch{Symbol} = Switch{Symbol}(
+        [:exb, :main_ion],
+        "-",
+        """
+        Rotation profile that is flux-matched (`evolve_rotation=:flux_match`) or held (`evolve_rotation=:fixed`):
+        * `:exb`: the ExB rotation `rotation_frequency_tor_sonic`; the ion rotations follow from it
+        * `:main_ion`: the toroidal rotation of the main ion (the momentum carrier); the ExB rotation and the rotation of the other
+          ions are recomputed by radial force balance whenever the profiles change, so that pressure gradients feed back on the ExB shear.
+          The main ion rotation is taken from its stored data, or else derived from the ExB rotation at the start.
+          Not used with `evolve_rotation=:replay`""";
+        default=:exb
+    )
+    poloidal_flow::Switch{Symbol} = Switch{Symbol}(
+        [:none, :analytic],
+        "-",
+        "Poloidal flow model of the radial force balance used with `rotation_reference=:main_ion` (see `IMAS.rotation_frequency_offset`)";
+        default=:none
+    )
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=false)
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     consistent_fast_pressure::Entry{Bool} = Entry{Bool}("-", "Refresh the total pressure after the sources (and with them the fast-ion pressure) are updated within each evaluation of the flux-matching residual. When false the transport model sees the fast-ion pressure of the previous evaluation, so the residual depends on the order in which it is evaluated"; default=false)
@@ -263,6 +281,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+    init_rotation_reference!(cp1d, par)
 
     initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
@@ -683,6 +702,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 break
             end
         end
+
+        # ExB rotation consistent with the relaxed profiles
+        rotation_from_reference!(cp1d, par)
     end
 
     # remove the temporary `∂/∂t implicit` term and update the full `∂/∂t` term
@@ -702,8 +724,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, field)
     end
 
-    # free rotation expressions (skip if replaying to keep copied data)
-    if par.evolve_rotation != :replay
+    # free rotation expressions (skip if replaying to keep copied data, or if the main ion rotation is the
+    # reference, in which case the stored ion rotations are consistent with the ExB rotation and the poloidal flow model)
+    if par.evolve_rotation != :replay && !uses_main_ion_rotation(par)
         for ion in cp1d.ion
             IMAS.unfreeze!(ion, :rotation_frequency_tor)
         end
@@ -1000,6 +1023,9 @@ function profiles_title(cp1d, profiles_path)
         return "Ions temperature"
     elseif profiles_path[1] == :ion
         ion = cp1d.ion[profiles_path[2]]
+        if profiles_path[end] == :rotation_frequency_tor
+            return "$(ion.label) rotation"
+        end
         return "$(ion.label) density"
     else
         error("$(profiles_path) is not a recognized core_profiles.profiles_1d path")
@@ -1080,6 +1106,8 @@ function flux_match_errors(
     if par.consistent_fast_pressure
         refreeze_pressures!(cp1d)
     end
+    # the sources update the fast-ion densities, and with them the thermal densities that enter the radial force balance
+    par.evolve_plasma_sources && rotation_from_reference!(cp1d, par)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -1384,6 +1412,70 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
 end
 
 """
+    uses_main_ion_rotation(par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+
+Whether the main ion rotation is the rotation reference (see `rotation_reference`)
+"""
+function uses_main_ion_rotation(par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    return par.rotation_reference == :main_ion && par.evolve_rotation != :replay
+end
+
+"""
+    rotation_profile_path(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+
+Path in `cp1d` of the rotation profile that is flux-matched or held fixed
+"""
+function rotation_profile_path(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    if uses_main_ion_rotation(par)
+        return (:ion, IMAS.main_ion_index(cp1d), :rotation_frequency_tor)
+    else
+        return (:rotation_frequency_tor_sonic,)
+    end
+end
+
+rotation_profile(cp1d::IMAS.core_profiles__profiles_1d, path::Tuple) = getproperty(IMAS.goto(cp1d, path[1:end-1]), path[end])
+
+set_rotation_profile!(cp1d::IMAS.core_profiles__profiles_1d, path::Tuple, value::AbstractVector) = setproperty!(IMAS.goto(cp1d, path[1:end-1]), path[end], value)
+
+"""
+    init_rotation_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+
+With `rotation_reference=:main_ion`, store the main ion rotation as data (its stored data if any, or else the rotation implied by the
+current ExB rotation with the selected poloidal flow model) and make the ExB and other ion rotations consistent with it
+"""
+function init_rotation_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    uses_main_ion_rotation(par) || return cp1d
+    main_ion = cp1d.ion[IMAS.main_ion_index(cp1d)]
+    if !IMAS.hasdata(main_ion, :rotation_frequency_tor)
+        main_ion.rotation_frequency_tor = IMAS.sonic2ωtor(cp1d, main_ion; par.poloidal_flow, eqt=rotation_eqt(cp1d, par))
+    end
+    return rotation_from_reference!(cp1d, par)
+end
+
+"""
+    rotation_from_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+
+With `rotation_reference=:main_ion`, set the ExB rotation and the rotation of the other ions from the main ion rotation by radial force
+balance (`IMAS.ωtor2sonic` and `IMAS.sonic2ωtor` with the selected `poloidal_flow` model). Does nothing otherwise.
+"""
+function rotation_from_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    uses_main_ion_rotation(par) || return cp1d
+    im = IMAS.main_ion_index(cp1d)
+    eqt = rotation_eqt(cp1d, par)
+    cp1d.rotation_frequency_tor_sonic = IMAS.ωtor2sonic(cp1d; ind=im, par.poloidal_flow, eqt)
+    for (k, ion) in enumerate(cp1d.ion)
+        k == im && continue
+        ion.rotation_frequency_tor = IMAS.sonic2ωtor(cp1d, ion; par.poloidal_flow, eqt)
+    end
+    return cp1d
+end
+
+function rotation_eqt(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    par.poloidal_flow == :none && return nothing
+    return IMAS.top_dd(cp1d).equilibrium.time_slice[]
+end
+
+"""
     pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
 
 Packs the z_profiles based on evolution parameters
@@ -1412,26 +1504,28 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     end
 
     if par.evolve_rotation == :flux_match
+        rot_path = rotation_profile_path(cp1d, par)
+        ω = rotation_profile(cp1d, rot_path)
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
-        rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
+        rot_check = ω[1:max_rho_idx]
         if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
             # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
             # mixed-sign or identically zero profiles use the rotation-shear path below
-            z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
+            z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, ω, :backward)[cp_gridpoints]
             append!(z_profiles, z_rot)
         else
             # Use TGYRO approach: evolve normalized rotation shear f_rot = (dω/dr) / w0_norm
             w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
 
             # Calculate rotation shear dω/dr
-            dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]
+            dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, ω)[cp_gridpoints]
 
             # Convert to normalized rotation shear f_rot
             f_rot = dw_dr ./ w0_norm
 
             append!(z_profiles, f_rot)
         end
-        push!(profiles_paths, (:rotation_frequency_tor_sonic,))
+        push!(profiles_paths, rot_path)
         push!(fluxes_paths, (:momentum_tor,))
     end
 
@@ -1540,14 +1634,16 @@ function unpack_z_profiles(
     end
 
     if par.evolve_rotation == :flux_match
+        rot_path = rotation_profile_path(cp1d, par)
+        ω = rotation_profile(cp1d, rot_path)
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
-        rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
+        rot_check = ω[1:max_rho_idx]
         if (all(x -> x >= 0, rot_check) || all(x -> x <= 0, rot_check)) && any(x -> x != 0, rot_check)
             # sign-definite, non-zero profile: evolve the inverse scale length of |ω| (ω'/ω is sign invariant) and restore the sign on unpack;
             # mixed-sign or identically zero profiles use the rotation-shear path below
             # the 1 rad/s offset guards log(0) when the edge rotation is exactly zero and is removed again so that it does not accumulate across iterations
             rot_sign = all(x -> x <= 0, rot_check) ? -1.0 : 1.0
-            cp1d.rotation_frequency_tor_sonic = rot_sign .* (IMAS.profile_from_z_transport(rot_sign .* cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N]) .- 1)
+            ω_new = rot_sign .* (IMAS.profile_from_z_transport(rot_sign .* ω .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N]) .- 1)
         else
             # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
             w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
@@ -1559,13 +1655,9 @@ function unpack_z_profiles(
             dw_dr_evolved = f_rot_evolved .* w0_norm
 
             # Use the new profile_from_rotation_shear_transport function
-            cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_rotation_shear_transport(
-                cp1d.rotation_frequency_tor_sonic,
-                cp1d.grid.rho_tor_norm,
-                cp_rho_transport,
-                dw_dr_evolved
-            )
+            ω_new = IMAS.profile_from_rotation_shear_transport(ω, cp1d.grid.rho_tor_norm, cp_rho_transport, dw_dr_evolved)
         end
+        set_rotation_profile!(cp1d, rot_path, ω_new)
         counter += N
     end
 
@@ -1604,6 +1696,9 @@ function unpack_z_profiles(
 
     # re-freeze pressures expressions
     refreeze_pressures!(cp1d)
+
+    # ExB rotation and other ion rotations from the main ion rotation by radial force balance
+    rotation_from_reference!(cp1d, par)
 
     return cp1d
 end
@@ -1785,6 +1880,9 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
         end
         IMAS.unfreeze!(initial_ion, :density)
         initial_ion.temperature = deepcopy(ion.temperature)
+        if IMAS.hasdata(ion, :rotation_frequency_tor)
+            initial_ion.rotation_frequency_tor = deepcopy(ion.rotation_frequency_tor)
+        end
     end
     to_cp1d.rotation_frequency_tor_sonic = deepcopy(cp1d.rotation_frequency_tor_sonic)
     return to_cp1d
@@ -1806,6 +1904,9 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
             initial_ion.density_fast .= ion.density_fast
         end
         IMAS.unfreeze!(initial_ion, :density)
+        if IMAS.hasdata(ion, :rotation_frequency_tor)
+            initial_ion.rotation_frequency_tor = copy(ion.rotation_frequency_tor)
+        end
     end
     to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
@@ -2078,6 +2179,8 @@ function ad_flux_match_errors!(
         evolve_densities = evolve_densities_dictionary(cp1d_ad, par)
         modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
         IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density)
+        # the sources update the fast-ion densities, and with them the thermal densities that enter the radial force balance
+        rotation_from_reference!(cp1d_ad, par)
     end
 
     # Source from the change the flux matcher makes to the profiles over Δt, as in flux_match_errors:
@@ -2238,6 +2341,9 @@ function cp1d_copy_primary_quantities_promote!(to_cp1d::IMAS.core_profiles__prof
             to_ion.density_fast = T.(from_ion.density_fast)
         end
         IMAS.unfreeze!(to_ion, :density)
+        if IMAS.hasdata(from_ion, :rotation_frequency_tor)
+            to_ion.rotation_frequency_tor = T.(from_ion.rotation_frequency_tor)
+        end
     end
     to_cp1d.rotation_frequency_tor_sonic = T.(from_cp1d.rotation_frequency_tor_sonic)
     return to_cp1d

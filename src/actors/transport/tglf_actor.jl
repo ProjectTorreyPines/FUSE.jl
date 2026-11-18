@@ -21,6 +21,16 @@ import GACODE
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    parallel_flow::Switch{Symbol} = Switch{Symbol}(
+        [:exb, :species],
+        "-",
+        """
+        Flow used for the species parallel velocity and its shear (VPAR, VPAR_SHEAR); VEXB_SHEAR always uses the ExB rotation:
+        * `:exb`: all species flow with the ExB rotation `rotation_frequency_tor_sonic` (TGYRO convention, VPAR_SHEAR/VEXB_SHEAR = ±qR/r)
+        * `:species`: each ion flows with its own `rotation_frequency_tor` (ExB + diamagnetic + poloidal flow).
+          NOTE: the TGLF-NN / GKNN models were trained with `:exb` inputs""";
+        default=:exb
+    )
     save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder"; default="")
     MXH_modes::Entry{Int} = Entry{Int}("-","number of MXH harmonics",default=1)
 end
@@ -90,7 +100,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     par = actor.par
     dd = actor.dd
 
-    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions; MXH_modes=par.MXH_modes)
+    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions; MXH_modes=par.MXH_modes, par.parallel_flow)
     for k in eachindex(par.rho_transport)
         input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
