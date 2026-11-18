@@ -20,6 +20,7 @@ else
 
     include("runtests_sawteeth_flatten_bootstrap.jl")
     include("runtests_qed_sawtooth_crash.jl")
+    include("runtests_simplenb_power_fractions.jl")
 
     include("runtests_cases.jl")
 
@@ -33,6 +34,9 @@ else
     end
 
     include("runtests_study_database.jl")
+
+    # forward-mode AD: whole actors on a dual-typed dd, every derivative against finite differences
+    include("runtests_dual_actors.jl")
     
     println(FUSE.timer)
 end

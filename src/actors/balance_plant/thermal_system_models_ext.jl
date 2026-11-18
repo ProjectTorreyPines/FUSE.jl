@@ -15,6 +15,22 @@ import SimulationParameters: OverrideParameters
 
 MTK.@independent_variables t
 
+# ModelingToolkit builds an initialization system for each ODEProblem. For these plants it is overdetermined (the
+# `Initialization system is overdetermined` warnings of ThermalSystemModels.jl#85, silenced with
+# warn_initialize_determined=false) and has no unknowns left, so its solve fails, the integrator returns
+# ReturnCode.InitialFailure, and the solution keeps the defaults of the one algebraic unknown: the open feedwater
+# heater's yfrac = 0.5 (its energy balance unsatisfied) and the Brayton turbine's rp = 1 (no work).
+# BrownFullBasicInit solves the algebraic equation for that unknown instead, with:
+#  - abstol in the residual's units (J/kg for the feedwater heater's enthalpy balance, values ~1e6): the default 1e-10
+#    is below their rounding error, so Newton fails at some heat loads;
+#  - a finite-difference Newton: at points where the initialization does fail (some optimizer trial points), the
+#    default (ForwardDiff) one throws "No matching function wrapper was found!", which aborts the actor; with finite
+#    differences the solve returns ReturnCode.InitialFailure and the optimizer moves on.
+const INITIALIZEALG = DifferentialEquations.BrownFullBasicInit(;
+    abstol=1e-3,
+    nlsolve=FUSE.NonlinearSolve.NewtonRaphson(; autodiff=FUSE.NonlinearSolve.ADTypes.AutoFiniteDiff())
+)
+
 mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
     dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorThermalSystemModels{P}}
@@ -245,7 +261,7 @@ function _step(actor::ActorThermalSystemModels)
                 :breeder_heat₊Tout]
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan; warn_initialize_determined=false)
-            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
+            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23(); initializealg=INITIALIZEALG)
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -376,7 +392,7 @@ function _step(actor::ActorThermalSystemModels)
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan; warn_initialize_determined=false)
 
-            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
+            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23(); initializealg=INITIALIZEALG)
             sol(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -562,7 +578,7 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
-    node_sol = DifferentialEquations.solve(node_prob, solver)
+    node_sol = DifferentialEquations.solve(node_prob, solver; initializealg=INITIALIZEALG)
     soln(v) = node_sol[v][end]
     return soln
 end
@@ -594,7 +610,7 @@ function plant_wrapper(x, u, yvars::Vector, simple_sys, keypara, var2val, sym2va
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
-    node_sol = DifferentialEquations.solve(node_prob, solver)
+    node_sol = DifferentialEquations.solve(node_prob, solver; initializealg=INITIALIZEALG)
     soln(v) = node_sol[v][end]
     return soln.(yvars)
 end
@@ -613,7 +629,7 @@ function plant_wrapper(x, u, yvar, simple_sys, keypara, var2val, sym2var; tspan=
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
-    node_sol = DifferentialEquations.solve(node_prob, solver)
+    node_sol = DifferentialEquations.solve(node_prob, solver; initializealg=INITIALIZEALG)
     return node_sol[yvar][end]
 end
 
