@@ -43,6 +43,9 @@ const PEDESTAL_NN_SEED_ENV = "FUSE_PEDESTAL_NN_SEED"
 const PEDESTAL_NN_HF_REPO_DEFAULT = "SCS-Lab/FUSE29-Pedestal-model"
 const PEDESTAL_NN_HF_REVISION_DEFAULT = "main"
 const PEDESTAL_NN_DEFAULT_SEED = 0
+# default hysteretic H-mode gate of fuse29 (docs/GATING.md, docs/DIGITAL_TWIN.md §6 of the model)
+const FUSE29_HMODE_ENTER = 0.7
+const FUSE29_HMODE_EXIT = 0.3
 
 # ── The fuse29 I/O contract (mirrors fuse29/spec.py; asserted against the bundle at load) ──
 const FUSE29_ACTUATOR_NAMES = (
@@ -114,9 +117,9 @@ function Base.show(io::IO, nn::Fuse29NN)
 end
 
 """
-    Fuse29State
+    PedestalNNState (alias `Fuse29State`)
 
-Recurrent state of the fuse29 step graph for a single shot (batch 1).
+Recurrent state of a pedestal-predictor step graph (fuse29 or fuse_efit) for a single shot (batch 1).
 Zeros are the correct initial condition at shot start. `fuse29_step` never
 mutates the state it is given; it returns a new one.
 
@@ -128,11 +131,14 @@ the buffer ORT wants, so a tick costs no `permutedims` of the ~3 MB state — th
 generic ONNXRunTime.jl path permutes it on the way in and out and was ~50x
 slower than the graph itself.
 """
-struct Fuse29State
+struct PedestalNNState
     conv::Array{Float32,4}
     ssm::Array{Float32,5}
 end
-Base.copy(s::Fuse29State) = Fuse29State(copy(s.conv), copy(s.ssm))
+Base.copy(s::PedestalNNState) = PedestalNNState(copy(s.conv), copy(s.ssm))
+
+# The fuse_efit step graph carries the same two tensors (other sizes), so the container is shared.
+const Fuse29State = PedestalNNState
 
 # ── Path resolution ─────────────────────────────────────────────────────────
 
@@ -539,7 +545,7 @@ function fuse29_prediction(nn::Fuse29NN, pred::AbstractVector, is_h_mode::Bool; 
     gate(name, v) = (name in FUSE29_GATED_HEADS && !is_h_mode) ? NaN : v
     vals = Tuple(gate(name, p[i]) for (i, name) in enumerate(FUSE29_HEAD_NAMES))
     heads = NamedTuple{Symbol.(FUSE29_HEAD_NAMES)}(vals)
-    return (; heads..., hmode_prob=p[end], is_h_mode, raw=Float32.(pred), rho_ref=nn.rho_ref, time, n_ticks)
+    return (; heads..., hmode_prob=p[end], is_h_mode, raw=Float32.(pred), rho_ref=nn.rho_ref, time, n_ticks, model=:fuse29)
 end
 
 """
@@ -610,23 +616,24 @@ end
 # ── Time-step bookkeeping for a host simulation ─────────────────────────────
 
 """
-    Fuse29Tracker
+    PedestalNNTracker (alias `Fuse29Tracker`)
 
 Per-shot bookkeeping that guarantees the recurrent state is advanced exactly
 once per 50 ms of simulated time, however often the host evaluates the pedestal
 inside a step (implicit coupling, rejected/repeated steps). Lives in
-`dd._aux[:fuse29]` so it survives actor re-creation.
+`dd._aux[:fuse29]` (fuse29) or `dd._aux[:fuse_efit]` (fuse_efit) so it survives
+actor re-creation.
 
 - `committed*` : state/time/gate after the last *accepted* host step
 - `pending*`   : state/time/gate advanced to the most recent `t_now` (not yet committed)
 - `last`       : most recent 9-vector, for zero-order hold when the host steps faster than 50 ms
 - `t_start`    : start of the model's 50 ms grid (shot start, or `nn_warmup_time`)
 """
-mutable struct Fuse29Tracker
-    committed::Fuse29State
+mutable struct PedestalNNTracker
+    committed::PedestalNNState
     committed_time::Float64
     committed_hmode::Bool
-    pending::Fuse29State
+    pending::PedestalNNState
     pending_time::Float64
     pending_hmode::Bool
     t_start::Float64
@@ -635,41 +642,39 @@ mutable struct Fuse29Tracker
     units_checked::Bool
 end
 
-function Fuse29Tracker(nn::Fuse29NN, t_start::Float64)
-    s = fuse29_init_state(nn)
-    return Fuse29Tracker(s, t_start, false, s, t_start, false, t_start, fill(NaN32, FUSE29_N_HEADS), 0, false)
+const Fuse29Tracker = PedestalNNTracker
+
+function PedestalNNTracker(s0::PedestalNNState, n_heads::Int, t_start::Float64)
+    return PedestalNNTracker(s0, t_start, false, s0, t_start, false, t_start, fill(NaN32, n_heads), 0, false)
 end
 
-"""
-    fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
-                    hmode_enter=0.7, hmode_exit=0.3) -> (pred::Vector{Float32}, is_h_mode::Bool, n_ticks::Int)
+PedestalNNTracker(nn::Fuse29NN, t_start::Float64) = PedestalNNTracker(fuse29_init_state(nn), FUSE29_N_HEADS, t_start)
 
-Bring the model up to `t_now`. `actuators_at(t)` must return the 29-vector of
-raw-unit actuators for the 50 ms interval ending at `t`.
+"""
+    pedestal_nn_advance!(tr::PedestalNNTracker, period::Float64, t_now::Float64, step_at::Function;
+                         hmode_enter=0.7, hmode_exit=0.3) -> (pred::Vector{Float32}, is_h_mode::Bool, n_ticks::Int)
+
+Bring a pedestal predictor up to `t_now`. `step_at(t, state) -> (pred, new_state)`
+must run ONE model tick for the `period` interval ending at `t` without mutating
+`state` (the H-mode probability is the last element of `pred`).
 
 1. If `t_now` is past the pending time, the pending state is committed (exactly
    one commit per accepted host step). A re-run at the same `t_now` commits
    nothing and re-steps from the committed state, so iterating inside a step
    never advances the model's clock.
-2. `n = floor((t_now - committed_time) / period)` ticks are stepped, each fed the
-   actuators for its own 50 ms sub-interval (catch-up when the host steps slower
-   than 50 ms; warm-up replay from `t_start`).
+2. `n = floor((t_now - committed_time) / period)` ticks are stepped, each for its
+   own 50 ms sub-interval (catch-up when the host steps slower than 50 ms;
+   warm-up replay from `t_start`).
 3. `n == 0` (host steps faster than 50 ms): zero-order hold of the last output.
 
 The H-mode gate is a Schmitt trigger: enter H-mode when `hmode > hmode_enter`,
-leave when `hmode < hmode_exit`, ignore the ambiguous middle — `hmode` is right
-~94% of the time with the errors concentrated at L–H / H–L transitions, so a
-bare threshold chatters there. Note also that under a constant actuator request
-the `hmode` probability decays slowly beyond the ~12.8 s the model was trained
-on (the state encodes elapsed shot time); the hysteresis makes the gate robust
-to that, but very long steady-state runs should treat the gate with suspicion.
+leave when `hmode < hmode_exit`, ignore the ambiguous middle.
 """
-function fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
-                         hmode_enter::Float64=0.7, hmode_exit::Float64=0.3)
-    period = nn.period_s
+function pedestal_nn_advance!(tr::PedestalNNTracker, period::Float64, t_now::Float64, step_at::Function;
+                              hmode_enter::Float64=0.7, hmode_exit::Float64=0.3)
     eps = 1e-3 * period
-    hmode_exit <= hmode_enter || error("fuse29_advance!: hmode_exit ($hmode_exit) must be <= hmode_enter ($hmode_enter)")
-    t_now >= tr.committed_time - eps || error("fuse29_advance!: t_now=$t_now is before the committed time $(tr.committed_time); reset the tracker for a rewind")
+    hmode_exit <= hmode_enter || error("pedestal_nn_advance!: hmode_exit ($hmode_exit) must be <= hmode_enter ($hmode_enter)")
+    t_now >= tr.committed_time - eps || error("pedestal_nn_advance!: t_now=$t_now is before the committed time $(tr.committed_time); reset the tracker for a rewind")
 
     # commit exactly once per accepted host step
     if t_now > tr.pending_time + eps
@@ -684,8 +689,7 @@ function fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuat
     pred = tr.last
     for i in 1:n
         t_i = tr.committed_time + i * period
-        u = actuators_at(t_i)
-        pred, s = fuse29_step(nn, u, s)
+        pred, s = step_at(t_i, s)
         p = Float64(pred[end])
         h = h ? (p > hmode_exit) : (p > hmode_enter)
     end
@@ -697,4 +701,24 @@ function fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuat
         tr.n_total += n
     end
     return pred, h, n
+end
+
+"""
+    fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
+                    hmode_enter=0.7, hmode_exit=0.3) -> (pred::Vector{Float32}, is_h_mode::Bool, n_ticks::Int)
+
+Bring fuse29 up to `t_now` (see [`pedestal_nn_advance!`](@ref) for the commit /
+catch-up / hold rules). `actuators_at(t)` must return the 29-vector of raw-unit
+actuators for the 50 ms interval ending at `t`.
+
+`hmode` is right ~94% of the time with the errors concentrated at L–H / H–L
+transitions, so a bare threshold chatters there; hence the Schmitt trigger. Note
+also that under a constant actuator request the `hmode` probability decays
+slowly beyond the ~12.8 s the model was trained on (the state encodes elapsed
+shot time); the hysteresis makes the gate robust to that, but very long
+steady-state runs should treat the gate with suspicion.
+"""
+function fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
+                         hmode_enter::Float64=0.7, hmode_exit::Float64=0.3)
+    return pedestal_nn_advance!(tr, nn.period_s, t_now, (t, s) -> fuse29_step(nn, actuators_at(t), s); hmode_enter, hmode_exit)
 end

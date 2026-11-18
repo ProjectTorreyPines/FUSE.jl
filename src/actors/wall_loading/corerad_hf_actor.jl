@@ -108,7 +108,9 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
     # Compute wall mesh - same for both core radiation and particles (see ActorParticleHeatFlux)
     # (Rwall, Zwall)        wall mesh (with intersections of SOL) -  m
     # s                     curvilinear abscissa computed from (Rwall, Zwall), clockwise starting at OMP - m
-    Rwall, Zwall, s, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
+    # The photons are traced to the wall, so this mesh always has the wall merged in: the mesh without it holds only
+    # the points where the SOL field lines end, which is not a wall around the plasma
+    Rwall, Zwall, s, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, merge_wall=true, par.levels, par.step)
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d; time0=dd.global_time)
@@ -117,6 +119,14 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
 
     # Compute the heat flux due to the core radiation - q_core_rad - W/m2
     q_core_rad = IMAS.core_radiation_heat_flux(eqt, cp1d.grid.psi_norm, source_1d, par.N, Rwall, Zwall, Prad_core)
+
+    if !par.merge_wall
+        # heat flux at the nodes of the mesh without the wall (they are nodes of the mesh with the wall)
+        Rmesh, Zmesh, smesh, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, merge_wall=false, par.levels, par.step)
+        index = [argmin((Rwall .- r) .^ 2 .+ (Zwall .- z) .^ 2) for (r, z) in zip(Rmesh, Zmesh)]
+        q_core_rad = q_core_rad[index]
+        Rwall, Zwall, s = Rmesh, Zmesh, smesh
+    end
 
     HF = IMAS.WallHeatFlux{D}(; r=Rwall, z=Zwall, q_core_rad, s)
     actor.wall_heat_flux = HF

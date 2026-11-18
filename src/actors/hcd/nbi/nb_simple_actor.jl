@@ -10,6 +10,12 @@ end
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
     axis_regularization::Entry{T} = Entry{T}("-", "Sources inside this rho are replaced by an even polynomial (zero slope on axis, same integral); 0 disables";
         default=0.1, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= axis_regularization < 1.0")
+    power_fractions::Switch{Symbol} = Switch{Symbol}(
+        [:beam_current_fraction, :beam_power_fraction],
+        "-",
+        "Component (E, E/2, E/3) power split: beam_current_fraction used as power fractions, or normalized beam_power_fraction (falls back to beam_current_fraction converted to power)";
+        default=:beam_current_fraction
+    )
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -72,12 +78,13 @@ function _step(actor::ActorSimpleNB)
     phi = eqt2d.phi
     R0 = eqt.global_quantities.vacuum_toroidal_field.r0
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    rho2d = sqrt.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end]
+    rho2d = IMAS.sqrt0.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end] # the toroidal flux is zero outside of the plasma on some grids
 
     r = eqt2d.grid.dim1
     z = eqt2d.grid.dim2
-    r = range(r[1], r[end], length(r))
-    z = range(z[1], z[end], length(z))
+    # the grid of the interpolant is plain floats, also when the dd carries derivatives
+    r = range(IMAS.force_float64(r[1]), IMAS.force_float64(r[end]), length(r))
+    z = range(IMAS.force_float64(z[1]), IMAS.force_float64(z[end]), length(z))
     rho2d_interp = Interpolations.cubic_spline_interpolation((r, z), rho2d; extrapolation_bc=2.0)
 
     nenergies = 3
@@ -96,12 +103,13 @@ function _step(actor::ActorSimpleNB)
     ngrid = 25
 
     nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
-    qbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    sbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    mombeam = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeame = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeami = zeros(nmaxgroups, nenergies, ncp1d)
-    curbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    D = eltype(dd)
+    qbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    sbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    mombeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeame = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeami = zeros(D, nmaxgroups, nenergies, ncp1d)
+    curbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
 
     gaus = similar(rho_cp)
     qbeamtmp = similar(rho_cp)
@@ -115,7 +123,7 @@ function _step(actor::ActorSimpleNB)
         end
         @ddtime(nbu.energy.data = beam_energy)
 
-        fbcur = @ddtime(nbu.beam_current_fraction.data)
+        fbcur = nb_component_power_fractions(nbu, @ddtime(nbu.beam_current_fraction.data), par.power_fractions)
 
         qbeam .*= 0.0
         sbeam .*= 0.0
@@ -170,7 +178,7 @@ function _step(actor::ActorSimpleNB)
                 tt = range(t_intersects[1], t_intersects[2], ngrid)
             end
             Xs, Ys, Zs, Rs = IMAS.pencil_beam([px, py, pz], [vx, vy, vz], tt)
-            phi = asin.(Ys ./ Rs)
+            phi = atan.(Ys, Xs)
             ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
             dist = IMAS.arc_length(Xs, Ys, Zs)
@@ -204,7 +212,7 @@ function _step(actor::ActorSimpleNB)
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
 
-                cs = zeros(ngrid)
+                cs = zeros(D, ngrid)
                 for i in 1:ngrid
                     cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
                     cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
@@ -235,7 +243,7 @@ function _step(actor::ActorSimpleNB)
                 # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
                 curbi = @views 0.1 * IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* IMAS.sqrt0.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
                 curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
             end
         end
@@ -318,4 +326,26 @@ function regularize_on_axis!(f::AbstractVector{T}, rho::AbstractVector, measure:
     a, b, c = A \ [f[ir], df, IMAS.trapz(m, @view f[1:ir])]
     @views @. f[1:ir-1] = a + b * rho[1:ir-1]^2 + c * rho[1:ir-1]^4
     return f
+end
+
+"""
+    nb_component_power_fractions(nbu::IMAS.nbi__unit, fbcur::AbstractVector, mode::Symbol)
+
+Power fraction of each beam energy component (E, E/2, E/3).
+
+  - `:beam_current_fraction`: `fbcur` as is
+  - `:beam_power_fraction`: `nbu.beam_power_fraction` normalized to 1; if missing or invalid, the
+    power carried by the current fractions `fbcur` (P_k ∝ f_k E/k)
+"""
+function nb_component_power_fractions(nbu::IMAS.nbi__unit, fbcur::AbstractVector, mode::Symbol)
+    mode === :beam_current_fraction && return fbcur
+    f = IMAS.hasdata(nbu.beam_power_fraction, :data) ? @ddtime(nbu.beam_power_fraction.data) : Float64[]
+    if length(f) != length(fbcur) || !all(x -> isfinite(x) && x >= 0, f) || sum(f) <= 0
+        p = fbcur ./ (1:length(fbcur))
+        sum(p) > 0 || return fbcur
+        p = p ./ sum(p)
+        @warn "$(nbu.name) has no usable beam_power_fraction ($f): using beam_current_fraction $fbcur as power fractions $p" maxlog = 1
+        return p
+    end
+    return f ./ sum(f)
 end
