@@ -248,6 +248,13 @@ function _step(actor::ActorSimpleNB)
             end
         end
 
+        # zero slope on axis (gaussians cut at rho=0 otherwise leave a finite slope)
+        # done per beamlets group and energy component: regularize_on_axis! is linear, so the components
+        # still sum to the regularized totals (needed by anything built from the components, e.g. fast ion sources)
+        for arr in (qbeam, qbeame, qbeami, sbeam, mombeam), igroup in axes(arr, 1), ifpow in axes(arr, 2)
+            regularize_on_axis!(@view(arr[igroup, ifpow, :]), rho_cp, volume_cp, par.axis_regularization)
+        end
+
         electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
         total_ion_energy = sum(sum(qbeami; dims=1); dims=2)[1, 1, :]
         momentum_tor = sum(sum(mombeam; dims=1); dims=2)[1, 1, :]
@@ -256,10 +263,8 @@ function _step(actor::ActorSimpleNB)
 
         j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam_tot ./ R0, false, eqt) ./ B0
 
-        # zero slope on axis (gaussians cut at rho=0 and the sqrt(eps) trapped-electron term otherwise leave a finite slope)
-        for prof in (electrons_energy, total_ion_energy, electrons_particles, momentum_tor)
-            regularize_on_axis!(prof, rho_cp, volume_cp, par.axis_regularization)
-        end
+        # the current is regularized on the total, since the sqrt(eps) trapped-electron term and the
+        # JtoR -> J_parallel conversion are applied after the components are formed
         regularize_on_axis!(j_parallel, rho_cp, area_cp, par.axis_regularization)
 
         # Convert curbeam to parallel current here
@@ -309,6 +314,8 @@ Replaces `f` for `rho < rho_reg` with the even polynomial `a + b ρ² + c ρ⁴`
   - has zero slope on axis
 
 `measure` is the volume for densities (power, particles, momentum) and the area for current densities.
+
+The operation is linear in `f`, so regularizing components and then summing them is the same as regularizing the sum.
 """
 function regularize_on_axis!(f::AbstractVector{T}, rho::AbstractVector, measure::AbstractVector, rho_reg::Real) where {T<:Real}
     rho_reg > 0.0 || return f
