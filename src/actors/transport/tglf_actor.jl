@@ -103,7 +103,14 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
                 actor.input_tglfs[k] = InputTJLF{D}(input_tglf)
             else
+                # the update resets FIND_WIDTH and WIDTH_SPECTRUM: when the widths are held fixed, keep them
+                keep_widths = !actor.input_tglfs[k].FIND_WIDTH
+                widths = keep_widths ? copy(actor.input_tglfs[k].WIDTH_SPECTRUM) : nothing
                 TJLF.update_input_tjlf!(actor.input_tglfs[k], input_tglf)
+                if keep_widths
+                    actor.input_tglfs[k].FIND_WIDTH = false
+                    actor.input_tglfs[k].WIDTH_SPECTRUM .= widths
+                end
             end
         end
 
