@@ -5,8 +5,12 @@ import GACODE
 #  ActorNeoclassical  #
 #= ================= =#
 @actor_parameters_struct ActorNeoclassical{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run"; default=:hirshmansigmar)
+    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar, :yancc], "-", "Neoclassical model to run"; default=:hirshmansigmar)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
+    yancc_nx::Entry{Int} = Entry{Int}("-", "Number of speed grid points of the :yancc model"; default=6)
+    yancc_nalpha::Entry{Int} = Entry{Int}("-", "Number of pitch angle grid points of the :yancc model"; default=65)
+    yancc_ntheta::Entry{Int} = Entry{Int}("-", "Number of poloidal grid points of the :yancc model"; default=41)
+    yancc_rtol::Entry{Float64} = Entry{Float64}("-", "Tolerance of the iterative solve of the :yancc model"; default=1e-8)
 end
 
 mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
@@ -15,6 +19,8 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     input_neos::Vector{<:NeoclassicalTransport.InputNEO}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
     equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
+    yancc_geometry::Union{NeoclassicalTransport.YanccGeometry,Missing}
+    yancc_caches::Vector{NeoclassicalTransport.YanccCache}
 end
 
 """
@@ -28,6 +34,9 @@ Supported neoclassical models:
   bootstrap current, providing electron/ion energy, particle, and momentum fluxes
 - `:hirshmansigmar`: Hirshman-Sigmar analytical model for comprehensive neoclassical transport
   in various collisionality regimes
+- `:yancc`: Drift-kinetic equation with the linearized Fokker-Planck collision operator solved by
+  Yancc.jl, the Julia port of yancc (R. Conlin and M. Landreman, Plasma Phys. Control. Fusion 68
+  (2026) 115001), providing electron/ion energy and particle fluxes
 
 The models account for collisional effects, magnetic geometry, and trapped particle physics
 to calculate transport coefficients. Results are stored in `dd.core_transport.model[:neoclassical]`
@@ -43,7 +52,7 @@ end
 function ActorNeoclassical(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing)
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing, missing, NeoclassicalTransport.YanccCache[])
 end
 
 """
@@ -55,6 +64,8 @@ For Chang-Hinton: Calculates ion heat transport using local parameters.
 For NEO: Creates InputNEO structures and runs the NEO code in parallel for each grid point.
 For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytical model
 with local plasma parameters, providing comprehensive neoclassical transport coefficients.
+For Yancc: Uses cached Miller flux surfaces and solves the drift-kinetic equation at each grid point,
+starting from the solution and the preconditioner of the previous step.
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
@@ -81,6 +92,22 @@ function _step(actor::ActorNeoclassical)
         rho_s = GACODE.rho_s(cp1d, eqt)
         rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm)
         actor.flux_solutions = map(gridpoint_cp -> NeoclassicalTransport.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry; rho_s, rmin), gridpoint_cps)
+
+    elseif par.model == :yancc
+        gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
+        geometry = actor.yancc_geometry
+        if ismissing(geometry) || geometry.time != eqt.time || geometry.gridpoints != gridpoint_cps || geometry.fields[1].ntheta != par.yancc_ntheta
+            geometry = actor.yancc_geometry = NeoclassicalTransport.get_yancc_geometry(eqt, cp1d, gridpoint_cps; ntheta=par.yancc_ntheta)
+            actor.yancc_caches = [NeoclassicalTransport.YanccCache() for _ in gridpoint_cps]
+        end
+        rho_s = GACODE.rho_s(cp1d, eqt)
+        rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm)
+        flux_solutions = Vector{eltype(actor.flux_solutions)}(undef, length(gridpoint_cps))
+        Threads.@threads for k in eachindex(gridpoint_cps)
+            flux_solutions[k] = NeoclassicalTransport.yancc(gridpoint_cps[k], eqt, cp1d, geometry.fields[k];
+                geometry.a, nx=par.yancc_nx, nalpha=par.yancc_nalpha, rtol=par.yancc_rtol, cache=actor.yancc_caches[k], rho_s, rmin)
+        end
+        actor.flux_solutions = flux_solutions
     end
 
     return actor
@@ -91,10 +118,11 @@ end
 
 Writes neoclassical transport fluxes to `dd.core_transport.model[:neoclassical]`.
 
-Sets the model identifier based on the selected model (Chang-Hinton, NEO, or Hirshman-Sigmar)
+Sets the model identifier based on the selected model (Chang-Hinton, NEO, Hirshman-Sigmar or Yancc)
 and converts flux results from GACODE format to IMAS format. The number and type of fluxes 
-written depend on the model: Chang-Hinton provides only ion energy flux, while NEO and 
-Hirshman-Sigmar provide comprehensive electron/ion energy, particle, and momentum fluxes.
+written depend on the model: Chang-Hinton provides only ion energy flux, NEO provides
+electron/ion energy, particle, and momentum fluxes, Hirshman-Sigmar and Yancc provide
+electron/ion energy and particle fluxes.
 """
 function _finalize(actor::ActorNeoclassical)
     par = actor.par
@@ -117,6 +145,10 @@ function _finalize(actor::ActorNeoclassical)
 
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
+        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
+
+    elseif par.model == :yancc
+        model.identifier.name = "Yancc"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
     end
 

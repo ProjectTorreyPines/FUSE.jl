@@ -20,7 +20,8 @@
         offaxis_beams::Vector{String}=["15"],
         counter_beams::Vector{String}=["21"],
         data_dir::String="",
-        bad_time_slices::Union{Nothing,BadTimeSlices}=nothing
+        bad_time_slices::Union{Nothing,BadTimeSlices}=nothing,
+        rho_grid::Union{Nothing,Int}=nothing
     )
 
 DIII-D from experimental shot
@@ -40,6 +41,8 @@ shot-dependent history of the 150° and 210° beamlines overrides this configura
 
 With `bad_time_slices`, time slices that the equilibrium flux surfaces, the profile fits or the
 pedestal setup fail on are dropped and recorded there instead of failing the case ([`BadTimeSlices`](@ref)).
+
+`rho_grid` sets the number of radial points of the profile fit (`act.ActorFitProfiles.rho_grid`; `nothing` keeps its default).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -60,9 +63,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
     offaxis_beams::Vector{String}=["15"],
     counter_beams::Vector{String}=["21"],
     data_dir::String="",
-    bad_time_slices::Union{Nothing,BadTimeSlices}=nothing
+    bad_time_slices::Union{Nothing,BadTimeSlices}=nothing,
+    rho_grid::Union{Nothing,Int}=nothing
 )
     ini, act = case_parameters(Val(:D3D_machine))
+    rho_grid === nothing || (act.ActorFitProfiles.rho_grid = rho_grid)
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
@@ -285,7 +290,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer,
-                pull_gslite_min, offaxis_beams, counter_beams, data_dir, bad_time_slices)
+                pull_gslite_min, offaxis_beams, counter_beams, data_dir, bad_time_slices, rho_grid)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
@@ -313,6 +318,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
         # freeze ion rotation so it's stored as data, not recomputed via dynamic expression
         # (sonic2ωtor uses density/pressure which change during simulation, breaking replay)
+        # `init_expressions_keep` makes `restore_init_expressions!` leave this stored rotation alone
         for ion in cp1d.ion
             IMAS.freeze!(ion, :rotation_frequency_tor)
         end

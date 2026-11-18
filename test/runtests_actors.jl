@@ -16,6 +16,8 @@ using Test
     act.ActorFluxMatcher.algorithm = :anderson
     act.ActorTGLF.model = :TGLFNN
     FUSE.ActorFluxMatcher(dd, act)
+    act.ActorFluxMatcher.algorithm = :default
+    FUSE.ActorFluxMatcher(dd, act)
 end
 
 @testset "Mars Actor CHEASE run" begin
@@ -193,4 +195,21 @@ end
     # a vacuum slice has ip=0, so ip_from=:equilibrium would never leave vacuum mode
     act.ActorEquilibrium.ip_from = :equilibrium
     @test_throws AssertionError FUSE.ActorEquilibrium(dd, act; vacuum_ip_threshold=1e6)
+end
+
+@testset "ActorCoreRadHeatFlux" begin
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+
+    with_wall = FUSE.ActorCoreRadHeatFlux(dd, act; N=20000).wall_heat_flux
+    @test all(isfinite, with_wall.q_core_rad) && maximum(with_wall.q_core_rad) > 0.0
+
+    # without the wall in the mesh: the same heat flux, at the points where the SOL field lines end
+    sol_only = FUSE.ActorCoreRadHeatFlux(dd, act; N=20000, merge_wall=false).wall_heat_flux
+    @test length(sol_only.r) < length(with_wall.r)
+    @test length(sol_only.q_core_rad) == length(sol_only.r) == length(sol_only.s)
+    index = [findfirst(k -> with_wall.r[k] == r && with_wall.z[k] == z, eachindex(with_wall.r)) for (r, z) in zip(sol_only.r, sol_only.z)]
+    @test all(!isnothing, index)
+    @test sol_only.q_core_rad == with_wall.q_core_rad[index]
 end

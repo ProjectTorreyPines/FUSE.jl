@@ -8,6 +8,12 @@
     vacuum_ip_threshold::Entry{Float64} = Entry{Float64}("A", "Below this |Ip| (taken via `ip_from`, which cannot be :equilibrium) only the coils vacuum field is computed with ActorFRESCO(vacuum_only=true), e.g. before breakdown"; default=0.0)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
+    psin_cut::Entry{T} = Entry{T}(
+        "-",
+        "With j_p_from=:core_profiles, j_tor and pressure at psi_norm <= psin_cut are replaced by a symmetric bridge across the axis";
+        default=0.02,
+        check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= psin_cut < 1.0"
+    )
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
@@ -181,6 +187,7 @@ function _finalize(actor::ActorEquilibrium)
                 display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             end
             isa(e, InterruptException) && rethrow(e)
+            rethrow_if_dual(eltype(dd), e)
             # a converged solve can still write a psi map whose contour walk
             # runs off the grid (observed: BoundsError [66,65]/[0,65] in
             # contour_from_midplane! on GSLite-coupled shots); with the
@@ -263,7 +270,7 @@ function prepare(actor::ActorEquilibrium)
     if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
-        index = cp1d.grid.psi_norm .> 0.02
+        index = cp1d.grid.psi_norm .> par.psin_cut
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
@@ -277,7 +284,7 @@ function prepare(actor::ActorEquilibrium)
         @assert !ismissing(eqt1d, :psi) "ActorEquilibrium: j_p_from=:equilibrium but the last equilibrium time slice has no profiles (vacuum-only slice?)"
         psi0 = eqt1d.psi
         rho_tor_norm0 = eqt1d.rho_tor_norm
-        rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
+        rho_pol_norm_sqrt0 = IMAS.sqrt0.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
         if !issorted(rho_pol_norm_sqrt0)
@@ -370,8 +377,8 @@ function prepare(actor::ActorEquilibrium)
     eqt1d = dd.equilibrium.time_slice[].profiles_1d
     eqt1d.psi = psi0
     eqt1d.rho_tor_norm = rho_tor_norm0
-    eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
-    eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
+    eqt1d.j_tor = j_itp.(IMAS.sqrt0.(eqt1d.psi_norm))
+    eqt1d.pressure = p_itp.(IMAS.sqrt0.(eqt1d.psi_norm))
 
     # calculate pressure and j_tor using geometry from previous iteration
     # this is for equilibrium codes that cannot solve directly from pressure and current
