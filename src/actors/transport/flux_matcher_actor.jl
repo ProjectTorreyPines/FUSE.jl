@@ -1440,13 +1440,24 @@ set_rotation_profile!(cp1d::IMAS.core_profiles__profiles_1d, path::Tuple, value:
 """
     init_rotation_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
 
-With `rotation_reference=:main_ion`, store the main ion rotation as data (its stored data if any, or else the rotation implied by the
-current ExB rotation with the selected poloidal flow model) and make the ExB and other ion rotations consistent with it
+With `rotation_reference=:main_ion`, store the main ion rotation as data (its stored data if any and not identically zero, or else the
+rotation implied by the current ExB rotation with the selected poloidal flow model) and make the ExB and other ion rotations consistent with it.
+With `rotation_reference=:exb`, turn the ion rotations back into expressions of the ExB rotation.
 """
 function init_rotation_reference!(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
-    uses_main_ion_rotation(par) || return cp1d
+    par.evolve_rotation == :replay && return cp1d
+    if !uses_main_ion_rotation(par)
+        # the ion rotations follow the ExB rotation (as they do after the flux matcher), so that transport
+        # models using the species rotation (e.g. ActorTGLF.parallel_flow=:species) do not see stale data
+        for ion in cp1d.ion
+            IMAS.unfreeze!(ion, :rotation_frequency_tor)
+        end
+        return cp1d
+    end
     main_ion = cp1d.ion[IMAS.main_ion_index(cp1d)]
-    if !IMAS.hasdata(main_ion, :rotation_frequency_tor)
+    # an identically-zero stored rotation (e.g. an unmeasured main ion in an input.gacode) is treated as missing
+    if !IMAS.hasdata(main_ion, :rotation_frequency_tor) || all(iszero, main_ion.rotation_frequency_tor)
+        IMAS.unfreeze!(main_ion, :rotation_frequency_tor)
         main_ion.rotation_frequency_tor = IMAS.sonic2ωtor(cp1d, main_ion; par.poloidal_flow, eqt=rotation_eqt(cp1d, par))
     end
     return rotation_from_reference!(cp1d, par)
