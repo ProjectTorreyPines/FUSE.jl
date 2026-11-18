@@ -218,7 +218,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     koptim += 1
                     koh += 1
                     coil_distance = (z_oh[koh] - minimum(rail.outline.z)) / (maximum(rail.outline.z) - minimum(rail.outline.z)) * 2 - 1
-                    optim_coils[koptim].z = r_interp(coil_distance)
+                    optim_coils[koptim].r = r_interp(coil_distance)
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
@@ -260,6 +260,34 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     end
 
     return 10^λ_regularize
+end
+
+"""
+    equalize_symmetric_areas!(areas::AbstractVector{<:Real}, r::AbstractVector{<:Real}, z::AbstractVector{<:Real})
+
+Gives each coil and its up-down mirror coil the larger of their two areas.
+
+The mirror of a coil is, among the coils that come before it, the one closest to its mirror image about z=0,
+if that one is closer than the size (square root of the area) of the larger of the two.
+"""
+function equalize_symmetric_areas!(areas::AbstractVector{<:Real}, r::AbstractVector{<:Real}, z::AbstractVector{<:Real})
+    for k1 in eachindex(areas)
+        k_mirror = 0
+        min_symmetric_distance = Inf
+        for k2 in 1:k1-1
+            symmetric_distance = sqrt((r[k1] - r[k2])^2 + (z[k1] + z[k2])^2)
+            if symmetric_distance < min_symmetric_distance && symmetric_distance < sqrt(max(areas[k2], areas[k1]))
+                k_mirror = k2
+                min_symmetric_distance = symmetric_distance
+            end
+        end
+        if k_mirror > 0
+            max_area = max(areas[k_mirror], areas[k1])
+            areas[k_mirror] = max_area
+            areas[k1] = max_area
+        end
+    end
+    return areas
 end
 
 function size_pf_active(
@@ -311,38 +339,10 @@ function size_pf_active(
 
     # find symmetric coils and make them equal area
     if symmetric
-        symmetric_pairs = Tuple{Int,Int}[]
-        k1 = 0
-        for coil1 in coils
-            pfcoil1 = getfield(coil1, :imas)
-            if !IMAS.is_ohmic_coil(pfcoil1)
-                k1 += 1
-                k2 = 0
-                min_symmetric_distance = Inf
-                for coil2 in coils
-                    pfcoil2 = getfield(coil2, :imas)
-                    if !IMAS.is_ohmic_coil(pfcoil2)
-                        k2 += 1
-                        if k1 > k2
-                            symmetric_distance = sqrt(
-                                (pfcoil1.element[1].geometry.rectangle.r - pfcoil2.element[1].geometry.rectangle.r)^2 +
-                                (pfcoil1.element[1].geometry.rectangle.z + pfcoil2.element[1].geometry.rectangle.z)^2
-                            )
-                            if symmetric_distance < min_symmetric_distance && symmetric_distance < sqrt(max(areas[k2], areas[k1]))
-                                push!(symmetric_pairs, (k1, k2))
-                                min_symmetric_distance = symmetric_distance
-                            end
-                        end
-                    end
-                end
-            end
-            if !isempty(symmetric_pairs)
-                k1, k2 = pop!(symmetric_pairs)
-                max_area = max(areas[k2], areas[k1])
-                areas[k2] = max_area
-                areas[k1] = max_area
-            end
-        end
+        pfcoils = [pfcoil for pfcoil in (getfield(coil, :imas) for coil in coils) if !IMAS.is_ohmic_coil(pfcoil)]
+        r = [pfcoil.element[1].geometry.rectangle.r for pfcoil in pfcoils]
+        z = [pfcoil.element[1].geometry.rectangle.z for pfcoil in pfcoils]
+        equalize_symmetric_areas!(areas, r, z)
     end
 
     # set the area of the coils, with a minimum size given by the norm
