@@ -100,11 +100,6 @@ function init_core_profiles!(dd::IMAS.DD, ini::ParametersAllInits, act::Paramete
     end
 end
 
-function cost_WPED_α(rho::AbstractVector{<:Real}, profile0::AbstractVector{<:Real}, α::Real, value::Real, rho_ped::Real)
-    profile = deepcopy(profile0)
-    return cost_WPED_α!(rho, profile, α, value, rho_ped)
-end
-
 function init_core_profiles!(
     cp::IMAS.core_profiles,
     equil::Union{IMAS.equilibrium__time_slice,FUSEparameters__equilibrium},
