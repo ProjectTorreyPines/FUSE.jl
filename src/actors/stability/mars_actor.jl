@@ -41,6 +41,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     coils_RZ::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m",
         "Poloidal coil segments [R1, Z1, R2, Z2, R1, Z1, ...], four numbers per coil row, used for coil_surface " *
         "when dd.coils_non_axisymmetric holds no coils"; default=Float64[])
+    coil_set::Entry{String} = Entry{String}("-",
+        "Name prefix of the dd.coils_non_axisymmetric coils used for coil_surface (MARS takes one coil surface, " *
+        "so one set at a time), e.g. \"I\" or \"C\" for the DIII-D I- or C-coils"; default="I")
     growth_rate_guess::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Initial guess [Re, Im] for the complex eigenvalue for linear stability runs (sets MARS TALPHA1), in the Alfvén-time-normalized units MARS reports: Re = growth rate·τ_A, Im = frequency·τ_A. A single element is taken as a real guess. Set this to something large and preferably real to end up with something tractable."; default=[0.1, 0.0])
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
@@ -1447,7 +1450,8 @@ end
 """
     coil_endpoints(dd, par) -> Matrix (ncoil × 4)
 
-Poloidal coil rows `[R1 Z1 R2 Z2]` [m] for MARS. From `dd.coils_non_axisymmetric`: each conductor's
+Poloidal coil rows `[R1 Z1 R2 Z2]` [m] for MARS. From the `dd.coils_non_axisymmetric` coils whose name
+starts with `par.coil_set`: each conductor's
 element start points projected onto (R,Z), keeping the two most distant; toroidally repeated coils of the
 same row (same projection within 1 mm) are kept once. Falls back to `par.coils_RZ`.
 """
@@ -1461,6 +1465,7 @@ function coil_endpoints(dd::IMAS.DD, par)
     end
     rows = Vector{Vector{Float64}}()
     for coil in dd.coils_non_axisymmetric.coil, cond in coil.conductor
+        startswith(coil.name, par.coil_set) || continue
         pts = cond.elements.start_points
         ismissing(pts, :r) && continue
         r, z = pts.r, pts.z
@@ -1472,7 +1477,7 @@ function coil_endpoints(dd::IMAS.DD, par)
         row = z[i] >= z[j] ? [r[i], z[i], r[j], z[j]] : [r[j], z[j], r[i], z[i]]
         any(maximum(abs.(row .- q)) < 1e-3 for q in rows) || push!(rows, row)
     end
-    isempty(rows) && error("dd.coils_non_axisymmetric has coils but no conductor start_points (r, z)")
+    isempty(rows) && error("no dd.coils_non_axisymmetric coil named \"$(par.coil_set)*\" has conductor start_points (r, z)")
     return permutedims(reduce(hcat, rows))
 end
 

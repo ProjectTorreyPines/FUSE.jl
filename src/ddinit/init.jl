@@ -213,6 +213,11 @@ function init!(
             end
         end
 
+        # coils_non_axisymmetric (machine hardware only, e.g. DIII-D I- and C-coils)
+        if ini.general.init_from == :ods && !isempty(dd1.coils_non_axisymmetric.coil)
+            dd.coils_non_axisymmetric = deepcopy(dd1.coils_non_axisymmetric)
+        end
+
         # initialize balance of plant
         verbose && @info "INIT: init_balance_of_plant"
         init_balance_of_plant!(dd, ini, act, dd1)
