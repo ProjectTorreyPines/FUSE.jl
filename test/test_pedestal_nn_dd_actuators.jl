@@ -67,9 +67,9 @@ else
         @test live[idx("bt")] && u[idx("bt")] == -2.0f0
         @test live[idx("gasa_cal")] && isapprox(u[idx("gasa_cal")], 10.0; rtol=1e-4)
         @test !live[idx("gasb_cal")]
-        # torque from geometry: P R / v, v = sqrt(2 E e / m_D)
+        # torque from geometry: 2 P R / v (momentum rate of a beam of power P), v = sqrt(2 E e / m_D); no energy fractions in this dd
         v = sqrt(2 * 80.0e3 * IMAS.mks.e / (2.0 * IMAS.mks.m_u))
-        @test live[idx("tinj")] && isapprox(u[idx("tinj")], 2.0e6 * 1.15 / v; rtol=1e-5)
+        @test live[idx("tinj")] && isapprox(u[idx("tinj")], 2 * 2.0e6 * 1.15 / v; rtol=1e-5)
         @test !live[idx("pinj")] # no pulse_schedule in this dd
         @test isempty(FUSE.fuse29_check_units(nn, u))
         @test getfield(dd, :_aux)[:fuse29_coil_convention_checked]
@@ -102,16 +102,70 @@ else
         @test isapprox(ddp.pf_active.coil[4].current.data[1], -200.0; rtol=1e-6)
     end
 
-    @testset "model torque used when core_sources are current" begin
-        dd = synthetic_dd()
-        src = resize!(dd.core_sources.source, 1)[1]
-        src.identifier.index = 2
-        gq = resize!(src.global_quantities, 1)[1]
-        gq.time = 0.5
-        gq.torque_tor = 1.234
+    @testset "injected torque: beam geometry first, model torque without beam data" begin
+        itinj = findfirst(==("tinj"), nn.actuator_names)
+        function add_model_torque!(dd)
+            src = resize!(dd.core_sources.source, 1)[1]
+            src.identifier.index = 2
+            gq = resize!(src.global_quantities, 1)[1]
+            gq.time = 0.5
+            gq.torque_tor = 1.234
+            return dd
+        end
+        v = sqrt(2 * 80.0e3 * IMAS.mks.e / (2.0 * IMAS.mks.m_u))
+        geo = 2 * 2.0e6 * 1.15 / v   # all the power at the full energy
+
+        # beam data present: the injected torque comes from the geometry, not from the model torque
+        dd = add_model_torque!(synthetic_dd())
         u, live = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
-        @test isapprox(u[findfirst(==("tinj"), nn.actuator_names)], 1.234; rtol=1e-6)
-        u2, _ = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.9) # 0.4 s away: fall back to geometry
-        @test !isapprox(u2[findfirst(==("tinj"), nn.actuator_names)], 1.234; rtol=1e-3)
+        @test live[itinj] && isapprox(u[itinj], geo; rtol=1e-5)
+
+        # energy components E, E/2, E/3: a watt at E/k carries √k times the momentum
+        unit = dd.nbi.unit[1]
+        unit.beam_power_fraction.time = t
+        unit.beam_power_fraction.data = repeat([0.7, 0.2, 0.1], 1, length(t))
+        u, _ = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
+        @test isapprox(u[itinj], geo * (0.7 + 0.2 * sqrt(2) + 0.1 * sqrt(3)); rtol=1e-5)
+        @test FUSE._nbi_momentum_weight(unit.beam_power_fraction.data, 51, nothing, 0) ≈ 0.7 + 0.2 * sqrt(2) + 0.1 * sqrt(3)
+
+        # only current fractions: P_k ∝ f_k / k; unusable fractions: all at the full energy
+        dd = synthetic_dd()
+        unit = dd.nbi.unit[1]
+        unit.beam_current_fraction.time = t
+        unit.beam_current_fraction.data = repeat([0.5, 0.3, 0.2], 1, length(t))
+        p = [0.5, 0.3 / 2, 0.2 / 3]
+        from_current = sum(p .* sqrt.(1:3)) / sum(p)
+        u, _ = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
+        @test isapprox(u[itinj], geo * from_current; rtol=1e-5)
+        unit.beam_power_fraction.time = t
+        unit.beam_power_fraction.data = zeros(3, length(t))   # no power fractions stored: the current fractions are used
+        u, _ = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
+        @test isapprox(u[itinj], geo * from_current; rtol=1e-5)
+        @test FUSE._nbi_momentum_weight(nothing, 0, nothing, 0) == 1.0
+        @test FUSE._nbi_momentum_weight(fill(NaN, 3, 2), 1, nothing, 0) == 1.0
+
+        # a chopped beam: energy and fractions are stored as zero while it is off. Five of the ten samples in
+        # the 50 ms interval ending at 0.5025 s are on (0.455 s ... 0.500 s), and the latest one (0.5 s) is off.
+        dd = synthetic_dd()
+        unit = dd.nbi.unit[1]
+        tc = collect(0.0:0.005:1.0)
+        on = [iseven(k) for k in eachindex(tc)]
+        @assert isapprox(tc[101], 0.5) && !on[101]
+        unit.power_launched.time = tc
+        unit.power_launched.data = ifelse.(on, 2.0e6, 0.0)
+        unit.energy.time = tc
+        unit.energy.data = ifelse.(on, 80.0e3, 0.0)
+        unit.beam_power_fraction.time = tc
+        unit.beam_power_fraction.data = [0.7, 0.2, 0.1] .* permutedims(Float64.(on))
+        u, live = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5025)
+        @test live[itinj] && isapprox(u[itinj], 0.5 * geo * (0.7 + 0.2 * sqrt(2) + 0.1 * sqrt(3)); rtol=1e-5)
+
+        # no beam data: the model torque, and only when core_sources are within one tick of the time asked for
+        dd = add_model_torque!(synthetic_dd())
+        empty!(dd.nbi.unit)
+        u, live = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.5)
+        @test live[itinj] && isapprox(u[itinj], 1.234; rtol=1e-6)
+        _, live = FUSE.build_fuse29_actuators(nn, dd; source=:dd, time=0.9)
+        @test !live[itinj]
     end
 end

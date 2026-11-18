@@ -88,13 +88,14 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # time average TS data
     time_basis_average!(dd.thomson_scattering, time_basis, par.time_averaging)
 
-    method = IMAS.NaturalNeighbours.Triangle()
-
     # fit Te in log space to guarantee positivity
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=x -> log(abs(x)))
+    # one Triangle() per interpolant: it caches per-triangle coefficients and, when reused, only checks
+    # the triangle count, so one shared between interpolants reads another triangulation's cache
+    m_te = IMAS.NaturalNeighbours.Triangle()
     for (kt, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[kt]
-        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_te)
         cp1d.electrons.temperature = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
     end
 
@@ -179,9 +180,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     # fit ne in log space to guarantee positivity
     itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=x -> log(abs(x)))
+    m_ne = IMAS.NaturalNeighbours.Triangle()
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_ne)
         cp1d.electrons.density_thermal = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
         IMAS.unfreeze!(cp1d.electrons, :density)
     end
@@ -203,14 +205,15 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # rho < 0.22, which the quasi-neutrality clip below cannot repair (it only clips from
     # above, to keep n_D >= 0) and which then throws in sivukhin_fraction during ActorSimpleNB.
     itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=x -> log(max(abs(x), 1e-6)))
+    m_nimp = IMAS.NaturalNeighbours.Triangle()
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         bulk_ion = cp1d.ion[1]
         imp_ion = cp1d.ion[2]
 
         # log(n_i/n_e) + log(n_e) = log(n_i): stay in log space all the way through fit1d
-        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        data .+= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_nimp)
+        data .+= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_ne)
         n_i = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
@@ -221,9 +224,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     
     # fit Ti in log space to guarantee positivity (prevents avgZ DomainError)
     itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=x -> log(abs(x)))
+    m_ti = IMAS.NaturalNeighbours.Triangle()
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_ti)
         ti = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
         for ion in cp1d.ion
             ion.temperature = ti
@@ -257,9 +261,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     # fit ωtor
     itp_ωtor = IMAS.fit2d(Val(:ω_tor), dd)
+    m_ωtor = IMAS.NaturalNeighbours.Triangle()
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ωtor(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data = itp_ωtor(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method=m_ωtor)
         ωtor = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         for ion in cp1d.ion
             ion.rotation_frequency_tor = ωtor
