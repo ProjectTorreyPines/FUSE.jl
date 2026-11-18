@@ -46,6 +46,16 @@ The FUSE module does several things:
        restart too quickly and the precompilation was not finished. In any case, if the problem
        does not resolve after restarting the kernel twice, reach out to the FUSE developers.
 
+## Developer install (one command)
+
+To develop FUSE on omega (FUSE in your per-user depot, IJulia kernels, and `FuseExamples`):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_laptop.sh)
+```
+
+The script loads the `fuse` module and uses its Julia and JupyterLab. In later shells, `module load fuse` then `jupyter lab`. See [One-command install](@ref).
+
 ## FUSE container (Singularity)
 
 As an alternative to the `fuse` module, FUSE also ships as a self-contained

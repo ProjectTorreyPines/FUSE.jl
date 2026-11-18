@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# One-shot FUSE install for laptops (juliaup + Miniconda if needed).
+# One-shot FUSE install for laptops (juliaup + Miniconda if needed) and for
+# non-NERSC HPC such as GA's omega, where the site `fuse` module is loaded
+# automatically when available (Julia, depot, and conda outside the
+# quota-limited $HOME). Set FUSE_SITE_MODULE=none to skip the module.
 #
 # After creating the fuse conda env this activates it, runs
 # fusebot install_IJulia (with make / install_ijulia.sh fallbacks), clones
@@ -12,6 +15,9 @@
 #
 # Or, from a FUSE.jl clone:
 #   curl -fsSL https://install.julialang.org | sh -s -- -y && bash scripts/install_fuse_laptop.sh
+#
+# On omega (no juliaup needed; the fuse module provides Julia):
+#   bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_laptop.sh)
 
 set -euo pipefail
 

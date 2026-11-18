@@ -23,6 +23,15 @@ julia_version() {
     julia --version 2>/dev/null | sed -nE 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1
 }
 
+# julia_print ARGS...: run julia and return only the last line of its stdout.
+# Site wrappers (omega's /fusion/projects/codes/julia/bin/julia) print a
+# "Note: ... repl_history.jl sanitized ..." line to stdout before every run,
+# which would otherwise corrupt paths captured via $(julia -e 'print(...)').
+# pipefail keeps julia's exit status.
+julia_print() {
+    julia "$@" | tail -n 1
+}
+
 # version_ge A B: true when dotted numeric version A >= B.
 version_ge() {
     local IFS=.
@@ -56,7 +65,7 @@ check_julia_version() {
         juliaup update release || true
         ver="$(julia_version)"
         if [[ -n "${ver}" ]] && version_ge "${ver}" "${MIN_JULIA_VERSION}"; then
-            log "Julia: $(julia --version)"
+            log "Julia: $(julia --version | tail -n 1)"
             return 0
         fi
     fi
@@ -65,7 +74,7 @@ check_julia_version() {
 
 ensure_julia() {
     if command -v julia >/dev/null 2>&1; then
-        log "Julia: $(julia --version)"
+        log "Julia: $(julia --version | tail -n 1)"
         check_julia_version
         return 0
     fi
@@ -92,7 +101,55 @@ load_nersc_modules() {
     module load "${JULIA_MODULE}"
     log "Loading conda"
     module load conda
-    log "Julia: $(julia --version)"
+    log "Julia: $(julia --version | tail -n 1)"
+}
+
+# module_is_available NAME: true when the module system on this host knows NAME,
+# without loading it. Lmod has `module is-avail`; Tcl Environment Modules does
+# not, so fall back to parsing terse `module avail` output.
+module_is_available() {
+    local name="$1"
+    command -v module >/dev/null 2>&1 || return 1
+    if module is-avail "${name}" >/dev/null 2>&1; then
+        return 0
+    fi
+    module -t avail "${name}" 2>&1 | grep -qE "^${name}(/|$)"
+}
+
+# GA's omega cluster ships a `fuse` module (which pulls in julia/1.11.7). It puts
+# Julia on PATH, points JULIA_DEPOT_PATH at a per-user depot outside the
+# quota-limited NFS $HOME, and provides a conda whose envs also live outside
+# $HOME. Without it the laptop install would drop juliaup, a multi-GB Julia
+# depot, and the fuse conda env into $HOME and die on the quota. Load the module
+# when it exists; this is a no-op on laptops and hosts without one.
+# FUSE_SITE_MODULE overrides the module name; FUSE_SITE_MODULE=none skips it.
+load_site_module_if_available() {
+    local name="${FUSE_SITE_MODULE:-fuse}"
+    [[ "${name}" == "none" ]] && return 0
+    module_is_available "${name}" || return 0
+    log "Site module '${name}' is available — loading it (Julia, depot, and conda outside \$HOME)"
+    if module load "${name}"; then
+        log "Loaded module ${name}. Run 'module load ${name}' in new shells before julia or jupyter."
+        # omega's own conda module keeps per-user envs under this site directory
+        # (outside $HOME). The module's conda does not know about it, so point
+        # conda there for the fuse env too; otherwise it lands in ~/.conda/envs
+        # (~2 GB against the home quota). Override with FUSE_CONDA_ENVS_DIR.
+        local site_envs="${FUSE_CONDA_ENVS_DIR:-/fusion/projects/codes/conda/omega/dev_envs/${USER:-$(id -un)}}"
+        if [[ -z "${CONDA_ENVS_PATH:-}" ]] && mkdir -p "${site_envs}" 2>/dev/null && [[ -w "${site_envs}" ]]; then
+            export CONDA_ENVS_PATH="${site_envs}"
+            log "conda envs directory: ${site_envs} (outside \$HOME)"
+        fi
+        # Likewise the conda package cache (~1.6 GB) would default to
+        # ~/.conda/pkgs; omega's conda module keeps it on /cscratch.
+        local site_pkgs="${FUSE_CONDA_PKGS_DIR:-/cscratch/${USER:-$(id -un)}/condacache}"
+        if [[ -z "${CONDA_PKGS_DIRS:-}" && -d "$(dirname "$(dirname "${site_pkgs}")")" ]] \
+            && mkdir -p "${site_pkgs}" 2>/dev/null && [[ -w "${site_pkgs}" ]]; then
+            export CONDA_PKGS_DIRS="${site_pkgs}"
+            log "conda package cache: ${site_pkgs} (outside \$HOME)"
+        fi
+    else
+        log "module load ${name} failed (conflicting module loaded?) — continuing with juliaup/conda detection"
+    fi
 }
 
 miniconda_installer_url() {
@@ -200,7 +257,7 @@ ensure_conda() {
 }
 
 fuse_jupyter_yml() {
-    julia -e '
+    julia_print -e '
         try
             using FUSE
         catch
@@ -214,7 +271,37 @@ fuse_jupyter_yml() {
     '
 }
 
+# existing_jupyter_ok: true when `python` already on PATH satisfies the
+# constraints of docs/jupyter_environment.yml (keep the two in sync):
+#   python>=3.10,<3.13  jupyterlab>=3.6,<4  notebook>=6.5,<7  ipykernel
+# The yml is only meant for systems whose Python lacks such a JupyterLab. On
+# omega the fuse module's own conda base qualifies (JupyterLab 3.6.7, notebook
+# 6.5.7, WebIO extension enabled), so no per-user env (~2 GB) is needed.
+existing_jupyter_ok() {
+    command -v python >/dev/null 2>&1 || return 1
+    python - <<'EOF' >/dev/null 2>&1
+import importlib, sys
+
+def major_minor(mod):
+    v = importlib.import_module(mod).__version__
+    return tuple(int(x) for x in v.split(".")[:2])
+
+ok = (3, 10) <= sys.version_info[:2] < (3, 13)
+ok = ok and (3, 6) <= major_minor("jupyterlab") < (4, 0)
+ok = ok and (6, 5) <= major_minor("notebook") < (7, 0)
+importlib.import_module("ipykernel")
+sys.exit(0 if ok else 1)
+EOF
+}
+
 ensure_fuse_conda_env() {
+    if [[ "${FUSE_FORCE_CONDA_ENV:-0}" != "1" ]] && existing_jupyter_ok; then
+        log "Python on PATH already provides a compatible JupyterLab — skipping conda env '${CONDA_ENV_NAME}'"
+        log "  (set FUSE_FORCE_CONDA_ENV=1 to create it anyway)"
+        log "Active Python: $(python -c 'import sys; print(sys.executable)')"
+        log "JupyterLab: $(python -c 'import jupyterlab; print(jupyterlab.__version__)')"
+        return 0
+    fi
     ensure_conda
     bootstrap_conda_channels
     local yml
@@ -232,7 +319,7 @@ ensure_fuse_conda_env() {
 }
 
 fuse_pkg_dir() {
-    julia -e 'using FUSE; print(pkgdir(FUSE))'
+    julia_print -e 'using FUSE; print(pkgdir(FUSE))'
 }
 
 pick_fusebot_dir() {
@@ -284,7 +371,7 @@ resolve_fuse_script() {
         return 0
     fi
     local from_pkg=""
-    if from_pkg="$(julia -e "using FUSE; print(joinpath(pkgdir(FUSE), \"scripts\", \"${name}\"))" 2>/dev/null)" \
+    if from_pkg="$(julia_print -e "using FUSE; print(joinpath(pkgdir(FUSE), \"scripts\", \"${name}\"))" 2>/dev/null)" \
         && [[ -n "${from_pkg}" && -f "${from_pkg}" ]]; then
         echo "${from_pkg}"
         return 0
@@ -328,9 +415,18 @@ run_fusebot_or_make() {
 install_ijulia_kernels() {
     # fusebot → make → direct install_ijulia.sh (no make required).
     # Keeps going when fusebot is missing/broken or make is not installed.
+    #
+    # The Makefile derives the multi-threaded kernel's JULIA_NUM_THREADS from
+    # julia's stdout ($(shell julia -e ...)); compute it here with julia_print so
+    # site-wrapper noise cannot end up in kernel.json. A JULIA_NUM_THREADS
+    # already set by the user is respected.
+    local nthreads
+    nthreads="${JULIA_NUM_THREADS:-$(julia_print -e 'print(length(Sys.cpu_info()))')}"
+    log "IJulia kernels: 1 thread and ${nthreads} threads"
+
     if command -v fusebot >/dev/null 2>&1; then
         log "fusebot install_IJulia"
-        if fusebot install_IJulia; then
+        if JULIA_NUM_THREADS="${nthreads}" fusebot install_IJulia; then
             return 0
         fi
         log "fusebot install_IJulia failed — trying make / direct install"
@@ -346,6 +442,7 @@ install_ijulia_kernels() {
         if (
             cd "${fuse_dir}"
             export PTP_ORIGINAL_DIR="${INSTALL_DIR}"
+            export JULIA_NUM_THREADS="${nthreads}"
             make install_IJulia
         ); then
             return 0
@@ -355,7 +452,7 @@ install_ijulia_kernels() {
         log "make not found — running scripts/install_ijulia.sh directly"
     fi
 
-    bash "${fuse_dir}/scripts/install_ijulia.sh"
+    JULIA_NUM_THREADS="${nthreads}" bash "${fuse_dir}/scripts/install_ijulia.sh"
 }
 
 clone_fuse_examples() {
@@ -429,6 +526,9 @@ case "${platform}" in
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-false}"
         # Laptop one-command install finishes by running fluxmatcher cells 0–2.
         export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-true}"
+        # omega and similar sites: pick up the site fuse module (julia + depot +
+        # conda outside $HOME) before falling back to juliaup/Miniconda.
+        load_site_module_if_available
         ensure_juliaup
         install_fuse_stack
         ;;

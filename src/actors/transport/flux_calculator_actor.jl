@@ -13,6 +13,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticTurbulence{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
+    actor_tm::ActorTearingModeTransport{D,P}
 end
 
 """
@@ -34,6 +35,9 @@ Turbulence model options:
 Neoclassical model options:
 - `:neoclassical`: Collisional transport (Chang-Hinton, NEO, Hirshman-Sigmar)
 - `:none`: No neoclassical transport
+
+Tearing mode transport (`ActorTearingModeTransport`) is also evaluated, and is a no-op unless
+`act.ActorTearingModeTransport` defines some tearing modes.
 """
 function ActorFluxCalculator(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
@@ -63,28 +67,31 @@ function ActorFluxCalculator(dd::IMAS.DD, par::FUSEparameters__ActorFluxCalculat
         actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical)
     end
 
-    return ActorFluxCalculator(dd, par, act, actor_turb, actor_neoc)
+    actor_tm = ActorTearingModeTransport(dd, act.ActorTearingModeTransport; par.rho_transport)
+
+    return ActorFluxCalculator(dd, par, act, actor_turb, actor_neoc, actor_tm)
 end
 
 """
     _step(actor::ActorFluxCalculator)
 
-Runs the selected turbulent and neoclassical transport actors in sequence.
+Runs the selected turbulent and neoclassical transport actors, and the tearing mode transport actor, in sequence.
 
-First executes the turbulent transport actor, then the neoclassical transport actor.
+First executes the turbulent transport actor, then the neoclassical transport actor, then the tearing mode transport actor.
 Each actor calculates its respective transport fluxes and stores them in the
 appropriate sections of `dd.core_transport`.
 """
 function _step(actor::ActorFluxCalculator)
     step(actor.actor_turb)
     step(actor.actor_neoc)
+    step(actor.actor_tm)
     return actor
 end
 
 """
     _finalize(actor::ActorFluxCalculator)
 
-Finalizes both the turbulent and neoclassical transport actors.
+Finalizes the turbulent, neoclassical and tearing mode transport actors.
 
 Calls the finalize methods of both sub-actors to ensure their results are properly
 written to the `dd.core_transport` data structure.
@@ -92,5 +99,6 @@ written to the `dd.core_transport` data structure.
 function _finalize(actor::ActorFluxCalculator)
     finalize(actor.actor_turb)
     finalize(actor.actor_neoc)
+    finalize(actor.actor_tm)
     return actor
 end
