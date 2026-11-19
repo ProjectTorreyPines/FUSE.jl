@@ -40,6 +40,7 @@ end
 mutable struct ActorFINN{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFINN{P}}
+    act::ParametersAllActors{P}
     finn_results::NamedTuple
     actor_replay::ActorReplay{D,P}
 end
@@ -82,7 +83,7 @@ function ActorFINN(dd::IMAS.DD{D}, par::FUSEparameters__ActorFINN{P}, act::Param
     # then reassign with the parent-actor reference so dispatch reaches
     # `_step(::ActorReplay, ::ActorFINN, ::IMAS.DD)` (mirrors ActorFluxMatcher).
     actor_replay = ActorReplay(dd, act.ActorReplay, ActorNoOperation(dd, act.ActorNoOperation))
-    actor = ActorFINN(dd, par, empty_results, actor_replay)
+    actor = ActorFINN(dd, par, act, empty_results, actor_replay)
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -238,7 +239,7 @@ function _finalize(actor::ActorFINN)
             cp1d.rotation_frequency_tor_sonic, rho, rho_transport, dw_drho)
     end
 
-    IMAS.intrinsic_sources!(dd)
+    IMAS.intrinsic_sources!(dd; actor.act.ActorSources.fast_density_knee)
 
     return actor
 end
