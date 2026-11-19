@@ -170,7 +170,7 @@ function case_parameters(::Val{:KDEMO_compact})
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 5.0e7
 
-    ini.requirements.flattop_duration = 3000.0
+    ini.requirements.flattop_duration = 2100.0
     ini.requirements.tritium_breeding_ratio = 0.8
     ini.requirements.power_electric_net = 100e6 # as example
 
