@@ -75,7 +75,7 @@ function case_parameters(::Val{:MANTA}; flux_matcher::Bool=false)
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
-    ini.requirements.flattop_duration = 45.0 * 60.0
+    ini.requirements.flattop_duration = 9.0 * 60.0
 
     #### ACT ####
 
