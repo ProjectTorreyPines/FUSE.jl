@@ -19,6 +19,7 @@ else
     include("runtests_basics.jl")
 
     include("runtests_d3d_ida_lite.jl")
+    include("runtests_sawteeth_flatten_bootstrap.jl")
     include("runtests_simplenb_axis_regularization.jl")
     include("runtests_simplenb_power_fractions.jl")
 
