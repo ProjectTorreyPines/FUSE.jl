@@ -224,7 +224,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # make intrinsic sources consistent to start
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
     try
-        IMAS.intrinsic_sources!(dd; modify_electron_density)
+        IMAS.intrinsic_sources!(dd; modify_electron_density, actor.act.ActorSources.fast_density_knee)
     catch e
         isa(e, InterruptException) && rethrow(e)
         rethrow_if_dual_type_error(D, e)
@@ -251,7 +251,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             @. arr = ifelse(isfinite(arr) & (arr >= 0.0), arr, 0.0)
         end
         try
-            IMAS.intrinsic_sources!(dd; modify_electron_density)
+            IMAS.intrinsic_sources!(dd; modify_electron_density, actor.act.ActorSources.fast_density_knee)
         catch e2
             isa(e2, InterruptException) && rethrow(e2)
             actor.soft_failures[:stale_sources] = get(actor.soft_failures, :stale_sources, 0) + 1
@@ -673,7 +673,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh intrinsic sources with relaxed profiles
-        IMAS.intrinsic_sources!(dd; modify_electron_density)
+        IMAS.intrinsic_sources!(dd; modify_electron_density, actor.act.ActorSources.fast_density_knee)
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
@@ -1076,7 +1076,7 @@ function flux_match_errors(
     # evaluate intrinsic sources (i.e., target fluxes)
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, modify_electron_density)
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, modify_electron_density, actor.act.ActorSources.fast_density_knee)
     if par.consistent_fast_pressure
         refreeze_pressures!(cp1d)
     end
@@ -2077,7 +2077,7 @@ function ad_flux_match_errors!(
     if par.evolve_plasma_sources
         evolve_densities = evolve_densities_dictionary(cp1d_ad, par)
         modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
-        IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density)
+        IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density, actor.act.ActorSources.fast_density_knee)
     end
 
     # Source from the change the flux matcher makes to the profiles over Δt, as in flux_match_errors:
