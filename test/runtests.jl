@@ -19,6 +19,7 @@ else
     include("runtests_basics.jl")
 
     include("runtests_d3d_nbi_fraction_avg.jl")
+    include("runtests_simplenb_axis_regularization.jl")
     include("runtests_simplenb_power_fractions.jl")
 
     include("runtests_cases.jl")
