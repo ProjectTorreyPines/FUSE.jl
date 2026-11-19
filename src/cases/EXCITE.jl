@@ -93,7 +93,7 @@ function case_parameters(::Val{:EXCITE})
     ini.ec_launcher[2].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 0.0e0
-    ini.requirements.flattop_duration = 900.0
+    ini.requirements.flattop_duration = 600.0
     ini.requirements.tritium_breeding_ratio = 0.0
 
     ini.time.simulation_start = 0.0
