@@ -42,6 +42,7 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
+include("bad_time_slices.jl")
 include(joinpath("cases", "_toksys.jl"))
 include(joinpath("cases", "_cases.jl"))
 
