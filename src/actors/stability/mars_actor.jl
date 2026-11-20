@@ -984,6 +984,11 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     # Determine which profiles to pull from dd, i.e. experiment
     write_exp_profiles(dd, mars_namelist)
 
+    # REORBIT opens its per-particle files and the per-rank MPI logs with POSITION='APPEND'
+    # (reorbit.f:361, mpienv.f:140) and never removes them, so a rerun in the same directory would
+    # append to the old ones. Only .OUT: RE_LOSS.IN is an INPUT (initial conditions, reorbit.f:3414).
+    foreach(rm, filter(f -> occursin(r"^(RE_TRACE|RE_LOSS|LOG_MPI)\d*\.OUT$", f), readdir()))
+
     # Execute MARS
     mars_exec = par.mars_exec
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
