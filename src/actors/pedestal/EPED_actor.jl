@@ -101,7 +101,7 @@ end
 function ActorEPED(dd::IMAS.DD, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
-    return ActorEPED(dd, par, eped_model(par.nn_model), EPEDNN.InputEPED(), missing, missing, 0.0, nothing)
+    return ActorEPED(dd, par, eped_model(par.nn_model), EPEDNN.InputEPED{eltype(dd)}(), missing, missing, 0.0, nothing)
 end
 
 """
@@ -137,7 +137,8 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     eqt = dd.equilibrium.time_slice[]
 
     sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.Te_sep, par.only_powerlaw, par.warn_nn_train_bounds)
-    pped, actor.σ_frac = EPEDNN.pedestal_height(actor.epedmod, actor.inputs, sol)
+    pped, σ_frac = EPEDNN.pedestal_height(actor.epedmod, actor.inputs, sol)
+    actor.σ_frac = IMAS.force_float64(σ_frac)
 
     if pped < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
@@ -287,7 +288,7 @@ function run_EPED(
     warn_nn_train_bounds::Bool,
     nn_model::Symbol=:variable_nesep_ratio)
 
-    inputs = EPEDNN.InputEPED()
+    inputs = EPEDNN.InputEPED{eltype(dd)}()
     epedmod = eped_model(nn_model)
     sol = run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, Te_sep, only_powerlaw, warn_nn_train_bounds)
     pped, σ_frac = EPEDNN.pedestal_height(epedmod, inputs, sol)

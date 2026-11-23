@@ -8,6 +8,8 @@ end
 
 @actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
+    axis_regularization::Entry{T} = Entry{T}("-", "Sources inside this rho are replaced by an even polynomial (zero slope on axis, same integral); 0 disables";
+        default=0.1, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= axis_regularization < 1.0")
     power_fractions::Switch{Symbol} = Switch{Symbol}(
         [:beam_current_fraction, :beam_power_fraction],
         "-",
@@ -41,6 +43,7 @@ This actor models the deposition of neutral beam energy and momentum through:
 The model includes:
 - Multiple beam energy components (full, half, third energy)
 - Gaussian deposition profiles with configurable width
+- On-axis regularization of the sources (zero slope at rho=0) controlled by `axis_regularization`
 - Banana orbit shift correction for trapped particles
 - Fast ion thermalization time smoothing of launched power
 
@@ -75,12 +78,13 @@ function _step(actor::ActorSimpleNB)
     phi = eqt2d.phi
     R0 = eqt.global_quantities.vacuum_toroidal_field.r0
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    rho2d = sqrt.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end]
+    rho2d = IMAS.sqrt0.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end] # the toroidal flux is zero outside of the plasma on some grids
 
     r = eqt2d.grid.dim1
     z = eqt2d.grid.dim2
-    r = range(r[1], r[end], length(r))
-    z = range(z[1], z[end], length(z))
+    # the grid of the interpolant is plain floats, also when the dd carries derivatives
+    r = range(IMAS.force_float64(r[1]), IMAS.force_float64(r[end]), length(r))
+    z = range(IMAS.force_float64(z[1]), IMAS.force_float64(z[end]), length(z))
     rho2d_interp = Interpolations.cubic_spline_interpolation((r, z), rho2d; extrapolation_bc=2.0)
 
     nenergies = 3
@@ -99,12 +103,13 @@ function _step(actor::ActorSimpleNB)
     ngrid = 25
 
     nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
-    qbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    sbeam = zeros(nmaxgroups, nenergies, ncp1d)
-    mombeam = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeame = zeros(nmaxgroups, nenergies, ncp1d)
-    qbeami = zeros(nmaxgroups, nenergies, ncp1d)
-    curbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    D = eltype(dd)
+    qbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    sbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    mombeam = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeame = zeros(D, nmaxgroups, nenergies, ncp1d)
+    qbeami = zeros(D, nmaxgroups, nenergies, ncp1d)
+    curbeam = zeros(D, nmaxgroups, nenergies, ncp1d)
 
     gaus = similar(rho_cp)
     qbeamtmp = similar(rho_cp)
@@ -207,11 +212,13 @@ function _step(actor::ActorSimpleNB)
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
 
-                cs = zeros(ngrid)
+                # ion-impact ionization and charge exchange: beam energy per amu
+                eova = beam_energy / ifpow / beam_mass
+                cs = zeros(D, ngrid)
                 for i in 1:ngrid
                     cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
-                    cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
-                    cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i])
+                    cs2 = IMAS.imfp_ion_collisions(beam_mass, eova, ne_beam[i], 1)
+                    cs3 = IMAS.imfp_charge_exchange(beam_mass, eova, ne_beam[i])
                     cs[i] = cs1 + cs2 + cs3
                 end
                 cross_section_t = IMAS.cumtrapz(dist, cs)
@@ -238,9 +245,16 @@ function _step(actor::ActorSimpleNB)
                 # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
                 curbi = @views 0.1 * IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* IMAS.sqrt0.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
                 curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
             end
+        end
+
+        # zero slope on axis (gaussians cut at rho=0 otherwise leave a finite slope)
+        # done per beamlets group and energy component: regularize_on_axis! is linear, so the components
+        # still sum to the regularized totals (needed by anything built from the components, e.g. fast ion sources)
+        for arr in (qbeam, qbeame, qbeami, sbeam, mombeam), igroup in axes(arr, 1), ifpow in axes(arr, 2)
+            regularize_on_axis!(@view(arr[igroup, ifpow, :]), rho_cp, volume_cp, par.axis_regularization)
         end
 
         electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
@@ -250,6 +264,10 @@ function _step(actor::ActorSimpleNB)
         electrons_particles = sum(sum(sbeam; dims=1); dims=2)[1, 1, :]
 
         j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam_tot ./ R0, false, eqt) ./ B0
+
+        # the current is regularized on the total, since the sqrt(eps) trapped-electron term and the
+        # JtoR -> J_parallel conversion are applied after the components are formed
+        regularize_on_axis!(j_parallel, rho_cp, area_cp, par.axis_regularization)
 
         # Convert curbeam to parallel current here
         source = resize!(dd.core_sources.source, :nbi, "identifier.name" => nbu.name; wipe=false)
@@ -268,16 +286,19 @@ function _step(actor::ActorSimpleNB)
 
         # add nbi fast ion particles source
         source1d = source.profiles_1d[]
-        resize!(source1d.ion, 2)
-        ion_fast = source1d.ion[1]
-        IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
-        ion_fast.particles = source1d.electrons.particles
-        ion_fast.particles_inside = source1d.electrons.particles_inside
-        ion_fast.energy = source1d.total_ion_energy
-        ion_fast.power_inside = source1d.total_ion_power_inside
-        ion_fast.fast_particles_energy = beam_energy
+        # one fast ion per energy component, born at E/k; same label for every component, so summed sources match the totals
+        resize!(source1d.ion, nenergies + 1)
+        for ifpow in 1:nenergies
+            ion_fast = source1d.ion[ifpow]
+            IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
+            ion_fast.particles = sum(sbeam[:, ifpow, :]; dims=1)[1, :]
+            ion_fast.particles_inside = IMAS.cumtrapz(volume_cp, ion_fast.particles)
+            ion_fast.energy = sum(qbeami[:, ifpow, :]; dims=1)[1, :]
+            ion_fast.power_inside = IMAS.cumtrapz(volume_cp, ion_fast.energy)
+            ion_fast.fast_particles_energy = beam_energy / ifpow
+        end
 
-        ion_thermal = source1d.ion[2]
+        ion_thermal = source1d.ion[end]
         IMAS.ion_element!(ion_thermal, 1, nbu.species.a; fast=false)
         ion_thermal.particles        = source1d.electrons.particles
         ion_thermal.particles_inside = source1d.electrons.particles_inside
@@ -286,6 +307,37 @@ function _step(actor::ActorSimpleNB)
     IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
+end
+
+"""
+    regularize_on_axis!(f::AbstractVector, rho::AbstractVector, measure::AbstractVector, rho_reg::Real)
+
+Replaces `f` for `rho < rho_reg` with the even polynomial `a + b ρ² + c ρ⁴`, which
+
+  - matches `f` and `df/dρ` at the first grid point with `rho >= rho_reg`
+  - preserves `∫ f d(measure)` over that region exactly (on the discrete grid, with `IMAS.trapz`)
+  - has zero slope on axis
+
+`measure` is the volume for densities (power, particles, momentum) and the area for current densities.
+
+The operation is linear in `f`, so regularizing components and then summing them is the same as regularizing the sum.
+"""
+function regularize_on_axis!(f::AbstractVector{T}, rho::AbstractVector, measure::AbstractVector, rho_reg::Real) where {T<:Real}
+    rho_reg > 0.0 || return f
+    ir = findfirst(>=(rho_reg), rho)
+    if ir === nothing || ir < 3
+        return f
+    end
+    r = rho[ir]
+    df = IMAS.gradient(rho, f)[ir]
+    ρ = @view rho[1:ir]
+    m = @view measure[1:ir]
+    A = [1.0 r^2 r^4
+         0.0 2r 4r^3
+         IMAS.trapz(m, ρ .^ 0) IMAS.trapz(m, ρ .^ 2) IMAS.trapz(m, ρ .^ 4)]
+    a, b, c = A \ [f[ir], df, IMAS.trapz(m, @view f[1:ir])]
+    @views @. f[1:ir-1] = a + b * rho[1:ir-1]^2 + c * rho[1:ir-1]^4
+    return f
 end
 
 """

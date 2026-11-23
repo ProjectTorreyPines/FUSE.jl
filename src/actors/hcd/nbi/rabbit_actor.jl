@@ -17,6 +17,9 @@ end
 
 function ActorRABBIT(dd::IMAS.DD, par::FUSEparameters__ActorRABBIT; kw...)
     logging_actor_init(ActorRABBIT)
+    if eltype(dd) <: ForwardDiff.Dual
+        throw(ArgumentError("ActorRABBIT does not support a Dual-typed dd: RABBIT is an external code that runs in Float64. Use ActorSources.nb_model = :NBsimple to propagate derivatives through the source."))
+    end
     par = OverrideParameters(par; kw...)
     return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end

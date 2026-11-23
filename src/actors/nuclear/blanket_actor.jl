@@ -135,7 +135,7 @@ function _step(actor::ActorBlanket)
         r_coords = zeros(4)
         z_coords = zeros(4)
         for (k, (r0, z0, fr, fz)) in enumerate(zip(wall_r[index], wall_z[index], ntt.wall_loading.flux_r[index], ntt.wall_loading.flux_z[index]))
-            fn = norm(fr, fz)
+            fn = hypot(fr, fz)
             r_coords[1] = r0
             z_coords[1] = z0
             for (ilayer, layer) in enumerate([d1, d2, d3])

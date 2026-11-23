@@ -32,6 +32,7 @@ const deg = pi / 180 # convert degrees to radians
 #  UTILS  #
 #= ===== =#
 include("utils_begin.jl")
+include("ad.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
@@ -106,6 +107,7 @@ include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "current", "qed_actor.jl"))
+include(joinpath("actors", "current", "qed_sawtooth_crash.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 
@@ -133,7 +135,9 @@ include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
 include(joinpath("actors", "pedestal", "nn_predictor.jl"))
+include(joinpath("actors", "pedestal", "nn_predictor_efit.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
+include(joinpath("actors", "pedestal", "nn_predictor_efit_inputs.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 

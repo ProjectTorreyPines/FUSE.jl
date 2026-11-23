@@ -15,6 +15,9 @@ end
 
 function ActorTORBEAM(dd::IMAS.DD, par::FUSEparameters__ActorTORBEAM; kw...)
     logging_actor_init(ActorTORBEAM)
+    if eltype(dd) <: ForwardDiff.Dual
+        throw(ArgumentError("ActorTORBEAM does not support a Dual-typed dd: TORBEAM is an external code that runs in Float64. Use ActorSources.ec_model = :ECsimple to propagate derivatives through the source."))
+    end
     par = OverrideParameters(par; kw...)
     return ActorTORBEAM(dd, par, TORBEAM.TorbeamParams())
 end

@@ -107,3 +107,41 @@ macro actor_parameters_struct(name_expr, body)
         end
     end)
 end
+
+"""
+    unset_parameters!(par::AbstractParameters)
+
+Set every parameter of `par` to `missing` (parameter vectors are not visited)
+"""
+function unset_parameters!(par::AbstractParameters)
+    for field in keys(par)
+        p = SimulationParameters.getparameter(par, field)
+        if p isa AbstractParameters
+            unset_parameters!(p)
+        elseif p isa SimulationParameters.AbstractParameter
+            setfield!(p, :value, missing)
+        end
+    end
+    return par
+end
+
+"""
+    apply_act_overrides!(act::ParametersAllActors, overrides::ParametersAllActors)
+
+Set on `act` every actor parameter that is set (not `missing`) in `overrides`, e.g. one started with [`unset_parameters!`](@ref)
+"""
+function apply_act_overrides!(act::ParametersAllActors, overrides::ParametersAllActors)
+    _apply_overrides!(act, overrides)
+    return act
+end
+
+function _apply_overrides!(par::AbstractParameters, overrides::AbstractParameters)
+    for field in keys(overrides)
+        p = SimulationParameters.getparameter(overrides, field)
+        if p isa AbstractParameters
+            _apply_overrides!(getproperty(par, field), p)
+        elseif p isa SimulationParameters.AbstractParameter && !ismissing(p.value)
+            setproperty!(par, field, p.value)
+        end
+    end
+end

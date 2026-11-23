@@ -68,15 +68,15 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
 end
 
 """
-    flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d, eqt::IMAS.equilibrium__time_slice; double_swing::Bool=true)
 
-Estimate OH flux requirement during flattop
+Estimate flattop duration as the OH flux available for flattop [V*s] divided by the resistive loop voltage [V]
 
 NOTE:
 
   - if j_ohmic profile is missing then steady state ohmic profile is assumed
 """
-function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d, eqt::IMAS.equilibrium__time_slice; double_swing::Bool=true)
     OH = IMAS.get_build_layer(bd.layer; type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -86,9 +86,6 @@ function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d
     totalOhFlux = bd.oh.max_b_field * (π * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
     bd.flux_swing.flattop = totalOhFlux - bd.flux_swing.rampup - bd.flux_swing.pf
 
-    j_ohmic = cp1d.j_ohmic
-    conductivity_parallel = cp1d.conductivity_parallel
-    f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
-    bd.oh.flattop_duration = bd.flux_swing.flattop / abs(trapz(cp1d.grid.area, f))
+    bd.oh.flattop_duration = bd.flux_swing.flattop / abs(IMAS.vloop(cp1d, eqt)) # [V*s] / [V]
     return bd.oh
 end

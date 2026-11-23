@@ -100,7 +100,7 @@ function _finalize(actor::ActorBetaMatch)
     dd = actor.dd
 
     # update sources
-    IMAS.intrinsic_sources!(dd)
+    IMAS.intrinsic_sources!(dd; actor.act.ActorSources.fast_density_knee)
 
     return actor
 end
