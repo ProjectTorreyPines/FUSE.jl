@@ -208,3 +208,80 @@ end
     act.ActorSOL.model = :none
     @test_throws AssertionError FUSE.ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act)
 end
+
+@testset "pedestal Te/Ti split" begin
+    # pure closure functions
+    ne, ni, ae, ai = 4e19, 3.5e19, 300.0, 100.0
+    Pstar = 4e19 * 500.0
+    for (chi_i_neo, f) in ((0.0, 1.0), (0.2, 1.0), (0.2, 0.1), (0.2, 0.0))
+        χe = FUSE.pedestal_chi_e(Pstar, ne, ni, ae, ai, chi_i_neo, f)
+        @test χe > 0.0
+        @test ne * ae / χe + ni * ai / (chi_i_neo + f * χe) ≈ Pstar
+    end
+    @test isnan(FUSE.pedestal_chi_e(-1.0, ne, ni, ae, ai, 0.2, 1.0))
+    @test isnan(FUSE.pedestal_chi_e(Pstar, ne, ni, ae, 1e6, 0.2, 0.0)) # neoclassical ions alone exceed Pstar
+
+    split0 = (model=:ratio, Te_sep=80.0, Ti_sep=200.0, Ti_over_Te=1.2, rho_top=0.93, f=NaN, chi_i_neo=0.0, ae, ai, Qe=NaN, Qi=NaN, De=NaN, De_over_chi_e_expected=NaN)
+    p_ped = 1.5e4 # Pa
+    for (model, f, chi_i_neo) in ((:ratio, NaN, 0.0), (:increment, NaN, 0.0), (:heat_flux, 2.0, 0.0), (:fingerprint, 0.1, 0.2))
+        split = merge(split0, (; model, f, chi_i_neo))
+        T = FUSE.pedestal_temperatures(split, p_ped, ne, ni)
+        @test FUSE.IMAS.mks.e * (ne * T.Te_ped + ni * T.Ti_ped) ≈ p_ped
+        if model == :ratio
+            @test T.Ti_ped / T.Te_ped ≈ 1.2
+        elseif model == :increment
+            @test (T.Ti_ped - 200.0) / (T.Te_ped - 80.0) ≈ 1.2
+        elseif model == :heat_flux
+            @test (T.Ti_ped - 200.0) / (T.Te_ped - 80.0) ≈ (ai / ae) / f
+        end
+        # closure on Te_ped (WPED) is consistent with closure on pressure (EPED)
+        @test FUSE.pedestal_ti(split, T.Te_ped).Ti_ped ≈ T.Ti_ped
+    end
+    # bracketed bisection
+    sol = FUSE.solve_pedestal_ti(T -> 500.0 - 0.5 * T - T, 100.0, 1000.0)
+    @test sol.converged
+    @test sol.T ≈ 500.0 / 1.5 atol = 0.5
+    @test !FUSE.solve_pedestal_ti(T -> 1.0, 100.0, 1000.0).converged
+
+    # pressure below separatrix temperatures at pedestal density: separatrix Ti/Te is kept
+    T = FUSE.pedestal_temperatures(merge(split0, (model=:increment,)), 100.0, ne, ni)
+    @test T.Ti_ped / T.Te_ped ≈ 200.0 / 80.0
+
+    # through ActorPedestal
+    ini, act = FUSE.case_parameters(:D3D, :default)
+    dd0 = FUSE.init(ini, act)
+    rho_nml, rho_ped = act.ActorFluxMatcher.rho_transport[end-1:end]
+    kw = (ip_from=:core_profiles, βn_from=:core_profiles, ne_from=:pulse_schedule, zeff_from=:pulse_schedule, rho_nml, rho_ped, Te_sep=80.0, Ti_sep=200.0)
+    ratio = Dict{Tuple{Symbol,Symbol},Float64}()
+    for model in (:EPED, :WPED), (Ti_ped_model, fingerprint_mode) in ((:ratio, :MHD), (:increment, :MHD), (:heat_flux, :MHD), (:fingerprint, :MHD), (:fingerprint, :MTM))
+        dd = deepcopy(dd0)
+        actor = FUSE.ActorPedestal(dd, act.ActorPedestal, act; model, Ti_ped_model, fingerprint_mode, kw...)
+        FUSE.finalize(FUSE.step(actor))
+        s = actor.ped_actor.ti_split
+        @test s.model == Ti_ped_model
+        @test s.Te_ped > 80.0 && s.Ti_ped > 0.0
+        @test all(isfinite, dd.core_profiles.profiles_1d[].t_i_average)
+        if Ti_ped_model == :ratio
+            @test s.Ti_ped ≈ s.Te_ped
+        elseif Ti_ped_model == :fingerprint
+            @test s.chi_e > 0.0 && s.chi_i_neo > 0.0
+            ratio[(model, fingerprint_mode)] = s.Ti_ped / s.Te_ped
+        end
+    end
+    # ions closer to neoclassical (MTM) hold a higher Ti_ped than MHD-like transport, for the same pedestal pressure
+    @test ratio[(:EPED, :MTM)] > ratio[(:EPED, :MHD)]
+    @test ratio[(:WPED, :MTM)] > ratio[(:WPED, :MHD)]
+
+    # Ti_ped consistent with collisional exchange and χi_neo recomputed on the resulting profiles
+    for fingerprint_mode in (:MHD, :MTM)
+        dd = deepcopy(dd0)
+        actor = FUSE.ActorPedestal(dd, act.ActorPedestal, act; model=:EPED, Ti_ped_model=:fingerprint, fingerprint_mode, Ti_ped_self_consistent=true, kw...)
+        FUSE.finalize(FUSE.step(actor))
+        s = actor.ped_actor.ti_split
+        @test length(s.Ti_ped_history) > 2
+        @test s.Ti_ped ≈ s.Ti_ped_history[end] atol = 5.0
+        # exchange pulls the pedestal towards Ti = Te
+        @test abs(log(s.Ti_ped / s.Te_ped)) < abs(log(ratio[(:EPED, fingerprint_mode)]))
+        @test dd.core_profiles.profiles_1d[].t_i_average[end] ≈ 200.0 rtol = 0.2
+    end
+end

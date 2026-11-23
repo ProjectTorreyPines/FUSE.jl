@@ -11,6 +11,27 @@ import EPEDNN
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     Ti_sep::Entry{T} = Entry{T}("eV", "Separatrix ion temperature (if not set, Ti_sep = Te_sep * Ti/Te from `T_ratio_pedestal`)"; check=x -> @assert x > 0 "Ti_sep must be > 0")
+    Ti_ped_model::Switch{Symbol} = Switch{Symbol}(
+        [:ratio, :increment, :heat_flux, :fingerprint],
+        "-",
+        "Split of the pedestal pressure between Te_ped and Ti_ped: `:ratio` Ti_ped = r Te_ped; `:increment` Ti_ped-Ti_sep = r (Te_ped-Te_sep) (r from `T_ratio_pedestal`); " *
+        "`:heat_flux` pedestal power balance with χi/χe = `chi_i_over_chi_e`; `:fingerprint` pedestal power balance with χi = χi_neo + f χe (f from `fingerprint_mode`)";
+        default=:ratio)
+    fingerprint_mode::Switch{Symbol} = Switch{Symbol}(
+        [:MHD, :MTM, :ETG, :ITG_TEM, :custom],
+        "-",
+        "Dominant pedestal transport mode for `Ti_ped_model=:fingerprint`, setting the turbulent χi/χe (MHD-like=1, MTM=ETG=0.1, ITG/TEM=2, `:custom`=`chi_i_over_chi_e`)";
+        default=:MHD)
+    chi_i_over_chi_e::Entry{T} = Entry{T}(
+        "-",
+        "Pedestal χi/χe for `Ti_ped_model=:heat_flux`, and turbulent χi/χe for `Ti_ped_model=:fingerprint` with `fingerprint_mode=:custom`";
+        default=1.0,
+        check=x -> @assert x >= 0.0 "chi_i_over_chi_e must be >= 0")
+    chi_i_neo_model::Switch{Symbol} = Switch{Symbol}([:changhinton, :none], "-", "Neoclassical ion χ added to the turbulent one for `Ti_ped_model=:fingerprint`"; default=:changhinton)
+    Ti_ped_self_consistent::Entry{Bool} = Entry{Bool}(
+        "-",
+        "For `Ti_ped_model=:heat_flux|:fingerprint` with EPED-like models: solve (bracketed bisection) for the Ti_ped that is consistent with the collisional exchange source and χi_neo recomputed on the resulting profiles. Note that the core profiles are shifted with the pedestal and do not otherwise respond";
+        default=false)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -33,6 +54,7 @@ mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     wped::Union{Missing,Real} # pedestal width using EPED definition (1/2 width as fraction of psi_norm)
     pped::Union{Missing,Real} # pedestal height using EPED units (MPa)
     σ_frac::Float64 # uncertainty of the pedestal height, as a fraction of the height itself
+    ti_split::Union{Nothing,NamedTuple} # pedestal Te/Ti split (see `Ti_ped_model`)
 end
 
 """
@@ -79,7 +101,7 @@ end
 function ActorEPED(dd::IMAS.DD, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
-    return ActorEPED(dd, par, eped_model(par.nn_model), EPEDNN.InputEPED(), missing, missing, 0.0)
+    return ActorEPED(dd, par, eped_model(par.nn_model), EPEDNN.InputEPED(), missing, missing, 0.0, nothing)
 end
 
 """
@@ -169,25 +191,71 @@ function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
     tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
     Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
-    t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
-    t_i_average = t_e * Ti_over_Te
 
-    # Change the last point of the temperatures profiles since
-    # The rest of the profile will be taken care by the blend_core_edge_Hmode() function
-    cp1d.electrons.temperature[end] = par.Te_sep
-    for ion in cp1d.ion
-        if !ismissing(ion, :temperature)
-            ion.temperature[end] = separatrix_ti(par, Ti_over_Te)
+    p_ped = actor.pped * 1e6 * par.ped_factor
+    ne_ped = actor.inputs.neped * 1e19
+    ni_ped = nval + nival
+    original_temperatures = save_temperatures(cp1d)
+
+    # sets the pedestal-top temperatures by blending the original profiles
+    function apply_pedestal!(t_e::Real, t_i_average::Real)
+        restore_temperatures!(cp1d, original_temperatures)
+        # Change the last point of the temperatures profiles since
+        # The rest of the profile will be taken care by the blend_core_edge_Hmode() function
+        cp1d.electrons.temperature[end] = par.Te_sep
+        for ion in cp1d.ion
+            if !ismissing(ion, :temperature)
+                ion.temperature[end] = separatrix_ti(par, Ti_over_Te)
+            end
+        end
+        # blend core_profiles core
+        cp1d.electrons.temperature = IMAS.blend_core_edge_Hmode(cp1d.electrons.temperature, rho, t_e, w_ped, par.rho_nml, par.rho_ped)
+        ti_avg_new = IMAS.blend_core_edge_Hmode(cp1d.t_i_average, rho, t_i_average, w_ped, par.rho_nml, par.rho_ped)
+        for ion in cp1d.ion
+            if !ismissing(ion, :temperature)
+                ion.temperature = ti_avg_new
+            end
+        end
+        return nothing
+    end
+
+    split = pedestal_ti_split(dd, par, position, Ti_over_Te)
+    if par.Ti_ped_model == :ratio
+        # NOTE: historical closure, which assumes ne ≈ ni
+        t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
+        t_i_average = t_e * Ti_over_Te
+        temperatures = (Te_ped=t_e, Ti_ped=t_i_average, chi_e=NaN, chi_i=NaN)
+        actor.ti_split = pedestal_ti_split_result(split, temperatures)
+    else
+        temperatures = pedestal_temperatures(split, p_ped, ne_ped, ni_ped)
+        actor.ti_split = pedestal_ti_split_result(split, temperatures)
+
+        # Ti_ped consistent with collisional exchange and χi_neo evaluated on the resulting profiles
+        T_hi = (p_ped / IMAS.mks.e - ne_ped * split.Te_sep) / ni_ped # Ti_ped for Te_ped = Te_sep
+        if par.Ti_ped_self_consistent && par.Ti_ped_model ∈ (:heat_flux, :fingerprint) && T_hi > split.Ti_sep
+            residual = T -> begin
+                apply_pedestal!((p_ped / IMAS.mks.e - ni_ped * T) / ne_ped, T)
+                IMAS.collisional_exchange_source!(dd)
+                # NOTE: at the lower end of the bracket Ti is flat in the pedestal and χi_neo=0 is used (silently)
+                pedestal_temperatures(pedestal_ti_split(dd, par, position, Ti_over_Te; warn=false), p_ped, ne_ped, ni_ped).Ti_ped - T
+            end
+            sol = solve_pedestal_ti(residual, split.Ti_sep, T_hi)
+            if !sol.converged
+                @warn "Ti_ped_self_consistent: bisection on Ti_ped ∈ [$(round(split.Ti_sep)), $(round(T_hi))] eV did not converge, Ti_ped=$(round(sol.T)) eV"
+            end
+            # final split evaluated on the profiles at the solution
+            apply_pedestal!((p_ped / IMAS.mks.e - ni_ped * sol.T) / ne_ped, sol.T)
+            IMAS.collisional_exchange_source!(dd)
+            split = pedestal_ti_split(dd, par, position, Ti_over_Te)
+            temperatures = pedestal_temperatures(split, p_ped, ne_ped, ni_ped)
+            actor.ti_split = pedestal_ti_split_result(split, temperatures, sol.history)
         end
     end
 
-    # blend core_profiles core
-    cp1d.electrons.temperature = IMAS.blend_core_edge_Hmode(cp1d.electrons.temperature, rho, t_e, w_ped, par.rho_nml, par.rho_ped)
-    ti_avg_new = IMAS.blend_core_edge_Hmode(cp1d.t_i_average, rho, t_i_average, w_ped, par.rho_nml, par.rho_ped)
-    for ion in cp1d.ion
-        if !ismissing(ion, :temperature)
-            ion.temperature = ti_avg_new
-        end
+    apply_pedestal!(temperatures.Te_ped, temperatures.Ti_ped)
+    if par.Ti_ped_self_consistent && par.Ti_ped_model ∈ (:heat_flux, :fingerprint)
+        # leave the exchange source consistent with the final profiles
+        IMAS.collisional_exchange_source!(dd)
     end
 
     return actor

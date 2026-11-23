@@ -10,6 +10,27 @@ import EPEDNN
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     Ti_sep::Entry{T} = Entry{T}("eV", "Separatrix ion temperature (if not set, Ti_sep = Te_sep * Ti/Te from `T_ratio_pedestal`)"; check=x -> @assert x > 0 "Ti_sep must be > 0")
+    Ti_ped_model::Switch{Symbol} = Switch{Symbol}(
+        [:ratio, :increment, :heat_flux, :fingerprint],
+        "-",
+        "Split of the pedestal pressure between Te_ped and Ti_ped: `:ratio` Ti_ped = r Te_ped; `:increment` Ti_ped-Ti_sep = r (Te_ped-Te_sep) (r from `T_ratio_pedestal`); " *
+        "`:heat_flux` pedestal power balance with χi/χe = `chi_i_over_chi_e`; `:fingerprint` pedestal power balance with χi = χi_neo + f χe (f from `fingerprint_mode`)";
+        default=:ratio)
+    fingerprint_mode::Switch{Symbol} = Switch{Symbol}(
+        [:MHD, :MTM, :ETG, :ITG_TEM, :custom],
+        "-",
+        "Dominant pedestal transport mode for `Ti_ped_model=:fingerprint`, setting the turbulent χi/χe (MHD-like=1, MTM=ETG=0.1, ITG/TEM=2, `:custom`=`chi_i_over_chi_e`)";
+        default=:MHD)
+    chi_i_over_chi_e::Entry{T} = Entry{T}(
+        "-",
+        "Pedestal χi/χe for `Ti_ped_model=:heat_flux`, and turbulent χi/χe for `Ti_ped_model=:fingerprint` with `fingerprint_mode=:custom`";
+        default=1.0,
+        check=x -> @assert x >= 0.0 "chi_i_over_chi_e must be >= 0")
+    chi_i_neo_model::Switch{Symbol} = Switch{Symbol}([:changhinton, :none], "-", "Neoclassical ion χ added to the turbulent one for `Ti_ped_model=:fingerprint`"; default=:changhinton)
+    Ti_ped_self_consistent::Entry{Bool} = Entry{Bool}(
+        "-",
+        "For `Ti_ped_model=:heat_flux|:fingerprint` with EPED-like models: solve (bracketed bisection) for the Ti_ped that is consistent with the collisional exchange source and χi_neo recomputed on the resulting profiles. Note that the core profiles are shifted with the pedestal and do not otherwise respond";
+        default=false)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -28,6 +49,7 @@ mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
+    ti_split::Union{Nothing,NamedTuple} # pedestal Te/Ti split (see `Ti_ped_model`)
 end
 
 """
@@ -59,7 +81,7 @@ end
 function ActorAnalyticPedestal(dd::IMAS.DD, par::FUSEparameters__ActorAnalyticPedestal; kw...)
     logging_actor_init(ActorAnalyticPedestal)
     par = OverrideParameters(par; kw...)
-    return ActorAnalyticPedestal(dd, par, EPEDNN.InputEPED(), missing, missing)
+    return ActorAnalyticPedestal(dd, par, EPEDNN.InputEPED(), missing, missing, nothing)
 end
 
 # Step function
