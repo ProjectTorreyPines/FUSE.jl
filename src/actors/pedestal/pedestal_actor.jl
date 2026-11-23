@@ -9,6 +9,27 @@
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     Ti_sep::Entry{T} = Entry{T}("eV", "Separatrix ion temperature (if not set, Ti_sep = Te_sep * Ti/Te from `T_ratio_pedestal`)"; check=x -> @assert x > 0 "Ti_sep must be > 0")
+    Ti_ped_model::Switch{Symbol} = Switch{Symbol}(
+        [:ratio, :increment, :heat_flux, :fingerprint],
+        "-",
+        "Split of the pedestal pressure between Te_ped and Ti_ped: `:ratio` Ti_ped = r Te_ped; `:increment` Ti_ped-Ti_sep = r (Te_ped-Te_sep) (r from `T_ratio_pedestal`); " *
+        "`:heat_flux` pedestal power balance with χi/χe = `chi_i_over_chi_e`; `:fingerprint` pedestal power balance with χi = χi_neo + f χe (f from `fingerprint_mode`)";
+        default=:ratio)
+    fingerprint_mode::Switch{Symbol} = Switch{Symbol}(
+        [:MHD, :MTM, :ETG, :ITG_TEM, :custom],
+        "-",
+        "Dominant pedestal transport mode for `Ti_ped_model=:fingerprint`, setting the turbulent χi/χe (MHD-like=1, MTM=ETG=0.1, ITG/TEM=2, `:custom`=`chi_i_over_chi_e`)";
+        default=:MHD)
+    chi_i_over_chi_e::Entry{T} = Entry{T}(
+        "-",
+        "Pedestal χi/χe for `Ti_ped_model=:heat_flux`, and turbulent χi/χe for `Ti_ped_model=:fingerprint` with `fingerprint_mode=:custom`";
+        default=1.0,
+        check=x -> @assert x >= 0.0 "chi_i_over_chi_e must be >= 0")
+    chi_i_neo_model::Switch{Symbol} = Switch{Symbol}([:changhinton, :none], "-", "Neoclassical ion χ added to the turbulent one for `Ti_ped_model=:fingerprint`"; default=:changhinton)
+    Ti_ped_self_consistent::Entry{Bool} = Entry{Bool}(
+        "-",
+        "For `Ti_ped_model=:heat_flux|:fingerprint` with EPED-like models: solve (bracketed bisection) for the Ti_ped that is consistent with the collisional exchange source and χi_neo recomputed on the resulting profiles. Note that the core profiles are shifted with the pedestal and do not otherwise respond";
+        default=false)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -91,6 +112,21 @@ Mode transition physics:
 - Smooth temporal evolution using tanh functions with configurable time scales
 - Separate evolution times for temperature and density transitions
 - Configurable density and Zeff ratios between L-mode and H-mode
+
+Split of the pedestal pressure between electrons and ions (`Ti_ped_model`, for `:EPED`, `:WPED`, `:analytic`, `:dynamic`):
+- `:ratio` (default): Ti_ped = r Te_ped, with r from `T_ratio_pedestal`
+- `:increment`: Ti_ped - Ti_sep = r (Te_ped - Te_sep), so a separatrix Ti ≠ Te (e.g. from ActorSOLWidth) carries to the pedestal top
+- `:heat_flux`: pedestal power balance ΔT = Q Δr / (e n χ S) for each channel, with the power crossing the pedestal
+  top from `dd.core_sources` and χi/χe = `chi_i_over_chi_e`
+- `:fingerprint`: as `:heat_flux` but with χi = χi_neo + f χe, where χi_neo is Chang-Hinton (`chi_i_neo_model`) and
+  f is the turbulent χi/χe of the dominant pedestal mode (`fingerprint_mode`, see `FUSE.PEDESTAL_FINGERPRINTS`)
+
+For EPED-like models χe is the value that makes the temperature increments match the predicted pedestal pressure;
+for WPED it follows from the optimized Te_ped. By default the power crossing the pedestal and χi_neo are those of the
+profiles before the pedestal update: with `Ti_ped_self_consistent=true` (EPED-like models only) Ti_ped is solved for
+by bisection so that it is consistent with the collisional exchange source and χi_neo recomputed on the resulting profiles
+(the trial Ti_ped of each evaluation is in `ti_split.Ti_ped_history`). The result (Te_ped, Ti_ped, χe, χi, inferred De/χe vs fingerprint, ...)
+is stored in `actor.ped_actor.ti_split`.
 """
 function ActorPedestal(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPedestal(dd, act.ActorPedestal, act; kw...)
@@ -118,9 +154,11 @@ function ActorPedestal(dd::IMAS.DD{D}, par::FUSEparameters__ActorPedestal{P}, ac
     end
 
     eped_actor =
-        ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
+        ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles,
+            par.Ti_ped_model, par.fingerprint_mode, par.chi_i_over_chi_e, par.chi_i_neo_model, par.Ti_ped_self_consistent)
     wped_actor =
-        ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
+        ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles,
+            par.Ti_ped_model, par.fingerprint_mode, par.chi_i_over_chi_e, par.chi_i_neo_model, par.Ti_ped_self_consistent)
     analytic_actor =
         ActorAnalyticPedestal(
             dd,
@@ -132,7 +170,12 @@ function ActorPedestal(dd::IMAS.DD{D}, par::FUSEparameters__ActorPedestal{P}, ac
             par.ip_from,
             par.βn_from,
             ne_from=:core_profiles,
-            zeff_from=:core_profiles
+            zeff_from=:core_profiles,
+            par.Ti_ped_model,
+            par.fingerprint_mode,
+            par.chi_i_over_chi_e,
+            par.chi_i_neo_model,
+            par.Ti_ped_self_consistent
         )
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}(), nothing, nothing)
@@ -1019,9 +1062,10 @@ end
 """
     sync_separatrix!(actor::ActorPedestal)
 
-Pushes `Te_sep` and `Ti_sep` of ActorPedestal down to its sub-pedestal actors,
-so that changes to `actor.par.Te_sep` / `actor.par.Ti_sep` made after construction
-(e.g. by a SOL model coupled in ActorStationaryPlasma) are honored at the next step
+Pushes `Te_sep` and `Ti_sep` (and the parameters of the pedestal Te/Ti split: `Ti_ped_model`, `fingerprint_mode`,
+`chi_i_over_chi_e`, `chi_i_neo_model`, `Ti_ped_self_consistent`) of ActorPedestal down to its sub-pedestal actors,
+so that changes to `actor.par` made after construction (e.g. `Te_sep` / `Ti_sep` set by a
+SOL model coupled in ActorStationaryPlasma) are honored at the next step
 """
 function sync_separatrix!(actor::ActorPedestal)
     par = actor.par
@@ -1029,6 +1073,11 @@ function sync_separatrix!(actor::ActorPedestal)
     for sub_actor in (actor.eped_actor, actor.wped_actor, actor.analytic_actor)
         sub_actor.par.Te_sep = par.Te_sep
         sub_actor.par.Ti_sep = Ti_sep
+        sub_actor.par.Ti_ped_model = par.Ti_ped_model
+        sub_actor.par.fingerprint_mode = par.fingerprint_mode
+        sub_actor.par.chi_i_over_chi_e = par.chi_i_over_chi_e
+        sub_actor.par.chi_i_neo_model = par.chi_i_neo_model
+        sub_actor.par.Ti_ped_self_consistent = par.Ti_ped_self_consistent
     end
     return actor
 end

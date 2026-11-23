@@ -46,8 +46,10 @@ Requires `using PythonCall` (which loads the FUSE `PythonCallExt` extension) wit
 
     By default only `Te_sep` is fed back, and the pedestal sets `Ti_sep = Te_sep * Ti/Te` from
     `act.ActorPedestal.T_ratio_pedestal`. Set `act.ActorStationaryPlasma.couple_sol_ti = true` to also use the
-    solwidth `Ti_sep` as the pedestal separatrix Ti (separatrix point only; the pedestal Ti height still follows
-    `T_ratio_pedestal`). Note that HD and SSF assume Ti=2Te; HD2T, SSF2T and SSF2TFLUX solve for `Ti_sep`.
+    solwidth `Ti_sep` as the pedestal separatrix Ti (with the default `act.ActorPedestal.Ti_ped_model=:ratio`
+    this is the separatrix point only, the pedestal Ti height still follows `T_ratio_pedestal`). Note that HD and SSF assume Ti=2Te; HD2T, SSF2T and SSF2TFLUX solve for `Ti_sep`.
+    To also let the pedestal-top Ti differ from Te, set `act.ActorPedestal.Ti_ped_model` to `:increment`,
+    `:heat_flux` or `:fingerprint` (see ActorPedestal).
 """
 function ActorSOLWidth(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOLWidth(dd, act.ActorSOLWidth; kw...)
