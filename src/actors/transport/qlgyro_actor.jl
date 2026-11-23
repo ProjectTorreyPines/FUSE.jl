@@ -127,7 +127,8 @@ function _finalize(actor::ActorQLGYRO)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    # QLGYRO momentum flux follows TGLF: along the plasma current
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d; momentum_convention=:tglf)
 
     return actor
 end

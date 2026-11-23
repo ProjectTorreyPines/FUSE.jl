@@ -141,7 +141,8 @@ function _finalize(actor::ActorNeoclassical)
 
     elseif par.model == :neo
         model.identifier.name = "NEO"
-        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+        # NEO momentum flux is along the GACODE (clockwise) toroidal angle
+        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d; momentum_convention=:neo)
 
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"

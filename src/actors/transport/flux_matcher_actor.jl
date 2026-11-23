@@ -2254,7 +2254,7 @@ function ad_flux_match_errors!(
     turb_m1d = resize!(turb_model.profiles_1d)
     turb_m1d.time = dd_ad.global_time
     turb_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
-    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), flux_solutions, turb_m1d, eqt_ad, cp1d_ad)
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), flux_solutions, turb_m1d, eqt_ad, cp1d_ad; momentum_convention=:tglf)
 
     # Neoclassical transport
     actor_neoc = actor.actor_ct.actor_neoc
