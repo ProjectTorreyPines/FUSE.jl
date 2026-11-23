@@ -806,7 +806,13 @@ function plot_plasma_overview(dd::IMAS.DD, time0::Float64=dd.global_time;
                 end
             end
         end
-        plot!(; title="Toroidal Rotation [Krad/s]", xlabel="", ylabel="", label="")
+        if rotation_quantity == :sonic
+            # rotation_frequency_tor_sonic is the ExB frequency ω_E = -dΦ/dψ, not a species toroidal rotation
+            rotation_title = "ExB Rotation ω_E [Krad/s]"
+        else
+            rotation_title = "$(isempty(cp1d.ion) ? "Ion" : cp1d.ion[1].label) Toroidal Rotation [Krad/s]"
+        end
+        plot!(; title=rotation_title, xlabel="", ylabel="", label="")
 
         # ========
 
