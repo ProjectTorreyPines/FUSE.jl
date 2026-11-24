@@ -89,8 +89,9 @@ end
     assert_tequila_shot_valid(shot::TEQUILA.Shot)
 
 Fail fast on an invalid TEQUILA solution: an unconverged solve can return
-without throwing (e.g. the VEQ inner Newton warns and proceeds when its
-residual stalls, as long as the surfaces remain nested) yet carry an invalid ψ.
+without throwing (e.g. with TEQUILA versions whose VEQ inner Newton only warns
+when its residual stalls, as long as the surfaces remain nested) yet carry an
+invalid ψ.
 Such an equilibrium only blows up much later — flux-surface tracing of the bad
 ψ map yields degenerate surfaces that fail in unrelated downstream physics
 (e.g. Sauter bootstrap) — so validate here, where the failure can still be
@@ -260,23 +261,42 @@ function _step(actor::ActorTEQUILA)
             # stalls at |r| ~ 1e-2 and the solution is invalid)
             psin_count = 13
             Nr = max(24, 2 * psin_count)
-            veq_error = nothing
-            try
-                actor.shot = TEQUILA.veq_solve!(actor.shot;
+            veq_solve_valid = shot -> begin
+                shot = TEQUILA.veq_solve!(shot;
                     h_count=5, v_count=5, kappa_count=8, c0_count=5, psin_count,
                     c_counts=harmonic_counts, s_counts=harmonic_counts,
                     Nr, Nt=32, outer_tol=par.tolerance, par.debug)
-                assert_tequila_shot_valid(actor.shot)
+                assert_tequila_shot_valid(shot)
+                shot
+            end
+            warm_start = !concentric_first # the shot reuses the previous solution
+            veq_error = nothing
+            try
+                actor.shot = veq_solve_valid(actor.shot)
             catch e
                 isa(e, InterruptException) && rethrow(e)
-                # the Picard fallback cannot carry derivatives
-                rethrow_if_dual(D, e)
+                # from a fresh shot the next fallback is Picard, which cannot carry derivatives
+                warm_start || rethrow_if_dual(D, e)
                 veq_error = e
             end
-            if veq_error !== nothing
+            if veq_error !== nothing && warm_start
                 # The VEQ Newton occasionally stalls on marginal inputs (a warm-started
-                # shot whose profiles moved a lot between iterations); fall back to the
-                # Picard solver from a fresh boundary shot rather than failing the run.
+                # shot whose profiles moved a lot between iterations), while the same
+                # solve from a fresh boundary shot converges. Retry VEQ cold first: unlike
+                # the Picard fallback it also carries derivatives of a Dual-typed dd.
+                @warn "ActorTEQUILA :veq solve from the previous shot failed; retrying :veq from a fresh boundary shot" veq_error
+                try
+                    actor.shot = veq_solve_valid(fresh_boundary_shot())
+                    veq_error = nothing
+                catch e
+                    isa(e, InterruptException) && rethrow(e)
+                    # the Picard fallback cannot carry derivatives
+                    rethrow_if_dual(D, e)
+                    veq_error = e
+                end
+            end
+            if veq_error !== nothing
+                # fall back to the Picard solver from a fresh boundary shot rather than failing the run
                 @warn "ActorTEQUILA :veq solve failed; retrying with the :picard solver from a fresh boundary shot" veq_error
                 actor.shot = fresh_boundary_shot()
                 actor.shot = TEQUILA.solve(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first=true)
