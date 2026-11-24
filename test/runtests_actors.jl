@@ -20,6 +20,40 @@ using Test
     FUSE.ActorFluxMatcher(dd, act)
 end
 
+@testset "neoclassical yanccnn" begin
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+
+    act.ActorNeoclassical.model = :yanccnn
+    actor = FUSE.ActorNeoclassical(dd, act)
+    model = dd.core_transport.model[:neoclassical]
+    @test model.identifier.name == "Yancc-NN"
+    m1d = model.profiles_1d[]
+    nrho = length(actor.par.rho_transport)
+    @test length(m1d.electrons.energy.flux) == nrho
+    @test all(isfinite, m1d.electrons.energy.flux)
+    @test all(isfinite, m1d.total_ion_energy.flux)
+    @test all(isfinite, m1d.electrons.particles.flux)
+    @test all(isfinite, m1d.momentum_tor.flux)
+    # one particle flux per ion
+    cp1d = dd.core_profiles.profiles_1d[]
+    @test length(m1d.ion) == length(cp1d.ion)
+    @test all(length(sol.PARTICLE_FLUX_i) == length(cp1d.ion) for sol in actor.flux_solutions)
+
+    # flux matching with both Jacobian methods
+    act.ActorTGLF.model = :TGLFNN
+    act.ActorFluxMatcher.max_iterations = 2
+    act.ActorFluxMatcher.evolve_pedestal = false
+    for (algorithm, jacobian_method) in ((:simple_dfsane, :finite_diff), (:simple_trust, :forward_ad))
+        dd1 = deepcopy(dd)
+        act.ActorFluxMatcher.algorithm = algorithm
+        act.ActorFluxMatcher.jacobian_method = jacobian_method
+        FUSE.ActorFluxMatcher(dd1, act)
+        @test dd1.core_transport.model[:neoclassical].identifier.name == "Yancc-NN"
+    end
+end
+
 @testset "Mars Actor CHEASE run" begin
     ini, act = FUSE.case_parameters(:D3D, :default)
     dd = IMAS.dd()
