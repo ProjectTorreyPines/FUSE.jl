@@ -19,7 +19,9 @@ else
     include("runtests_basics.jl")
 
     include("runtests_dynamic_plasma_replay_first.jl")
+    include("runtests_simplenb_energy_components.jl")
     include("runtests_sawteeth_flatten_bootstrap.jl")
+    include("runtests_qed_sawtooth_crash.jl")
     include("runtests_simplenb_axis_regularization.jl")
     include("runtests_simplenb_power_fractions.jl")
 
