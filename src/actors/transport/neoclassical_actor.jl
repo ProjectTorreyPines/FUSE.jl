@@ -5,12 +5,14 @@ import GACODE
 #  ActorNeoclassical  #
 #= ================= =#
 @actor_parameters_struct ActorNeoclassical{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar, :yancc], "-", "Neoclassical model to run"; default=:hirshmansigmar)
+    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar, :yancc, :yanccnn], "-", "Neoclassical model to run"; default=:hirshmansigmar)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
     yancc_nx::Entry{Int} = Entry{Int}("-", "Number of speed grid points of the :yancc model"; default=6)
     yancc_nalpha::Entry{Int} = Entry{Int}("-", "Number of pitch angle grid points of the :yancc model"; default=65)
     yancc_ntheta::Entry{Int} = Entry{Int}("-", "Number of poloidal grid points of the :yancc model"; default=41)
     yancc_rtol::Entry{Float64} = Entry{Float64}("-", "Tolerance of the iterative solve of the :yancc model"; default=1e-8)
+    yanccnn_model::Entry{String} = Entry{String}("-", "Name of the flux surrogate of the :yanccnn model (see NeoclassicalTransport.yanccnn_models())"; default="yanccnn_mastu+nstx_flux")
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn when the inputs of the :yanccnn model are outside the range of its training set"; default=false)
 end
 
 mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
@@ -37,6 +39,8 @@ Supported neoclassical models:
 - `:yancc`: Drift-kinetic equation with the linearized Fokker-Planck collision operator solved by
   Yancc.jl, the Julia port of yancc (R. Conlin and M. Landreman, Plasma Phys. Control. Fusion 68
   (2026) 115001), providing electron/ion energy and particle fluxes
+- `:yanccnn`: Neural-network surrogate of the drift-kinetic solution, providing electron/ion energy,
+  particle, and momentum fluxes within the range of its training set
 
 The models account for collisional effects, magnetic geometry, and trapped particle physics
 to calculate transport coefficients. Results are stored in `dd.core_transport.model[:neoclassical]`
@@ -66,6 +70,7 @@ For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytic
 with local plasma parameters, providing comprehensive neoclassical transport coefficients.
 For Yancc: Uses cached Miller flux surfaces and solves the drift-kinetic equation at each grid point,
 starting from the solution and the preconditioner of the previous step.
+For Yancc-NN: Creates InputNEO structures and evaluates the surrogate at each grid point.
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
@@ -108,9 +113,34 @@ function _step(actor::ActorNeoclassical)
                 geometry.a, nx=par.yancc_nx, nalpha=par.yancc_nalpha, rtol=par.yancc_rtol, cache=actor.yancc_caches[k], rho_s, rmin)
         end
         actor.flux_solutions = flux_solutions
+
+    elseif par.model == :yanccnn
+        gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
+        actor.input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for i in gridpoint_cps]
+        actor.flux_solutions = yanccnn_flux_solutions(actor.input_neos, cp1d, gridpoint_cps; model=par.yanccnn_model, par.warn_nn_train_bounds)
     end
 
     return actor
+end
+
+"""
+    yanccnn_flux_solutions(input_neos::AbstractVector{<:NeoclassicalTransport.InputNEO}, cp1d::IMAS.core_profiles__profiles_1d, gridpoint_cps::AbstractVector{Int}; model::String, warn_nn_train_bounds::Bool)
+
+Yancc-NN fluxes at every radius (one batched evaluation of the surrogate) with one particle flux for each ion
+of `cp1d`. The surrogate has a bulk ion and one lumped impurity: the bulk flux is shared among the hydrogenic
+ions and the impurity flux among the impurities, both in proportion to the thermal densities (which keeps the
+charge flux of the lumped species).
+"""
+function yanccnn_flux_solutions(input_neos::AbstractVector{<:NeoclassicalTransport.InputNEO}, cp1d::IMAS.core_profiles__profiles_1d, gridpoint_cps::AbstractVector{Int}; model::String, warn_nn_train_bounds::Bool)
+    sols = NeoclassicalTransport.run_yanccnn(input_neos; model, warn_nn_train_bounds)
+    hydrogenic = [ion.element[1].z_n == 1.0 for ion in cp1d.ion]
+    return map(sols, gridpoint_cps) do sol, gridpoint_cp
+        dens = [ion.density_thermal[gridpoint_cp] for ion in cp1d.ion]
+        n_bulk = sum(dens[hydrogenic])
+        n_imp = sum(dens[.!hydrogenic])
+        ion_particle_flux = [hydrogenic[k] ? sol.PARTICLE_FLUX_i[1] * dens[k] / n_bulk : sol.PARTICLE_FLUX_i[2] * dens[k] / n_imp for k in eachindex(dens)]
+        GACODE.FluxSolution(sol.ENERGY_FLUX_e, sol.ENERGY_FLUX_i, sol.PARTICLE_FLUX_e, ion_particle_flux, sol.STRESS_TOR_i)
+    end
 end
 
 """
@@ -118,9 +148,9 @@ end
 
 Writes neoclassical transport fluxes to `dd.core_transport.model[:neoclassical]`.
 
-Sets the model identifier based on the selected model (Chang-Hinton, NEO, Hirshman-Sigmar or Yancc)
+Sets the model identifier based on the selected model (Chang-Hinton, NEO, Hirshman-Sigmar, Yancc or Yancc-NN)
 and converts flux results from GACODE format to IMAS format. The number and type of fluxes 
-written depend on the model: Chang-Hinton provides only ion energy flux, NEO provides
+written depend on the model: Chang-Hinton provides only ion energy flux, NEO and Yancc-NN provide
 electron/ion energy, particle, and momentum fluxes, Hirshman-Sigmar and Yancc provide
 electron/ion energy and particle fluxes.
 """
@@ -150,6 +180,10 @@ function _finalize(actor::ActorNeoclassical)
     elseif par.model == :yancc
         model.identifier.name = "Yancc"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
+
+    elseif par.model == :yanccnn
+        model.identifier.name = "Yancc-NN"
+        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
     end
 
     return actor

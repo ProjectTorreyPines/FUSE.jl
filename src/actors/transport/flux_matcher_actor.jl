@@ -2170,6 +2170,9 @@ function ad_flux_match_errors!(
                     geometry.a, nx=neoc_par.yancc_nx, nalpha=neoc_par.yancc_nalpha, rtol=neoc_par.yancc_rtol,
                     cache=actor_neoc.yancc_caches[k], rho_s, rmin)
             end
+        elseif neoc_par.model == :yanccnn
+            neoc_flux_solutions = yanccnn_flux_solutions([NeoclassicalTransport.InputNEO(eqt_ad, cp1d_ad, i) for i in cp_gridpoints], cp1d_ad, cp_gridpoints;
+                model=neoc_par.yanccnn_model, neoc_par.warn_nn_train_bounds)
         else
             error("jacobian_method=:forward_ad does not support neoclassical model :$(neoc_par.model)")
         end
@@ -2182,6 +2185,8 @@ function ad_flux_match_errors!(
         neoc_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
         if neoc_par.model == :changhinton
             GACODE.flux_gacode_to_imas((:ion_energy_flux,), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
+        elseif neoc_par.model == :yanccnn
+            GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
         else
             GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
         end
