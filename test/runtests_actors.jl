@@ -231,6 +231,34 @@ end
     @test_throws AssertionError FUSE.ActorEquilibrium(dd, act; vacuum_ip_threshold=1e6)
 end
 
+@testset "ActorFRESCO holds the flux level across calls" begin
+    ini, act = FUSE.case_parameters(:D3D, :default)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    act.ActorEquilibrium.model = :FRESCO
+    act.ActorFRESCO.nR = 65
+    act.ActorFRESCO.nZ = 65
+    actor = FUSE.ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+
+    # the first call takes the level from the psi_boundary it is handed (after ActorEquilibrium's prepare)
+    FUSE.finalize(FUSE.step(actor))
+    held = actor.eq_actor.ψbound
+    @test held !== nothing && isfinite(held)
+
+    # the coil fit leaves psi_boundary off its target, and the grids hand that level to the next call
+    # (ActorStationaryPlasma and ActorDynamicPlasma refresh them between equilibrium calls)
+    psib_out = dd.equilibrium.time_slice[].global_quantities.psi_boundary
+    @test !isapprox(psib_out, held; rtol=1e-6)
+    FUSE.latest_equilibrium_grids!(dd)
+    @test dd.core_profiles.profiles_1d[].grid.psi[end] ≈ psib_out
+
+    # the next call of the same actor still targets the held level, not the one the previous call left
+    FUSE.finalize(FUSE.step(actor))
+    @test actor.eq_actor.ψbound == held
+    targets = [cp.target for cp in actor.eq_actor.canvas.flux_cps]
+    @test !isempty(targets) && all(==(held), targets)
+end
+
 @testset "ActorCoreRadHeatFlux" begin
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
     dd = IMAS.dd()
