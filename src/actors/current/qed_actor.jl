@@ -24,6 +24,7 @@ mutable struct ActorQED{D,P} <: CompoundAbstractActor{D,P}
     ip_controller::ActorControllerIp{D,P}
     QO::Union{Nothing,QED.QED_state}
     saw_radius::Float64 # mixing radius at the end of the last step (crash_period > 0)
+    QO_init::Union{Nothing,QED.QED_state} # if set, the state the next step starts from (instead of initializing from dd)
 end
 
 """
@@ -71,8 +72,11 @@ function ActorQED(dd::IMAS.DD, par::FUSEparameters__ActorQED, act::ParametersAll
     logging_actor_init(ActorQED)
     par = OverrideParameters(par; kw...)
     ip_controller = ActorControllerIp(dd, act.ActorControllerIp)
-    return ActorQED(dd, par, act, ip_controller, nothing, 0.0)
+    return ActorQED(dd, par, act, ip_controller, nothing, 0.0, nothing)
 end
+
+""" QED state initialized from `dd` (equilibrium metrics, j_tor, Ip) as each `ActorQED` step starts from it """
+qed_initial_state(actor::ActorQED) = QED.initialize(actor.dd, actor.par.qmin_desired; uniform_rho=501)
 
 """
     _step(actor::ActorQED)
@@ -114,7 +118,7 @@ function _step(actor::ActorQED)
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
-    actor.QO = QED.initialize(dd, par.qmin_desired; uniform_rho=501)
+    actor.QO = actor.QO_init === nothing ? qed_initial_state(actor) : deepcopy(actor.QO_init)
     actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, j_non_inductive .* B0)
 
     rho_qdes = 0.0
