@@ -45,14 +45,17 @@ end
     ZMQ.connect(sub, "tcp://127.0.0.1:" * split(asked[1], ":")[end])
     sleep(0.5)  # a PUB drops what it sends before the subscription reaches it
 
-    # the dd lacks most listed fields: nothing is sent, and the warning names the first
+    # the dd has one of the listed fields: the slice holds that one, the rest are left out,
+    # and the run logs them once, naming them
     logger = Test.TestLogger()
     with_logger(() -> FUSE.publish!(actor), logger)
-    err = sprint(showerror, only(logger.logs).kwargs[:exception])
-    @test occursin("build.layer[:].outline.r is listed in zmq_publish_fields.yaml", err)
+    @test occursin("build.layer[:].outline.r", only(logger.logs).message)
 
-    actor.fields = [IMAS.i2p("equilibrium.time_slice[:].global_quantities.ip")]
-    FUSE.publish!(actor)
+    # once per run: a second slice adds no record
+    logger = Test.TestLogger()
+    with_logger(() -> FUSE.publish!(actor), logger)
+    @test isempty(logger.logs)
+
     FUSE.disconnect!(actor)
 
     slice = deserialize(IOBuffer(ZMQ.recv(sub)))
@@ -60,6 +63,8 @@ end
     @test slice.equilibrium.time_slice[1].time == 1.0
     @test slice.equilibrium.time_slice[1].global_quantities.ip == 1.0e6
     @test ismissing(slice.equilibrium.time_slice[1].global_quantities, :psi_axis)
+    @test isempty(slice.build.layer)  # listed, but the dd has no build
+    ZMQ.recv(sub)  # the second slice
     @test isempty(ZMQ.recv(sub))  # the end of the run
     wait(served)
     @test asked[2] == "DEREGISTER|FUSE_CENTER"
