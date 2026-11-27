@@ -1,0 +1,168 @@
+# The dd fields ActorZMQPublish sends: each slice is cut down to these with
+#
+#   slice = IMAS.dd()
+#   for path in YAML.load_file("zmq_publish_fields.yaml")["sim"]
+#       IMAS.selective_copy!(dd, slice, IMAS.i2p(path), t)
+#   end
+#
+# selective_copy! also slices each field at t and sets slice.global_time.
+# Every field must have data: publish! asserts it and skips a slice that lacks one.
+# Fields FUSE holds as expressions (t_i_average, j_ohmic, grid.area, ...) are
+# evaluated here and sent as data, so their inputs are not listed.
+#
+# A copy of DT_GUIs/FUSEGUI/dd_fields.yaml, the fields FUSEGUI reads, which
+# FUSEGUI's test/dd_fields.jl generates; copy it again when that one changes.
+# The digital twin's Omniverse surfaces (DT_models/FuseCenter/surfaces.jl) read
+# only fields this list has too.
+sim:
+  # build
+  - build.layer[:].outline.r
+  - build.layer[:].outline.z
+
+  # controllers
+  - controllers.linear_controller[:].name
+  - controllers.linear_controller[:].outputs.data
+  - controllers.linear_controller[:].outputs.time
+
+  # core_profiles
+  - core_profiles.global_quantities.ip
+  - core_profiles.profiles_1d[:].conductivity_parallel
+  - core_profiles.profiles_1d[:].electrons.density_thermal
+  - core_profiles.profiles_1d[:].electrons.temperature
+  - core_profiles.profiles_1d[:].grid.area
+  - core_profiles.profiles_1d[:].grid.rho_tor_norm
+  - core_profiles.profiles_1d[:].grid.surface
+  - core_profiles.profiles_1d[:].grid.volume
+  - core_profiles.profiles_1d[:].ion[:].density
+  - core_profiles.profiles_1d[:].ion[:].element[:].a
+  - core_profiles.profiles_1d[:].ion[:].element[:].z_n
+  - core_profiles.profiles_1d[:].ion[:].label
+  - core_profiles.profiles_1d[:].j_ohmic
+  - core_profiles.profiles_1d[:].rotation_frequency_tor_sonic
+  - core_profiles.profiles_1d[:].t_i_average
+  - core_profiles.profiles_1d[:].time
+  - core_profiles.time
+
+  # core_sources
+  - core_sources.source[:].identifier.index
+  - core_sources.source[:].identifier.name
+  - core_sources.source[:].profiles_1d[:].current_parallel_inside
+  - core_sources.source[:].profiles_1d[:].electrons.energy
+  - core_sources.source[:].profiles_1d[:].electrons.particles
+  - core_sources.source[:].profiles_1d[:].electrons.particles_inside
+  - core_sources.source[:].profiles_1d[:].electrons.power_inside
+  - core_sources.source[:].profiles_1d[:].grid.rho_tor_norm
+  - core_sources.source[:].profiles_1d[:].j_parallel
+  - core_sources.source[:].profiles_1d[:].momentum_tor
+  - core_sources.source[:].profiles_1d[:].time
+  - core_sources.source[:].profiles_1d[:].torque_tor_inside
+  - core_sources.source[:].profiles_1d[:].total_ion_energy
+  - core_sources.source[:].profiles_1d[:].total_ion_power_inside
+
+  # core_transport
+  - core_transport.model[:].identifier.index
+  - core_transport.model[:].identifier.name
+  - core_transport.model[:].profiles_1d[:].electrons.energy.flux
+  - core_transport.model[:].profiles_1d[:].electrons.particles.flux
+  - core_transport.model[:].profiles_1d[:].grid_flux.rho_tor_norm
+  - core_transport.model[:].profiles_1d[:].ion[:].element[:].a
+  - core_transport.model[:].profiles_1d[:].ion[:].element[:].z_n
+  - core_transport.model[:].profiles_1d[:].ion[:].label
+  - core_transport.model[:].profiles_1d[:].momentum_tor.flux
+  - core_transport.model[:].profiles_1d[:].time
+  - core_transport.model[:].profiles_1d[:].total_ion_energy.flux
+
+  # ec_launchers
+  - ec_launchers.beam[:].power_launched.data
+  - ec_launchers.beam[:].power_launched.time
+
+  # equilibrium
+  - equilibrium.time_slice[:].boundary.outline.r
+  - equilibrium.time_slice[:].boundary.outline.z
+  - equilibrium.time_slice[:].boundary.x_point[:].r
+  - equilibrium.time_slice[:].boundary.x_point[:].z
+  - equilibrium.time_slice[:].global_quantities.beta_normal
+  - equilibrium.time_slice[:].global_quantities.beta_pol
+  - equilibrium.time_slice[:].global_quantities.ip
+  - equilibrium.time_slice[:].global_quantities.li_1
+  - equilibrium.time_slice[:].global_quantities.magnetic_axis.r
+  - equilibrium.time_slice[:].global_quantities.magnetic_axis.z
+  - equilibrium.time_slice[:].global_quantities.q_95
+  - equilibrium.time_slice[:].global_quantities.vacuum_toroidal_field.b0
+  - equilibrium.time_slice[:].global_quantities.vacuum_toroidal_field.r0
+  - equilibrium.time_slice[:].profiles_1d.f
+  - equilibrium.time_slice[:].profiles_1d.gm1
+  - equilibrium.time_slice[:].profiles_1d.phi
+  - equilibrium.time_slice[:].profiles_1d.psi
+  - equilibrium.time_slice[:].profiles_1d.q
+  - equilibrium.time_slice[:].profiles_1d.rho_tor_norm
+  - equilibrium.time_slice[:].profiles_2d[:].grid.dim1
+  - equilibrium.time_slice[:].profiles_2d[:].grid.dim2
+  - equilibrium.time_slice[:].profiles_2d[:].grid_type.index
+  - equilibrium.time_slice[:].profiles_2d[:].phi
+  - equilibrium.time_slice[:].profiles_2d[:].psi
+  - equilibrium.time_slice[:].time
+
+  # ic_antennas
+  - ic_antennas.antenna[:].power_launched.data
+  - ic_antennas.antenna[:].power_launched.time
+
+  # interferometer
+  - interferometer.channel[:].line_of_sight.first_point.phi
+  - interferometer.channel[:].line_of_sight.first_point.r
+  - interferometer.channel[:].line_of_sight.first_point.z
+  - interferometer.channel[:].line_of_sight.second_point.phi
+  - interferometer.channel[:].line_of_sight.second_point.r
+  - interferometer.channel[:].line_of_sight.second_point.z
+  - interferometer.channel[:].line_of_sight.third_point.phi
+  - interferometer.channel[:].line_of_sight.third_point.r
+  - interferometer.channel[:].line_of_sight.third_point.z
+  - interferometer.channel[:].name
+
+  # lh_antennas
+  - lh_antennas.antenna[:].power_launched.data
+  - lh_antennas.antenna[:].power_launched.time
+
+  # nbi
+  - nbi.unit[:].power_launched.data
+  - nbi.unit[:].power_launched.time
+
+  # pf_active
+  - pf_active.coil[:].current.data
+  - pf_active.coil[:].current.time
+  - pf_active.coil[:].element[:].geometry.annulus.r
+  - pf_active.coil[:].element[:].geometry.annulus.radius_inner
+  - pf_active.coil[:].element[:].geometry.annulus.radius_outer
+  - pf_active.coil[:].element[:].geometry.annulus.z
+  - pf_active.coil[:].element[:].geometry.geometry_type
+  - pf_active.coil[:].element[:].geometry.outline.r
+  - pf_active.coil[:].element[:].geometry.outline.z
+  - pf_active.coil[:].element[:].geometry.rectangle.height
+  - pf_active.coil[:].element[:].geometry.rectangle.r
+  - pf_active.coil[:].element[:].geometry.rectangle.width
+  - pf_active.coil[:].element[:].geometry.rectangle.z
+  - pf_active.coil[:].element[:].turns_with_sign
+
+  # pulse_schedule
+  - pulse_schedule.flux_control.i_plasma.reference
+  - pulse_schedule.flux_control.time
+  - pulse_schedule.position_control.boundary_outline[:].r.reference
+  - pulse_schedule.position_control.boundary_outline[:].z.reference
+  - pulse_schedule.position_control.magnetic_axis.r.reference
+  - pulse_schedule.position_control.magnetic_axis.z.reference
+  - pulse_schedule.position_control.strike_point[:].r.reference
+  - pulse_schedule.position_control.strike_point[:].z.reference
+  - pulse_schedule.position_control.time
+  - pulse_schedule.position_control.x_point[:].r.reference
+  - pulse_schedule.position_control.x_point[:].z.reference
+
+  # wall
+  - wall.description_2d[:].limiter.type.index
+  - wall.description_2d[:].limiter.unit[:].outline.r
+  - wall.description_2d[:].limiter.unit[:].outline.z
+
+  # waves
+  - waves.coherent_wave[:].beam_tracing[:].beam[:].position.phi
+  - waves.coherent_wave[:].beam_tracing[:].beam[:].position.r
+  - waves.coherent_wave[:].beam_tracing[:].beam[:].position.z
+  - waves.coherent_wave[:].beam_tracing[:].time
