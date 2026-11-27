@@ -1,0 +1,18 @@
+This was all run with the v1.0.0 sysimage install of FUSE on perlmutter.
+
+First go interactive:
+  salloc --nodes 1 --qos interactive --time 4:00:00 --constraint cpu --account=mp94 --ntasks=1 --cpus-per-task=128
+
+Run:
+  module use /global/common/software/m3739/perlmutter/fuse/modules
+  module load fuse/v1.0.0.lua
+  srun --cpu-bind=none fuse run_hdb5.jl
+
+Plot (I copied the .csv files locally)
+  julia> using FUSE, Plots
+  julia> sty = FUSE.load_HDB5_validation("HDB5_validation_2026-03-10T16-29-56.csv");
+  julia> plot(sty)
+
+
+N.B.: Result can otherwise be reproduced by instantiating the Manifest.toml
+        included here in julia v1.11.7
