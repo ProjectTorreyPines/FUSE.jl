@@ -26,6 +26,7 @@ mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
     canvas::Union{Nothing,FRESCO.Canvas}
     profile::Union{Nothing,FRESCO.PressureJt}
     converged::Bool
+    ψbound::Union{Nothing,D}
 end
 
 """
@@ -69,7 +70,7 @@ end
 function ActorFRESCO(dd::IMAS.DD{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = OverrideParameters(par; kw...)
-    return ActorFRESCO(dd, par, act, nothing, nothing, true)
+    return ActorFRESCO(dd, par, act, nothing, nothing, true, nothing)
 end
 
 """
@@ -111,6 +112,20 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         act.ActorPFactive.boundary_weight,
         act.ActorPFactive.x_points_weight,
         act.ActorPFactive.strike_points_weight)
+    # The strike points' flux targets are the only constraint on the absolute flux level (the boundary's iso points
+    # and the x-points' saddle points are level-free). Hold that level at the one of the first call, as ActorTEQUILA
+    # holds its ψbound: targeting each call's incoming psi_boundary lets the coil fit's offset from its target add up
+    # when the same actor is called repeatedly (ActorStationaryPlasma, ActorDynamicPlasma), so the level, the coil
+    # currents and the shape drift from call to call and the loop has no fixed point.
+    ψin = eqt.global_quantities.psi_boundary
+    if actor.ψbound === nothing
+        actor.ψbound = ψin
+    end
+    for cp in eqt_control_points.flux_cps
+        if cp.target == ψin # the strike points (not, e.g., a flux target at the magnetic axis)
+            cp.target = actor.ψbound
+        end
+    end
     mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics;
         act.ActorPFactive.flux_loop_weight,
         act.ActorPFactive.magnetic_probe_weight)
